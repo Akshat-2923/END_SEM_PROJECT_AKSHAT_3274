@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-11-07
+### Added
+- Implemented Supabase Auth and FastAPI security layer in `src/auth.py`:
+  - `AuthenticatedUser`: Data structure encapsulating verified user identity, canonical role extraction, and raw JWT claims.
+  - `verify_supabase_jwt`: Cryptographic verification supporting HMAC (`HS256`) and asymmetric (`RS256`, `ES256`) via Supabase JWKS endpoints with key caching. Enforces expiration, signature, issuer, audience, and UUID subject claims.
+  - `get_current_user`: Reusable FastAPI dependency extracting Bearer credentials from the `Authorization` header.
+  - `require_admin`: Role guard dependency returning HTTP 403 Forbidden for non-admin accounts.
+  - `apply_rls_context` & `get_authenticated_db`: Transaction-local session context manager setting `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.*', ..., true)` to propagate verified identities into PostgreSQL.
+  - Profile identity management: `get_or_create_profile` with auto-provisioning and `update_user_profile` with strict anti-privilege escalation guards.
+- Created Alembic migration `5903f15a19ed_enable_rls_and_policies.py`:
+  - Created `auth` schema and compatibility functions `auth.uid()` and `auth.role()`.
+  - Created non-superuser application role `dharascope_app` with default privileges.
+  - Enabled and forced Row-Level Security on all 5 tables (`profiles`, `aois`, `analysis_runs`, `water_metrics`, `analysis_artifacts`).
+  - Implemented 20 granular RLS policies enforcing user ownership isolation, public read access for shared AOIs, child record ownership inheritance, and database-level prevention of role self-promotion.
+- Added 21 automated security tests:
+  - `tests/test_auth_jwt.py` (15 tests): Valid/admin JWTs, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 403 admin enforcement, auto-provisioning, and role escalation rejections.
+  - `tests/test_database_security_rls.py` (6 tests): Live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection.
+- Added dependencies to `requirements.txt`:
+  - `fastapi>=0.110.0`
+  - `uvicorn>=0.28.0`
+  - `pyjwt[crypto]>=2.8.0`
+  - `httpx>=0.27.0`
+
+### Changed
+- Updated `alembic/env.py` to route database connections dynamically to programmatic URLs passed via `set_main_option("sqlalchemy.url", ...)`.
+- Updated `.env.example` with Supabase Auth configuration variables (`SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_JWKS_URL`, `SUPABASE_AUDIENCE`).
+
+
+---
+
 ## [0.5.0] - 2026-11-07
 ### Added
 - Implemented PostgreSQL 16 + PostGIS 3.6 database subsystem in `src/database/`:

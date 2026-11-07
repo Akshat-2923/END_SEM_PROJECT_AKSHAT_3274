@@ -105,7 +105,7 @@ Establish a strict geographical validation envelope in `src/aoi_validation.py`:
 ### ADR-005: Decoupled Authentication via Supabase Auth + FastAPI JWT Validation
 
 #### Status
-**ACCEPTED FOR PHASE 2 IMPLEMENTATION**
+**IMPLEMENTED AND VERIFIED (Phase 2.2B2)**
 
 #### Context
 Phase 1 operated as a local single-user script and Streamlit dashboard. Phase 2 requires multi-user capabilities, role isolation (User vs Admin), and secure API endpoints, while avoiding custom authentication implementations (which introduce severe security vulnerabilities).
@@ -116,16 +116,22 @@ Delegate identity management to **Supabase Auth** and validate sessions stateles
 2. **Token Issuance:** Supabase Auth issues cryptographically signed JWT tokens containing user claims (`sub`, `email`, `role`, `exp`).
 3. **API Validation:** The FastAPI backend intercepts all incoming HTTP requests via a dependency `get_current_user`:
    - Extracts `Authorization: Bearer <token>`.
-   - Validates signature against Supabase JWKS public keys.
-   - Rejects expired, altered, or unverified tokens with HTTP 401 Unauthorized.
-4. **Data Ownership:** Fast API queries bind database operations to `user_id == current_user.id`, backed by PostgreSQL Row-Level Security (RLS) policies.
+   - Validates signature against Supabase JWKS public keys (`RS256`/`ES256`) or symmetric HMAC (`HS256`).
+   - Rejects expired, altered, unverified tokens, wrong audience/issuer with HTTP 401 Unauthorized.
+4. **Data Ownership & RLS Context:** FastAPI propagates verified identity into the database transaction:
+   ```sql
+   SET LOCAL ROLE dharascope_app;
+   SELECT set_config('request.jwt.claim.sub', :user_id, true);
+   SELECT set_config('request.jwt.claim.role', :role, true);
+   ```
+   Setting `is_local = true` ensures parameters are strictly transaction-scoped, preventing connection pool pollution. PostgreSQL RLS policies evaluate `auth.uid()` and `auth.role()` on all 5 entity tables.
 
 ---
 
 ### ADR-006: Relational PostGIS Schema for Spatiotemporal Metadata Storage
 
 #### Status
-**ACCEPTED FOR PHASE 2 IMPLEMENTATION**
+**IMPLEMENTED AND VERIFIED (Phase 2.2B1 & 2.2B2)**
 
 #### Context
 Phase 1 stored scene metadata and feasibility reports in flat JSON files (`outputs/phase1_feasibility_report.json`). In a multi-user platform, flat files suffer from concurrent write corruption, lack relational indexing, and cannot efficiently perform spatial intersection queries.

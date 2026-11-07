@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Part A & Part B1 Complete; Part B2 Gateway Pending)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Part A, Part B1 & Part B2 Complete; Part C Pending)  
 **Last Updated:** 2026-11-07  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -21,7 +21,12 @@ In **Phase 2.2, Part B1**, the project implemented the complete PostgreSQL 16 + 
 2. `alembic/`: Complete database migration lifecycle using `geoalchemy2.alembic_helpers`, tested with full upgrade and downgrade cycles.
 3. Live PostGIS verification: Executed against PostgreSQL 16.15 + PostGIS 3.6.2, verifying geodetic spatial calculations (`ST_Area(geometry::geography)`) align with the Python validation engine.
 
-The automated test suite has expanded to **64 tests**, all passing with zero regressions.
+In **Phase 2.2, Part B2**, the project completed full authentication, authorization, and database-level security:
+1. `src/auth.py`: Cryptographic Supabase JWT Bearer token validation (HS256 symmetric and RS256/ES256 asymmetric JWKS), identity and role extraction, FastAPI dependencies (`get_current_user`, `require_admin`), and profile auto-provisioning with anti-privilege escalation guards.
+2. Transaction-local PostgreSQL session identity propagation: `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)` scoped strictly to the active transaction.
+3. PostgreSQL Row-Level Security (RLS): Enabled and forced across all 5 tables with 20 granular policies verifying cross-user isolation, public AOI protections, and child metric/artifact inheritance.
+
+The automated test suite has expanded to **85 tests**, all passing with zero regressions.
 
 ---
 
@@ -47,36 +52,44 @@ The automated test suite has expanded to **64 tests**, all passing with zero reg
   - Foreign key cascading: `ondelete='SET NULL'` on AOI relations to preserve run history, `ondelete='CASCADE'` on profile and analysis metrics/artifacts.
   - Object storage decoupling: zero raster binaries in database; references to external object storage with 90-day retention metadata (`expires_at`).
   - Migration framework: Alembic with GeoAlchemy2 helpers, initial migration revision `53ebad6d6a09_initial_schema.py`.
+- [x] **Authentication, Authorization & Database Security (`src/auth.py` & `5903f15a19ed_enable_rls_and_policies.py`):**
+  - Cryptographic Supabase JWT Bearer token validation (HS256 symmetric and RS256/ES256 asymmetric JWKS with caching).
+  - FastAPI dependencies: `get_current_user` and `require_admin`.
+  - Transaction-local PostgreSQL session identity propagation via `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)`.
+  - Native PostgreSQL Row-Level Security (RLS): enabled and forced across all 5 tables with 20 granular policies.
+  - Profile auto-provisioning and database-enforced anti-privilege escalation guards.
 - [x] **Requirements & Architectural Documentation (`docs/`):** Full SRS (`docs/SRS.md`), Traceability Matrix (`docs/REQUIREMENTS_TRACEABILITY.md`), Technical Decisions (`docs/TECHNICAL_DECISIONS.md`), and System Constraints (`docs/SYSTEM_CONSTRAINTS.md`).
 - [x] **Version Control:** Published to GitHub under `Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`.
 
 ### 2.2 In-Progress Subsystems
-- [ ] **Phase 2.2, Part B2 Architecture:** FastAPI application gateway skeleton and Supabase Auth integration.
+- [ ] **Phase 2.2, Part C Architecture:** FastAPI application service router endpoints (`server.py`) and pipeline integration.
 
-### 2.3 Pending Subsystems (Scheduled for Phase 2.2 Part B2 / Phase 2.3)
-- [ ] **FastAPI Service Gateway (`server.py` & `src/auth.py`):** REST endpoints wrapping the analysis engine with Supabase JWT Bearer token authentication.
+### 2.3 Pending Subsystems (Scheduled for Phase 2.2 Part C / Phase 2.3)
+- [ ] **FastAPI Application Gateway Endpoints (`server.py`):** REST API endpoints wrapping AOI registration, analysis execution, and report downloads.
 - [ ] **Supabase Storage Integration (`src/storage.py`):** Object storage partitioning (`rasters/`, `maps/`, `reports/`) and automated 90-day retention cleanup for intermediate rasters.
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
 
 ### 2.4 Blocked Subsystems
-- **None.** All prerequisites for Phase 2.2 Part B2 are satisfied.
+- **None.** All prerequisites for Phase 2.2 Part C are satisfied.
 
 ---
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 64
-- **Pass Rate:** 100% (64 passed, 0 failed, 4 deprecation warnings in 29.70s)
+- **Total Automated Tests:** 85
+- **Pass Rate:** 100% (85 passed, 0 failed, 4 deprecation warnings in 9.65s)
 - **Test Modules:**
   1. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
-  2. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
-  3. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery, live PostgreSQL upgrade/downgrade cycle).
-  4. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
-  5. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
-  6. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
-  7. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
-  8. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
-  9. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
+  2. `tests/test_auth_jwt.py`: 15 passed (valid user/admin JWTs, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation).
+  3. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
+  4. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
+  5. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
+  6. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
+  7. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
+  8. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
+  9. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
+  10. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
+  11. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
   2. `tests/test_reporting.py`: 7 passed (manifest metric extraction, CSV formatting, PDF generation with/without figures, synthetic provenance tagging).
   3. `tests/test_change_detection.py`: 3 passed (change matrix, zero baseline, spatial mismatch).
   4. `tests/test_downloader.py`: 11 passed (credentials detection, auth requirements, trusted redirects, HTML rejection, file truncation, raster verification, synthetic generation, mode resolution).

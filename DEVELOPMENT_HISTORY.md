@@ -170,3 +170,51 @@
 - Created `tests/test_database_migrations.py` (3 tests) validating Alembic configuration, script discovery, and live upgrade/downgrade cycles.
 - **Test Suite Results:** Expanded automated test suite from 44 to **64 tests**, all passing with zero regressions (`64 passed, 4 warnings in 29.70s`).
 
+---
+
+## Milestone 8: Phase 2.2, Part B2 — Authentication, Authorization, and Database Security
+**Date:** 2026-11-07  
+**Focus:** Implementing Supabase Auth JWT validation, FastAPI authentication and role-based access control dependencies, profile identity management, transaction-local PostgreSQL session identity propagation, and PostgreSQL Row-Level Security (RLS) policies across all 5 database entities.
+
+### 8.1 Supabase Auth & FastAPI Authentication (`src/auth.py`)
+- Formulated `verify_supabase_jwt` enforcing cryptographic validation of incoming Bearer tokens using PyJWT.
+- Implemented dual algorithm support:
+  - Symmetric HMAC (`HS256`) verification using `SUPABASE_JWT_SECRET`.
+  - Asymmetric RSA/ECDSA (`RS256`, `ES256`) verification using Supabase JWKS endpoints (`PyJWKClient` with in-memory public key caching).
+- Enforced strict payload checks: rejects missing tokens, expired tokens (`exp`), invalid signatures, forged issuers (`iss`), wrong audiences (`aud`), and non-UUID subject claims (`sub`).
+- Implemented user identity model `AuthenticatedUser`:
+  - Extracts canonical role from `app_metadata.role`, `user_metadata.role`, or top-level claims.
+  - Defaults unprivileged accounts to `'user'` to prevent privilege escalation via client-set claims.
+- Formulated FastAPI reusable dependencies:
+  - `get_current_user`: extracts Bearer token from `Authorization` header, verifies JWT, and yields authenticated context.
+  - `require_admin`: enforces admin role validation, returning HTTP 403 Forbidden for non-admin users.
+
+### 8.2 Database Row-Level Security (RLS) & Session Propagation
+- **Trust Boundary Resolution:** Resolved the impedance mismatch between pooled FastAPI database connections and PostgreSQL session identity. Connections do not automatically inherit user identities; FastAPI cryptographically verifies the client JWT, and then sets transaction-local configuration parameters:
+  ```sql
+  SET LOCAL ROLE dharascope_app;
+  SELECT set_config('request.jwt.claim.sub', :user_id, true);
+  SELECT set_config('request.jwt.claim.role', :role, true);
+  ```
+  Setting `is_local = true` scopes the parameters strictly to the current transaction. When the transaction commits or rolls back, PostgreSQL automatically resets identity settings, preventing connection pool pollution.
+- **Role Enforcement:** Created non-superuser application role `dharascope_app`. Since PostgreSQL superusers bypass RLS even under `FORCE ROW LEVEL SECURITY`, `SET LOCAL ROLE dharascope_app` guarantees that row-level policies are evaluated unconditionally.
+- **Compatibility Functions:** Created PostgreSQL functions in the `auth` schema: `auth.uid()` and `auth.role()` reading from `request.jwt.claim.*`, matching Supabase PostgREST conventions.
+- **Alembic Migration (`5903f15a19ed_enable_rls_and_policies.py`):**
+  - Enabled and forced RLS on `profiles`, `aois`, `analysis_runs`, `water_metrics`, and `analysis_artifacts`.
+  - Authored 20 granular RLS policies:
+    - `profiles`: Users access only their own profile; anti-privilege escalation prevents setting `role = 'admin'`.
+    - `aois`: Users access their own private AOIs or public AOIs; only owners and admins can update or delete.
+    - `analysis_runs`: Strict user isolation; only owners and admins can view, update, or delete.
+    - `water_metrics` & `analysis_artifacts`: Child records inherit ownership restrictions from parent `analysis_runs` via subquery checks.
+
+### 8.3 Profile Identity Management & Anti-Privilege Escalation
+- Implemented `get_or_create_profile`: auto-provisions profile row upon verified JWT login without requiring separate registration webhooks.
+- Implemented `update_user_profile`: non-admin users can update display attributes (`full_name`), but attempts to alter `role` or `quota_monthly_runs` raise HTTP 403 Forbidden at the API layer.
+- Enforced defense-in-depth: Even if a malicious request bypassed the API guard, PostgreSQL's RLS policy check (`WITH CHECK ((auth.uid() = id AND role = 'user') OR auth.role() = 'admin')`) triggers an immediate database-level policy violation.
+
+### 8.4 Automated Test Suite Expansion
+- Created `tests/test_auth_jwt.py` (15 tests) testing valid tokens, admin tokens, missing tokens, invalid signatures, expired tokens, forged issuers, invalid audiences, non-UUID subjects, 403 admin enforcement, auto-provisioning, and API-level role escalation blocks.
+- Created `tests/test_database_security_rls.py` (6 tests) verifying actual PostgreSQL RLS execution: User A vs User B private AOI isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection.
+- **Test Suite Results:** Expanded automated test suite from 64 to **85 tests**, all passing with zero regressions (`85 passed, 4 warnings in 9.65s`).
+
+

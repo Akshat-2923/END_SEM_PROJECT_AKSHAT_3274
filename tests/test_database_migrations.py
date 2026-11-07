@@ -46,16 +46,19 @@ class TestAlembicMigrationConfiguration:
         script_dir = ScriptDirectory.from_config(cfg)
         revisions = list(script_dir.walk_revisions())
 
-        assert len(revisions) >= 1
+        assert len(revisions) >= 2
         initial_rev = revisions[-1]
         assert initial_rev.down_revision is None
+        head_rev = revisions[0]
+        assert head_rev.down_revision == initial_rev.revision
 
         # Verify module has upgrade and downgrade callables
-        module = initial_rev.module
-        assert hasattr(module, "upgrade")
-        assert callable(module.upgrade)
-        assert hasattr(module, "downgrade")
-        assert callable(module.downgrade)
+        for rev in revisions:
+            module = rev.module
+            assert hasattr(module, "upgrade")
+            assert callable(module.upgrade)
+            assert hasattr(module, "downgrade")
+            assert callable(module.downgrade)
 
 
 @skip_if_no_postgres
@@ -107,6 +110,21 @@ class TestAlembicMigrationExecution:
         fks_runs = {fk["referred_table"] for fk in insp.get_foreign_keys("analysis_runs")}
         assert "profiles" in fks_runs
         assert "aois" in fks_runs
+
+        # Verify RLS enabled on all 5 tables
+        with engine.connect() as conn:
+            rls_rows = conn.execute(
+                text("SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('profiles', 'aois', 'analysis_runs', 'water_metrics', 'analysis_artifacts');")
+            ).fetchall()
+            assert len(rls_rows) == 5
+            for tbl, rls_active in rls_rows:
+                assert rls_active is True, f"RLS not enabled on {tbl}"
+
+            # Verify RLS policies exist
+            policies = conn.execute(
+                text("SELECT policyname FROM pg_policies WHERE schemaname = 'public';")
+            ).fetchall()
+            assert len(policies) >= 15
 
         # 3. Downgrade to base
         command.downgrade(cfg, "base")

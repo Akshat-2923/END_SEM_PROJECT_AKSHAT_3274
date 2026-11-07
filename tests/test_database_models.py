@@ -225,13 +225,15 @@ class TestLiveDatabaseOperations:
         engine = create_engine(url)
         SessionLocal = sessionmaker(bind=engine)
 
-        with engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-            conn.commit()
+        from alembic.config import Config
+        from alembic import command
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("sqlalchemy.url", url)
+        command.upgrade(cfg, "head")
 
-        # Re-create tables
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            conn.execute(text("TRUNCATE profiles CASCADE;"))
+            conn.commit()
 
         self.engine = engine
         self.session: Session = SessionLocal()

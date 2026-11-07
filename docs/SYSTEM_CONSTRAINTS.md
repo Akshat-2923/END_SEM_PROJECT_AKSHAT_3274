@@ -103,6 +103,14 @@ The table below documents all operational performance targets for DharaScope. Ea
 - All secrets are loaded through local ignored environment files (`.env`) validated by `.gitignore`.
 - User identity is verified statelessly via cryptographic JWT validation without storing user passwords in application memory.
 
-### 6.2 Data Isolation & Lifecycle
-- Every database row and object storage path is isolated by `user_id`. Users cannot inspect or manipulate other users' analysis runs.
+### 6.2 Data Isolation & Row-Level Security Boundaries
+- **Trust Boundary & Session Identity:** FastAPI connections authenticate as a dedicated application role (`dharascope_app`). Because PostgreSQL superusers bypass RLS, application connections switch to non-superuser context and bind verified user claims per transaction:
+  ```sql
+  SET LOCAL ROLE dharascope_app;
+  SELECT set_config('request.jwt.claim.sub', :user_id, true);
+  SELECT set_config('request.jwt.claim.role', :role, true);
+  ```
+- **Transaction Scope (`is_local = true`):** Claims are strictly scoped to the transaction boundary. When transactions commit or rollback, the claims reset automatically, preventing cross-tenant leakage across connection pools.
+- **Child Record Inheritance:** Child tables (`water_metrics`, `analysis_artifacts`) inherit ownership restrictions from `analysis_runs` via correlated existence queries.
+- **Anti-Privilege Escalation:** PostgreSQL RLS `WITH CHECK` policies prevent regular users from updating their `role` to `'admin'`.
 - **90-Day Output Retention:** Intermediate raster files in the `rasters/` storage bucket are purged after 90 days to respect storage limits, while summary metrics and PDF reports are preserved permanently for academic auditability.

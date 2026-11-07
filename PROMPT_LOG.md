@@ -283,3 +283,31 @@
   - Modified: `requirements.txt` (added `sqlalchemy>=2.0.0`, `geoalchemy2>=0.14.0`, `alembic>=1.13.0`, `psycopg2-binary>=2.9.9`), `.env.example`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/REQUIREMENTS_TRACEABILITY.md`
 - **Verification:** 64/64 pytest tests passing (20 new database tests); live PostgreSQL 16.15 + PostGIS 3.6.2 verification executed on `dharascope_test` with ST_Area spatial calculations matching Lucknow reach area (4.40 km²); round-trip Alembic migration upgrade/downgrade verified.
 
+---
+
+### Task 12: Phase 2.2 Part B2 — Authentication, Authorization and Database Security
+- **Date:** 2026-11-07
+- **Development Stage:** Phase 2.2 Part B2 (Auth, Access Control & Database Security)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.2 Part B2: Authentication, Authorization and Database Security
+  The previous milestone, Phase 2.2 Part B1, is complete.
+  Verified baseline: PostgreSQL 16.15, PostGIS 3.6.2, SQLAlchemy 2.0, GeoAlchemy2, Alembic, 5 database entities, 64 passing tests, Git commit: 53fffc3.
+  Inspect the existing implementation before making changes.
+
+  1. Supabase Authentication: Validate Supabase JWT Bearer tokens; verify signatures, issuer, expiry, relevant claims; appropriate JWKS configuration; never trust unverified payloads; secure environment variables; never expose service-role credentials.
+  2. FastAPI Authentication Layer: Create src/auth.py; current authenticated user dependency; user and role extraction; 401 and 403 responses; admin-only authorization dependency; do not duplicate auth logic.
+  3. Row-Level Security: Implement PostgreSQL RLS policies for profiles, aois, analysis_runs, water_metrics, analysis_artifacts; users access only their own records; admin permissions explicitly controlled; child records inherit ownership through parent analysis; investigate interaction between Supabase JWT identity and PostgreSQL session identity; implement safe session strategy for propagating verified user identity into RLS context; document trust boundary.
+  4. Profile Identity Management: Verify relationship between Supabase auth.users and application profiles; reliable profile creation and sync strategy; prevent unauthorized role escalation.
+  5. Security Testing: Add tests for missing JWT, invalid signature, expired JWT, invalid issuer, valid auth, admin auth, User A vs User B access, unauthorized update/delete, child RLS enforcement, role escalation attempts; verify actual RLS enforcement against PostgreSQL.
+  6. Scope Restrictions: Preserve Phase 1; preserve AOI validation and reporting; preserve models and migrations; do not modify scientific algorithms; no AI; no production deploy; no secrets.
+  7. Documentation: Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md, PROJECT_STATUS.md, docs/SRS.md, docs/REQUIREMENTS_TRACEABILITY.md, docs/TECHNICAL_DECISIONS.md, docs/SYSTEM_CONSTRAINTS.md.
+  8. Git Version Control: Commit Phase 2.2B2: Implement Supabase authentication and database security.
+  ```
+- **Files Created/Modified:**
+  - Created: `src/auth.py`, `alembic/versions/5903f15a19ed_enable_rls_and_policies.py`, `tests/test_auth_jwt.py`, `tests/test_database_security_rls.py`
+  - Modified: `requirements.txt` (added `fastapi>=0.110.0`, `uvicorn>=0.28.0`, `pyjwt[crypto]>=2.8.0`, `httpx>=0.27.0`), `alembic/env.py`, `.env.example`, `tests/test_database_models.py`, `tests/test_database_migrations.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/SRS.md`, `docs/REQUIREMENTS_TRACEABILITY.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`
+- **Verification:** 85/85 automated pytest tests passing (21 new security & auth tests); full PostgreSQL 16 + PostGIS 3.6 RLS enforcement verified against live database for cross-user isolation, child metric/artifact inheritance, and anti-privilege escalation.
+
+

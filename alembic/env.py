@@ -6,7 +6,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from geoalchemy2 import alembic_helpers
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 # Ensure root directory is on sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -57,11 +57,8 @@ def run_migrations_online() -> None:
     connectable = config.attributes.get("connection", None)
 
     if connectable is None:
-        connectable = engine_from_config(
-            config.get_section(config.config_ini_section, {}),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-        )
+        target_url = config.get_main_option("sqlalchemy.url") or resolved_url
+        connectable = create_engine(target_url, poolclass=pool.NullPool)
 
         with connectable.connect() as connection:
             context.configure(

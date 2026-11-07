@@ -157,10 +157,10 @@ The platform recognizes two explicit operational roles:
 - **FR-4.4 [Scientific Limitation Disclaimer]:** Every output manifest, visualization, and report must embed the scientific limitation statement: surface area variations indicate inundation footprint changes caused by seasonal monsoon cycles, dam regulation, and morphology, and do not independently establish chemical pollution or permanent desiccation.
 
 ### Module 5: Authentication & Authorization (FR-5)
-- **FR-5.1 [Identity Delegation]:** User registration, password authentication, and session issuance shall be delegated to Supabase Auth.
-- **FR-5.2 [JWT Verification]:** The FastAPI backend shall validate the authenticity, signature (JWKS/RS256 or secret/HS256), expiration (`exp`), and issuer (`iss`) of incoming Bearer JWT tokens.
-- **FR-5.3 [Data Ownership & Isolation]:** Every analysis request shall bind to the authenticated user's UUID (`sub` claim). Users shall have read-only access to their own analysis records and public benchmarks, enforced by database Row-Level Security (RLS).
-- **FR-5.4 [Zero Secrets in Client]:** No database master passwords, service role keys, or external satellite provider passwords shall be bundled into frontend assets or source repositories.
+- **FR-5.1 [Identity Delegation]:** User registration, password authentication, and session issuance shall be delegated to Supabase Auth. Profiles are auto-synchronized into the `profiles` table upon verified JWT presentation with non-negative quotas. *(Implemented in Phase 2.2B2)*
+- **FR-5.2 [JWT Verification]:** The FastAPI backend shall validate the authenticity, signature (JWKS/RS256/ES256 or secret/HS256), expiration (`exp`), audience (`aud`), and issuer (`iss`) of incoming Bearer JWT tokens via `verify_supabase_jwt`. *(Implemented in Phase 2.2B2)*
+- **FR-5.3 [Data Ownership & Isolation]:** Every analysis request shall bind to the authenticated user's UUID (`sub` claim). Users shall access only their own records and public AOIs, enforced by PostgreSQL Row-Level Security (RLS) with transaction-local session identity propagation (`set_config`). Child records (`water_metrics`, `analysis_artifacts`) inherit ownership restrictions from parent runs. *(Implemented in Phase 2.2B2)*
+- **FR-5.4 [Zero Secrets in Client]:** No database master passwords, service role keys, or external satellite provider passwords shall be bundled into frontend assets or source repositories. *(Implemented)*
 
 ### Module 6: Storage & Output Retention (FR-6)
 - **FR-6.1 [Relational Metadata Store]:** PostgreSQL with PostGIS shall store user profiles, AOI geometries, analysis execution records, and quantitative area statistics.
