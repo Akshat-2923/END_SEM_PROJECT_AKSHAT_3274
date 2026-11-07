@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-11-07
+### Added
+- Implemented PostgreSQL 16 + PostGIS 3.6 database subsystem in `src/database/`:
+  - `src/database/base.py`: DeclarativeBase metadata registry.
+  - `src/database/config.py`: Environment-driven connection configuration supporting isolated testing.
+  - `src/database/session.py`: Engine pooling, sessionmaker factory, and transactional `get_db()` context manager.
+- Implemented 5 relational models in `src/database/models/`:
+  - `Profile` (`profiles`): UUID primary key mapped to Supabase Auth, check constraints for valid roles (`user`, `admin`) and positive quotas.
+  - `AOI` (`aois`): WGS84 PostGIS polygon geometry (`GEOMETRY(POLYGON, 4326)`) with spatial GiST indexing (`idx_aois_geometry`), area limits ($0.10–100.00\text{ km}^2$), vertex limits ($4–500$), bounding box, and centroid JSON metadata.
+  - `AnalysisRun` (`analysis_runs`): Master run manifest recording multi-temporal scene metadata, dates, clouds, NDWI threshold ($\tau \in [-1.0, 1.0]$), and status (`QUEUED`, `PROCESSING`, `SUCCESS`, `FAILED`).
+  - `WaterMetrics` (`water_metrics`): 1:1 relation to analysis runs recording pixel counts, physical area (ha, $\text{m}^2$), nullable percentage change for zero baselines, transition breakdown, and scientific limitations.
+  - `AnalysisArtifact` (`analysis_artifacts`): Object storage reference registry constrained to valid buckets (`maps`, `reports`, `rasters`) and artifact types, with `expires_at` support for 90-day retention policies.
+- Configured Alembic migration framework (`alembic.ini`, `alembic/env.py`, `alembic/versions/`):
+  - Integrated `geoalchemy2.alembic_helpers` for spatial type and GiST index autodetection.
+  - Initial migration revision `53ebad6d6a09_initial_schema.py` creating the 5 tables, 19 indexes, and enabling PostGIS extension.
+- Added 20 new automated unit and integration tests:
+  - `tests/test_database_models.py` (17 tests): Validating model metadata, role/quota constraints, AOI area/vertex constraints, AnalysisRun status/threshold constraints, artifact type/bucket constraints, 1:1 water metrics uniqueness, cascading deletions, and live PostGIS `ST_Area` spatial calculations.
+  - `tests/test_database_migrations.py` (3 tests): Validating Alembic configuration, migration discovery, and round-trip upgrade/downgrade execution.
+- Added database dependencies to `requirements.txt`:
+  - `sqlalchemy>=2.0.0`
+  - `geoalchemy2>=0.14.0`
+  - `alembic>=1.13.0`
+  - `psycopg2-binary>=2.9.9`
+
+### Changed
+- Updated `.env.example` with `DATABASE_URL` and `TEST_DATABASE_URL` connection strings.
+
+
+---
+
 ## [0.4.1] - 2026-11-07
 ### Added
 - Created permanent historical documentation suite in repository root:

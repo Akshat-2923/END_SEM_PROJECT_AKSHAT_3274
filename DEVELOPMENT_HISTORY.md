@@ -133,3 +133,40 @@
 - Enforced strict manifest-grounded extraction: values are loaded dynamically from `phase1_feasibility_report.json` with zero hardcoding or fabrication.
 - Created `tests/test_reporting.py` with 7 passing test cases.
 - **Test Suite Results:** Expanded automated test suite from 22 to 44 tests, all passing with zero regressions (`44 passed, 4 warnings in 5.57s`).
+
+---
+
+## Milestone 7: Phase 2.2, Part B1 — PostgreSQL 16 + PostGIS Database Foundation
+**Date:** 2026-11-07  
+**Focus:** Implementing relational spatiotemporal schema, declarative SQLAlchemy 2.0 models, Alembic migrations, spatial PostGIS polygon geometries, check constraints, cascading deletion rules, and verification suites on native PostgreSQL 16 + PostGIS 3.6.
+
+### 7.1 Database Architecture & Schema Design (`src/database/`)
+- Created decoupled database package `src/database/` completely separated from satellite processing and numerical algorithms:
+  - `src/database/base.py`: DeclarativeBase class.
+  - `src/database/config.py`: Environment-driven database connection handling (`get_database_url`), supporting production (`dharascope`) and isolated test databases (`dharascope_test`).
+  - `src/database/session.py`: Thread-safe engine pooling, session factories, and transactional `get_db()` context manager.
+- Implemented 5 declarative relational entities (`src/database/models/`):
+  1. `Profile` (`profiles`): Mapped to Supabase Auth UUID primary key, `role` check constraint (`'user'`, `'admin'`), non-negative `quota_monthly_runs`, unique indexed email, and audit timestamps.
+  2. `AOI` (`aois`): User-digitized geographical boundaries stored as WGS84 PostGIS polygon geometries (`GEOMETRY(POLYGON, 4326)`) with automatic GiST spatial indexing (`idx_aois_geometry`). Enforces ellipsoidal area limits ($0.10 \le \text{area\_km2} \le 100.00$) and vertex limits ($4 \le \text{vertex\_count} \le 500$) via database check constraints. Stores bounding box and centroid JSON envelopes.
+  3. `AnalysisRun` (`analysis_runs`): Multi-temporal pipeline execution records storing $T_1$ and $T_2$ scene IDs, acquisition dates, cloud percentages, NDWI threshold ($\tau \in [-1.0, 1.0]$), execution status (`'QUEUED'`, `'PROCESSING'`, `'SUCCESS'`, `'FAILED'`), execution duration, and data provider provenance. Foreign key to `aois` uses `ondelete='SET NULL'` to preserve user run histories if an AOI is removed.
+  4. `WaterMetrics` (`water_metrics`): 1:1 relation to `analysis_runs` with unique foreign key (`ondelete='CASCADE'`). Records pixel counts, physical areas in square meters and hectares ($T_1$, $T_2$, persistent, loss, gain, absolute change), nullable percentage change for zero baselines, and scientific limitation statements.
+  5. `AnalysisArtifact` (`analysis_artifacts`): Master index for external object storage references, strictly preventing raster binary bloat in PostgreSQL. Constrained to valid storage buckets (`'maps'`, `'reports'`, `'rasters'`) and artifact types (`'MAP_PNG'`, `'PANEL_PNG'`, `'REPORT_PDF'`, `'REPORT_CSV'`, `'RASTER_TIFF'`, `'THUMBNAIL_JPG'`). Includes `expires_at` column to enforce automated 90-day retention policies on intermediate rasters.
+
+### 7.2 Alembic Migration Architecture (`alembic/`)
+- Configured Alembic with `geoalchemy2.alembic_helpers` for spatial type awareness and GiST index management.
+- Generated initial migration revision `53ebad6d6a09_initial_schema.py` creating the 5 tables, 19 indexes, and idempotently enabling PostGIS (`CREATE EXTENSION IF NOT EXISTS postgis;`).
+- Verified complete round-trip migration cycle: `alembic upgrade head` $\to$ schema verification $\to$ `alembic downgrade base` $\to$ `alembic upgrade head`.
+
+### 7.3 Automated Test Suite & Live PostGIS Verification
+- Created `tests/test_database_models.py` (17 tests) validating:
+  - Table and column metadata, constraint definitions, default values, and model `__repr__` methods.
+  - Profile role and quota check constraint enforcement.
+  - PostGIS geometry insertion via `WKTElement` and live `ST_Area(geometry::geography)` calculation matching Lucknow reach area (4.40 km²).
+  - AOI area ($0.1–100\text{ km}^2$) and vertex count ($4–500$) check constraint rejections.
+  - AnalysisRun status and NDWI threshold check constraints.
+  - WaterMetrics 1:1 uniqueness and zero-baseline null percentage change.
+  - AnalysisArtifact bucket and type constraint enforcement.
+  - Relational cascading deletions: AOI deletion sets `analysis_runs.aoi_id` to NULL; AnalysisRun deletion cascades to WaterMetrics and AnalysisArtifacts; Profile deletion cascades to AOIs and AnalysisRuns.
+- Created `tests/test_database_migrations.py` (3 tests) validating Alembic configuration, script discovery, and live upgrade/downgrade cycles.
+- **Test Suite Results:** Expanded automated test suite from 44 to **64 tests**, all passing with zero regressions (`64 passed, 4 warnings in 29.70s`).
+

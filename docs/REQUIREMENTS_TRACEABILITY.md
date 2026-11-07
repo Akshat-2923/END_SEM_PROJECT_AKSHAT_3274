@@ -36,10 +36,10 @@ This traceability matrix maps all functional and non-functional requirements def
 | **FR-1.5** | Public Sentinel-2 COG HTTP range retrieval fallback | **IMPLEMENTED** | `src/downloader.py`<br>`download_band_public_cog` | Integration Test & Disk Audit | `outputs/phase1_feasibility_report.json`<br>`tests/test_downloader.py::test_retrieve_band_modes` | Phase 1 |
 | **FR-1.6** | Raster format, CRS, dimension & error page rejection | **IMPLEMENTED** | `src/downloader.py`<br>`verify_raster_file` | Automated Unit Test | `tests/test_downloader.py`<br>`test_download_rejects_html_error_response`<br>`test_download_rejects_truncated_file`<br>`test_verify_raster_file_helper` | Phase 1 |
 | **FR-1.7** | Synthetic sample safety fallback with immutable tags | **IMPLEMENTED** | `src/downloader.py`<br>`generate_synthetic_sample` | Automated Unit Test | `tests/test_downloader.py`<br>`test_generate_synthetic_sample` | Phase 1 |
-| **FR-2.1** | Geographical AOI area bounds ($0.1–100\text{ km}^2$) | **PROPOSED** | *To be added:*<br>`src/aoi_validation.py` | Unit Test (Polygon areas) | *Phase 2.2 Test Suite* | Phase 2.2 |
-| **FR-2.2** | Equal-area projection standard for area measurement | **PARTIALLY IMPLEMENTED** | `src/water_indices.py`<br>`src/change_detection.py` | Unit Test (UTM grid calc) | `tests/test_water_indices.py`<br>`tests/test_change_detection.py` | Phase 1 / 2.2 |
-| **FR-2.3** | Geometric topology validation (self-intersection, rings) | **PROPOSED** | *To be added:*<br>`src/aoi_validation.py` | Unit Test (Shapely is_valid) | *Phase 2.2 Test Suite* | Phase 2.2 |
-| **FR-2.4** | Vertex count limit ($\le 500$ vertices) | **PROPOSED** | *To be added:*<br>`src/aoi_validation.py` | Unit Test (Boundary check) | *Phase 2.2 Test Suite* | Phase 2.2 |
+| **FR-2.1** | Geographical AOI area bounds ($0.1–100\text{ km}^2$) | **IMPLEMENTED** | `src/aoi_validation.py`<br>`src/database/models/aoi.py` | Automated Unit Test | `tests/test_aoi_validation.py`<br>`tests/test_database_models.py` | Phase 2.2 |
+| **FR-2.2** | Equal-area projection standard for area measurement | **IMPLEMENTED** | `src/aoi_validation.py`<br>`src/water_indices.py` | Automated Unit Test | `tests/test_aoi_validation.py`<br>`tests/test_database_models.py` | Phase 2.2 |
+| **FR-2.3** | Geometric topology validation (self-intersection, rings) | **IMPLEMENTED** | `src/aoi_validation.py` | Automated Unit Test | `tests/test_aoi_validation.py` | Phase 2.2 |
+| **FR-2.4** | Vertex count limit ($\le 500$ vertices) | **IMPLEMENTED** | `src/aoi_validation.py`<br>`src/database/models/aoi.py` | Automated Unit Test | `tests/test_aoi_validation.py`<br>`tests/test_database_models.py` | Phase 2.2 |
 | **FR-2.5** | Global coordinate envelope validation ($[-180, 180]$) | **IMPLEMENTED** | `src/stac_client.py`<br>`src/config.py` | Automated Unit Test | `tests/test_stac_client.py::test_bbox_validation` | Phase 1 |
 | **FR-3.1** | NDWI formulation: $(\text{B03}-\text{B08})/(\text{B03}+\text{B08})$ | **IMPLEMENTED** | `src/water_indices.py`<br>`compute_ndwi_array` | Automated Unit Test | `tests/test_water_indices.py`<br>`test_ndwi_formula_correctness` | Phase 1 |
 | **FR-3.2** | Zero/near-zero denominator handling ($10^{-6}$) | **IMPLEMENTED** | `src/water_indices.py`<br>`compute_ndwi_array` | Automated Unit Test | `tests/test_water_indices.py`<br>`test_zero_denominator_and_nodata_handling` | Phase 1 |
@@ -54,13 +54,13 @@ This traceability matrix maps all functional and non-functional requirements def
 | **FR-5.2** | FastAPI Bearer JWT signature and claims verification | **PROPOSED** | *To be added:*<br>`src/auth.py`, `server.py` | Unit Test (Mock JWTs) | *Phase 2.2 Test Suite* | Phase 2.2 |
 | **FR-5.3** | Row-Level Security (RLS) and ownership isolation | **PROPOSED** | PostgreSQL DDL & FastAPI | Database Security Audit | *Phase 2.2 Migration Test* | Phase 2.2 |
 | **FR-5.4** | Zero secrets in client-side or git-tracked source | **IMPLEMENTED** | `.gitignore`<br>`src/config.py` | Repository Security Audit | Git history & credential scan | Phase 1 |
-| **FR-6.1** | PostgreSQL + PostGIS spatiotemporal metadata store | **PROPOSED** | PostgreSQL Schema DDL | Schema Migration Test | *Phase 2.2 Migration Test* | Phase 2.2 |
+| **FR-6.1** | PostgreSQL + PostGIS spatiotemporal metadata store | **IMPLEMENTED** | `src/database/`<br>`alembic/versions/` | Unit & Migration Tests | `tests/test_database_models.py`<br>`tests/test_database_migrations.py` | Phase 2.2 |
 | **FR-6.2** | Supabase Storage bucket partitioning (`rasters/`, etc.) | **PROPOSED** | *To be added:*<br>`src/storage.py` | S3 API Integration Test | *Phase 2.3 Test Suite* | Phase 2.3 |
 | **FR-6.3** | 90-day output retention policy for intermediate rasters | **PROPOSED** | SQL/Cron lifecycle script | Automated Retention Job | *Phase 2.3 Test Suite* | Phase 2.3 |
 | **FR-6.4** | Temporary scratch isolation from persistent storage | **IMPLEMENTED** | `main.py`<br>`src/config.py` | File System Audit | `data/raw/` vs `outputs/` | Phase 1 |
 | **FR-7.1** | Immutable report provenance grounded in actual runs | **IMPLEMENTED** | `main.py`, `app.py` | End-to-End Pipeline Test | `outputs/phase1_feasibility_report.json` | Phase 1 |
-| **FR-7.2** | Structured CSV report generation specification | **PROPOSED** | *To be added:*<br>`src/reporting.py` | Output Integrity Test | *Phase 2.2 Test Suite* | Phase 2.2 |
-| **FR-7.3** | Publication-grade PDF report specification with maps | **PROPOSED** | *To be added:*<br>`src/reporting.py` | Document Layout Test | *Phase 2.2 Test Suite* | Phase 2.2 |
+| **FR-7.2** | Structured CSV report generation specification | **IMPLEMENTED** | `src/reporting.py` | Output Integrity Test | `tests/test_reporting.py` | Phase 2.2 |
+| **FR-7.3** | Publication-grade PDF report specification with maps | **IMPLEMENTED** | `src/reporting.py` | Document Layout Test | `tests/test_reporting.py` | Phase 2.2 |
 
 ---
 

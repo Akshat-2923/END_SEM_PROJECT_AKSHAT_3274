@@ -246,3 +246,40 @@
 - **Files Created/Modified:**
   - Created: `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** All four documents populated with complete historical data, cross-verified with repository transcripts, git commits, and test suite logs.
+
+---
+
+### Task 11: Phase 2.2 Part B1 — PostgreSQL + PostGIS Database Foundation
+- **Date:** 2026-11-07
+- **Development Stage:** Phase 2.2 Part B1 (Database Foundation)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  DharaScope — Phase 2.2 Part B1: PostgreSQL + PostGIS Database Foundation.
+
+  Inspect the existing repository, SRS, technical decisions, requirements traceability and permanent project documentation.
+  Implement the database foundation only.
+
+  Objectives:
+  1. PostgreSQL 16 + PostGIS configuration.
+  2. SQLAlchemy database models (profiles, aois, analysis_runs, water_metrics, analysis_artifacts).
+  3. Alembic migration setup.
+  4. Spatial AOI storage (SRID 4326 polygon, area bounds 0.1-100 km2, vertex limits <= 500).
+  5. Analysis metadata storage.
+  6. Database schema documentation.
+
+  Important architectural requirements:
+  - Separate database models from satellite-processing logic.
+  - Do not store raster binaries directly in PostgreSQL.
+  - Store references to files in external object storage.
+  - Design the schema to support multiple users and analysis histories.
+  - Prepare for Supabase Auth integration.
+  - Add comprehensive automated tests (model validation, constraint tests, migration tests).
+  - Verify against local PostgreSQL 16 + PostGIS 3.6 without modifying production databases.
+  - Update permanent documentation.
+  ```
+- **Files Created/Modified:**
+  - Created: `src/database/__init__.py`, `src/database/base.py`, `src/database/config.py`, `src/database/session.py`, `src/database/models/__init__.py`, `src/database/models/profile.py`, `src/database/models/aoi.py`, `src/database/models/analysis.py`, `src/database/models/water_metrics.py`, `src/database/models/artifact.py`, `alembic.ini`, `alembic/env.py`, `alembic/script.py.mako`, `alembic/versions/53ebad6d6a09_initial_schema.py`, `tests/test_database_models.py`, `tests/test_database_migrations.py`
+  - Modified: `requirements.txt` (added `sqlalchemy>=2.0.0`, `geoalchemy2>=0.14.0`, `alembic>=1.13.0`, `psycopg2-binary>=2.9.9`), `.env.example`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/REQUIREMENTS_TRACEABILITY.md`
+- **Verification:** 64/64 pytest tests passing (20 new database tests); live PostgreSQL 16.15 + PostGIS 3.6.2 verification executed on `dharascope_test` with ST_Area spatial calculations matching Lucknow reach area (4.40 km²); round-trip Alembic migration upgrade/downgrade verified.
+
