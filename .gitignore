@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env
+.env.local
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Satellite rasters, raw downloads & temporary data
+data/raw/
+data/cache/
+*.SAFE/
+*.zip
+*.jp2
+*.tif
+*.tiff
+*.nc
+!data/.gitkeep
+!outputs/.gitkeep
+!logs/.gitkeep
+
+# Logs
+*.log
+logs/*.log
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

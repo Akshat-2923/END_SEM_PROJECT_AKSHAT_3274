@@ -1,0 +1,118 @@
+{
+  "project": "DharaScope",
+  "phase": "Phase 1 - Satellite Feasibility Validation",
+  "execution_timestamp": "2026-10-28T04:21:13.346689Z",
+  "parameters": {
+    "study_bbox": [
+      80.88,
+      26.8,
+      81.0,
+      26.9
+    ],
+    "stac_endpoint": "https://stac.dataspace.copernicus.eu/v1",
+    "collection": "sentinel-2-l2a",
+    "search_datetime_range": "2023-10-01T00:00:00Z/2024-05-31T23:59:59Z",
+    "max_cloud_filter": 10.0,
+    "ndwi_classification_threshold": 0.0,
+    "data_retrieval_mode": "auto"
+  },
+  "stages": {
+    "environment_inspection": {
+      "status": "SUCCESS",
+      "details": {
+        "python_version": "3.11.9",
+        "rasterio_version": "1.4.4",
+        "numpy_version": "2.4.6",
+        "virtual_environment": true
+      }
+    },
+    "catalogue_discovery": {
+      "status": "SUCCESS",
+      "total_candidates_found": 23,
+      "earlier_scene_id": "S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510",
+      "earlier_date": "2023-10-10T05:07:21.024000Z",
+      "earlier_cloud_cover": 0.0,
+      "later_scene_id": "S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512",
+      "later_date": "2023-12-09T05:12:11.024000Z",
+      "later_cloud_cover": 0.0
+    },
+    "thumbnail_retrieval": {
+      "status": "SUCCESS",
+      "thumbnails": [
+        "outputs\\S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_thumbnail.jpg",
+        "outputs\\S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_thumbnail.jpg"
+      ]
+    },
+    "real_raster_retrieval": {
+      "status": "SUCCESS",
+      "provider": "PUBLIC_OPEN_SENTINEL2_COGS",
+      "description": "Public Open Sentinel-2 Level-2A Cloud-Optimized GeoTIFF Archive (AWS Registry of Open Data / ESA)",
+      "files": [
+        "S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B03_10m.tif",
+        "S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B08_10m.tif",
+        "S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B03_10m.tif",
+        "S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B08_10m.tif"
+      ]
+    },
+    "real_ndwi_calculation": {
+      "status": "SUCCESS_REAL_DATA",
+      "provider": "PUBLIC_OPEN_SENTINEL2_COGS",
+      "threshold": 0.0,
+      "earlier_date": "2023-10-10",
+      "earlier_water_pixels": 18456,
+      "later_date": "2023-12-09",
+      "later_water_pixels": 13933,
+      "crs": "EPSG:32644",
+      "pixel_area_m2": 100.0
+    },
+    "real_change_detection": {
+      "status": "SUCCESS_REAL_DATA",
+      "provider": "PUBLIC_OPEN_SENTINEL2_COGS",
+      "statistics": {
+        "comparison_pixels": {
+          "total_pixels": 1323037,
+          "common_valid_pixels": 1323037,
+          "common_valid_area_ha": 13230.37,
+          "pixel_size_m2": 100.0
+        },
+        "water_area_earlier_t1": {
+          "pixels": 18456,
+          "area_m2": 1845600.0,
+          "area_hectares": 184.56
+        },
+        "water_area_later_t2": {
+          "pixels": 13933,
+          "area_m2": 1393300.0,
+          "area_hectares": 139.33
+        },
+        "change_metrics": {
+          "absolute_change_m2": -452300.0,
+          "absolute_change_hectares": -45.23,
+          "percentage_change": -24.51,
+          "persistent_water_m2": 1251800.0,
+          "persistent_water_hectares": 125.18,
+          "apparent_loss_m2": 593800.0,
+          "apparent_loss_hectares": 59.38,
+          "apparent_gain_m2": 141500.0,
+          "apparent_gain_hectares": 14.15
+        },
+        "limitation_statement": "Scientific Limitation Notice: Differences in NDWI-classified water-covered area reflect apparent surface water extent fluctuations. These fluctuations are primarily governed by seasonal precipitation, upstream dam releases, agricultural withdrawal, channel morphology, and riparian vegetation growth. NDWI-based area changes do NOT independently establish permanent water loss, environmental degradation, or river pollution without calibrated in-situ hydrological gauging, bathymetric surveys, and water quality sampling."
+      }
+    }
+  },
+  "blockers": [],
+  "evidence_files": [
+    "outputs\\S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_thumbnail.jpg",
+    "outputs\\S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_thumbnail.jpg",
+    "outputs\\observation_2023-10-10_ndwi.png",
+    "outputs\\observation_2023-12-09_ndwi.png",
+    "outputs\\water_change_2023-10-10_to_2023-12-09.png",
+    "outputs\\gomti_water_change_comparison_panel.png"
+  ],
+  "data_source_provenance": {
+    "provider": "PUBLIC_OPEN_SENTINEL2_COGS",
+    "is_real_satellite_data": true,
+    "description": "Public Open Sentinel-2 Level-2A Cloud-Optimized GeoTIFF Archive (AWS Registry of Open Data / ESA)"
+  },
+  "limitation_notice": "Scientific Limitation Notice: Differences in NDWI-classified water-covered area reflect apparent surface water extent fluctuations. These fluctuations are primarily governed by seasonal precipitation, upstream dam releases, agricultural withdrawal, channel morphology, and riparian vegetation growth. NDWI-based area changes do NOT independently establish permanent water loss, environmental degradation, or river pollution without calibrated in-situ hydrological gauging, bathymetric surveys, and water quality sampling."
+}
