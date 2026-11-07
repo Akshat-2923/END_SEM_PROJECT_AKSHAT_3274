@@ -1,0 +1,23 @@
+# DharaScope Satellite Surface Water Feasibility Report
+# Project,DharaScope
+# Execution Timestamp,2026-10-28T04:21:13.346689Z
+# Data Provenance Provider,PUBLIC_OPEN_SENTINEL2_COGS
+# Real Satellite Data,TRUE
+# Provider Description,Public Open Sentinel-2 Level-2A Cloud-Optimized GeoTIFF Archive (AWS Registry of Open Data / ESA)
+# Study Area Bounding Box (WGS84),"[80.88, 26.8, 81.0, 26.9]"
+# Native Coordinate Reference System,EPSG:32644
+# Spatial Ground Sampling Distance,10m (100.0 m²/pixel)
+# NDWI Classification Threshold (tau),0.00
+# Observation T1 (Earlier),S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510,2023-10-10,0.00% cloud
+# Observation T2 (Later),S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512,2023-12-09,0.00% cloud
+
+Metric Group,Hydrological Category,Observation Date / Period,Pixel Count,Area (Square Metres),Area (Hectares),Percentage of Baseline (T1)
+Spatial Envelope,Common Overlapping Valid Pixels,Both Dates,1323037,132303700,13230.37,100.00%
+Water Extent,Earlier Surface Water (T1),2023-10-10,18456,1845600,184.56,100.00%
+Water Extent,Later Surface Water (T2),2023-12-09,13933,1393300,139.33,75.49%
+Transition Component,Perennial Channel Core (Persistent),2023-10-10 to 2023-12-09,12518,1251800,125.18,67.83%
+Transition Component,Seasonal Recession (Apparent Loss),2023-10-10 to 2023-12-09,5938,593800,59.38,32.17%
+Transition Component,Inundation Expansion (Apparent Gain),2023-10-10 to 2023-12-09,1415,141500,14.15,7.67%
+Summary Delta,Net Surface Water Change,2023-10-10 to 2023-12-09,-4523,-452300,-45.23,-24.51%
+
+# Scientific Limitation Notice,"Scientific Limitation Notice: Differences in NDWI-classified water-covered area reflect apparent surface water extent fluctuations. These fluctuations are primarily governed by seasonal precipitation, upstream dam releases, agricultural withdrawal, channel morphology, and riparian vegetation growth. NDWI-based area changes do NOT independently establish permanent water loss, environmental degradation, or river pollution without calibrated in-situ hydrological gauging, bathymetric surveys, and water quality sampling."
