@@ -176,6 +176,13 @@ The platform recognizes two explicit operational roles:
 - **FR-7.2 [CSV Report Specification]:** The CSV report shall provide a structured machine-readable document containing metadata headers (Analysis ID, AOI coordinates, acquisition dates, tile IDs, data provider) followed by quantitative metrics (pixels, $\text{m}^2$, hectares, persistent channel, loss, gain, percentage change).
 - **FR-7.3 [PDF Report Specification]:** The PDF report shall provide a formal, publication-ready multi-page document incorporating the project title, evaluator attribution, executive KPI table, embedded high-resolution cartographic figures (synoptic panel and categorical transition map), spectral index formulation, and the mandatory scientific disclaimer.
 
+### Module 8: Application Service Layer & RESTful API (FR-8)
+- **FR-8.1 [RESTful Resource Routing]:** The system shall expose a structured RESTful HTTP API in `src/api/` (with ASGI entrypoint `server.py`) serving health checks, user profile management, AOI CRUD, analysis run lifecycle management, and artifact downloads. *(Implemented in Phase 2.2C)*
+- **FR-8.2 [Non-Blocking Asynchronous Execution]:** Heavy satellite data ingestion and spectral processing workflows initiated via `POST /api/v1/analyses` shall execute asynchronously via `BackgroundTasks` so the API event loop is never blocked. Clients poll status (`QUEUED` $\to$ `PROCESSING` $\to$ `SUCCESS` \| `FAILED`) via `GET /api/v1/analyses/{id}`. *(Implemented in Phase 2.2C)*
+- **FR-8.3 [Transaction-Local RLS Injection]:** Every user-authenticated route shall inject database sessions configured with `SET LOCAL ROLE dharascope_app` and transaction-local variables `request.jwt.claim.sub` and `request.jwt.claim.role`. Cross-user access attempts must strictly return HTTP 404 or 403. *(Implemented in Phase 2.2C)*
+- **FR-8.4 [Information Leakage Prevention]:** API error envelopes and artifact listings shall strictly omit internal absolute file paths, server directory trees, database connection strings, and credential secrets. File downloads shall stream via verified relative artifact handles. *(Implemented in Phase 2.2C)*
+- **FR-8.5 [OpenAPI Self-Documentation]:** The service layer shall expose interactive OpenAPI documentation at `/docs` (Swagger UI) and `/redoc`, and structured JSON schemas at `/openapi.json`. *(Implemented in Phase 2.2C)*
+
 ---
 
 ## 5. Non-Functional Requirements (NFR)

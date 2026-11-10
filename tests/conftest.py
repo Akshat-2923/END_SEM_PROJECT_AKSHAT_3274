@@ -9,3 +9,9 @@ rasterio_proj = Path(sys.prefix) / "Lib" / "site-packages" / "rasterio" / "proj_
 if rasterio_proj.exists():
     os.environ["PROJ_DATA"] = str(rasterio_proj)
     os.environ["PROJ_LIB"] = str(rasterio_proj)
+
+# Test environment configuration defaults
+os.environ.setdefault("SUPABASE_JWT_SECRET", "super_secret_test_key_for_dharascope_verification_32_bytes")
+os.environ.setdefault("SUPABASE_ISSUER", "https://testproject.supabase.co/auth/v1")
+os.environ.setdefault("SUPABASE_AUDIENCE", "authenticated")
+

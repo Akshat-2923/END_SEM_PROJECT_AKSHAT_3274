@@ -122,3 +122,23 @@ The table below documents all operational performance targets for DharaScope. Ea
 - **Database Role Constraints:** The `dharascope_app` database role must have `NOSUPERUSER` and `NOBYPASSRLS` privileges and must not own the application tables, ensuring PostgreSQL evaluates Row-Level Security policies on every query.
 - **Production Fail-Closed Enforcement:** When running in production (`ENVIRONMENT=production` or `DHARASCOPE_ENV=production`), the backend enforces that `SUPABASE_JWT_SECRET` and `SUPABASE_ISSUER` (or `SUPABASE_URL`) are explicitly provided. If either is missing, request validation immediately fails closed with HTTP 500 Internal Server Error.
 - **Zero Service-Role Exposure:** The Supabase `service_role` key bypasses all RLS checks and must never be exposed to frontend clients, logged to console/files, or configured in client-facing environments.
+
+---
+
+## 7. Application Service Layer & Execution Constraints
+
+### 7.1 REST API Latency & Throughput Targets
+- **Lightweight Metadata Endpoints:** Health checks (`/health`), user profiles (`/api/v1/auth/me`), and AOI lookups (`/api/v1/aois/{id}`) must respond in $< 100\text{ ms}$ under nominal loads.
+- **Geometrical Validation Endpoints:** Computational geometry validation (`POST /api/v1/aois/validate`) involving 500-vertex polygons and equal-area reprojection must complete in $< 200\text{ ms}$.
+- **Synchronous vs. Asynchronous Demarcation:** Raster download, GDAL reprojection, NDWI indexing, and cartography generation take between $10\text{ s}$ and $180\text{ s}$. Under no circumstances may raster operations execute synchronously within the ASGI request-response cycle.
+- **Background Execution:** `POST /api/v1/analyses` creates a database record with state `QUEUED` and immediately returns HTTP 202 Accepted ($< 150\text{ ms}$). The pipeline worker runs detached via FastAPI `BackgroundTasks`.
+
+### 7.2 Concurrency & Worker Resource Boundaries
+- **Single-Node Worker Limits:** To prevent memory exhaustion on 8 GB RAM nodes, a maximum of 2 concurrent raster analysis pipelines should execute simultaneously.
+- **Worker Isolation:** Pipeline errors in background threads must catch all exceptions, update database state to `FAILED`, record sanitized diagnostic messages, and release database sessions cleanly without crashing the ASGI process.
+- **Database Connection Pooling:** FastAPI application sessions utilize SQLAlchemy pooled connections with pool recycling (`pool_recycle=1800`) and statement timeouts to guard against leaked connections during long raster operations.
+
+### 7.3 Information Leakage & Artifact Security
+- **Path Abstraction:** Internal filesystem paths (`outputs/runs/...`, Windows drive letters, mount points) are strictly scrubbed from API serialization models. The frontend receives only synthetic artifact IDs and abstract download URLs (`/api/v1/artifacts/{id}/download`).
+- **Error Sanitization:** Diagnostic error strings captured in `analysis_runs.error_message` undergo regex scrubbing to strip server absolute paths, internal IPs, and credential patterns before persistence.
+- **Authorized Artifact Delivery:** Report and artifact download endpoints (`/reports/pdf`, `/reports/csv`, `/artifacts/{id}/download`) enforce database ownership validation and Row-Level Security before streaming file bytes via `FileResponse`.

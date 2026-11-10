@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Part A, Part B1 & Part B2 Security Hardened; Part C Pending)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2 & Part C)  
 **Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -28,7 +28,14 @@ In **Phase 2.2, Part B2 & Security Hardening**, the project completed full authe
 4. Transaction-local PostgreSQL session identity propagation: `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)` scoped strictly to the active transaction.
 5. PostgreSQL Row-Level Security (RLS): Enabled and forced across all 5 tables with 20 granular policies verifying cross-user isolation, public AOI protections, and child metric/artifact inheritance. Role `dharascope_app` is non-superuser, has `NOBYPASSRLS`, and does not own tables.
 
-The automated test suite has expanded to **92 tests**, all passing with zero regressions.
+In **Phase 2.2, Part C**, the project implemented the complete FastAPI Application Service Layer:
+1. Application Gateway & Bootstrap (`src/api/app.py`, `server.py`): Production ASGI entrypoint ensuring runtime PROJ isolation, CORS middleware, OpenAPI interactive documentation (`/docs`, `/redoc`), and standardized sanitized error envelopes (`APIErrorResponse`).
+2. Authentication & Administration Endpoints (`src/api/routers/auth.py`): `/api/v1/auth/me` (profile retrieval/update) and `/api/v1/admin/users` (administrative quota controls) backed by `src/auth.py` dependency injection.
+3. AOI CRUD & Geometry Validation (`src/api/routers/aois.py`, `src/services/aoi_service.py`): Enforcing $0.1–100\text{ km}^2$ equal-area geodetic bounds, 500-vertex ceilings, PostGIS persistence, and multi-tenant RLS ownership isolation.
+4. Asynchronous Satellite Pipeline Dispatch (`src/api/routers/analyses.py`, `src/services/analysis_service.py`): Non-blocking execution via FastAPI `BackgroundTasks`, quota verification, pipeline execution (STAC discovery, scene selection, band streaming, NDWI indexing, change detection, cartography), progress tracking (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`), and regex diagnostic error sanitization.
+5. Metrics Inspection & Artifact Delivery (`src/services/artifact_service.py`, `src/api/routers/artifacts.py`): Authorized streaming downloads for publication-grade ReportLab PDF reports, RFC 4180 CSV reports, and visualization maps without exposing filesystem paths.
+
+The automated test suite has expanded to **125 tests**, all passing with zero regressions (100% pass rate).
 
 ---
 
@@ -60,38 +67,47 @@ The automated test suite has expanded to **92 tests**, all passing with zero reg
   - Transaction-local PostgreSQL session identity propagation via `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)`.
   - Native PostgreSQL Row-Level Security (RLS): enabled and forced across all 5 tables with 20 granular policies.
   - Profile auto-provisioning and database-enforced anti-privilege escalation guards.
-- [x] **Requirements & Architectural Documentation (`docs/`):** Full SRS (`docs/SRS.md`), Traceability Matrix (`docs/REQUIREMENTS_TRACEABILITY.md`), Technical Decisions (`docs/TECHNICAL_DECISIONS.md`), and System Constraints (`docs/SYSTEM_CONSTRAINTS.md`).
+- [x] **FastAPI Application Service Layer (`server.py`, `src/api/`, `src/services/`):**
+  - Production ASGI server bootstrap (`server.py`) and FastAPI factory (`src/api/app.py`).
+  - Health check endpoints (`/health`, `/api/v1/health`, `/`).
+  - Authentication and administrative user endpoints (`/api/v1/auth/me`, `/api/v1/admin/users`).
+  - AOI lifecycle & validation endpoints (`/api/v1/aois/validate`, `/api/v1/aois`, `/api/v1/aois/{id}`).
+  - Asynchronous analysis lifecycle (`/api/v1/analyses`, `/api/v1/analyses/{id}`, `/metrics`, `/artifacts`).
+  - Authorized report download endpoints (`/reports/csv`, `/reports/pdf`, `/api/v1/artifacts/{id}/download`).
+  - Interactive OpenAPI documentation (`/docs`, `/redoc`, `/openapi.json`).
+- [x] **Requirements & Architectural Documentation (`docs/`):** Full SRS (`docs/SRS.md`), Traceability Matrix (`docs/REQUIREMENTS_TRACEABILITY.md`), Technical Decisions (`docs/TECHNICAL_DECISIONS.md`), API Contracts (`docs/API_CONTRACTS.md`), and System Constraints (`docs/SYSTEM_CONSTRAINTS.md`).
 - [x] **Version Control:** Published to GitHub under `Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`.
 
 ### 2.2 In-Progress Subsystems
-- [ ] **Phase 2.2, Part C Architecture:** FastAPI application service router endpoints (`server.py`) and pipeline integration.
+- **None.** Phase 2.2 is complete across Parts A, B1, B2, and C.
 
-### 2.3 Pending Subsystems (Scheduled for Phase 2.2 Part C / Phase 2.3)
-- [ ] **FastAPI Application Gateway Endpoints (`server.py`):** REST API endpoints wrapping AOI registration, analysis execution, and report downloads.
+### 2.3 Pending Subsystems (Scheduled for Phase 2.3)
 - [ ] **Supabase Storage Integration (`src/storage.py`):** Object storage partitioning (`rasters/`, `maps/`, `reports/`) and automated 90-day retention cleanup for intermediate rasters.
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
+- [ ] **Modern Web Frontend Migration / SPA Client:** Client-side React / Next.js web application consuming the FastAPI REST endpoints.
 
 ### 2.4 Blocked Subsystems
-- **None.** All prerequisites for Phase 2.2 Part C are satisfied.
+- **None.** All prerequisites for Phase 2.3 are satisfied.
 
 ---
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 92
-- **Pass Rate:** 100% (92 passed, 0 failed, 4 deprecation warnings in 18.68s)
+- **Total Automated Tests:** 125
+- **Pass Rate:** 100% (125 passed, 0 failed, 147 warnings in 62.73s)
 - **Test Modules:**
   1. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
-  2. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
-  3. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
-  4. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
-  5. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
-  6. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
-  7. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
-  8. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
-  9. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
-  10. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
-  11. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
+  2. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
+  3. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
+  4. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
+  5. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
+  6. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
+  7. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
+  8. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
+  9. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
+  10. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
+  11. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
+  12. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
 
 ---
 

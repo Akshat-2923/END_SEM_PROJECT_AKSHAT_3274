@@ -17,6 +17,7 @@
 - [ADR-006: Relational PostGIS Schema for Spatiotemporal Metadata Storage](#adr-006-relational-postgis-schema-for-spatiotemporal-metadata-storage)
 - [ADR-007: Object Storage Partitioning and 90-Day Output Retention Policy](#adr-007-object-storage-partitioning-and-90-day-output-retention-policy)
 - [ADR-008: Publication-Grade PDF & CSV Reporting Grounded in Immutable Run Manifests](#adr-008-publication-grade-pdf--csv-reporting-grounded-in-immutable-run-manifests)
+- [ADR-009: FastAPI Application Service Layer and Asynchronous Pipeline Dispatch](#adr-009-fastapi-application-service-layer-and-asynchronous-pipeline-dispatch)
 
 ---
 
@@ -186,3 +187,21 @@ Implement dedicated export builders in `src/reporting.py`:
    - Spectral methodology section highlighting McFeeters (1996) formulation and band physics.
    - Prominently framed scientific disclaimer clarifying seasonal hydrological recession vs chemical pollution.
 3. **Data Integrity Rule:** The reporting engine reads directly from the database `water_metrics` and `analysis_runs` tables (or `phase1_feasibility_report.json`). No parameter may be hardcoded or fabricated.
+
+---
+
+### ADR-009: FastAPI Application Service Layer and Asynchronous Pipeline Dispatch
+
+#### Status
+**IMPLEMENTED AND VERIFIED (Phase 2.2 Part C)**
+
+#### Context
+Prior to Phase 2.2C, the satellite pipeline was invoked directly via command-line scripts (`main.py`) or Streamlit sub-processes (`app.py`). Exposing an enterprise REST API requires non-blocking asynchronous pipeline dispatch, unified dependency injection for database sessions bound to transaction-local RLS claims, and sanitized error responses that never leak filesystem paths or credentials.
+
+#### Decision
+Implement a modular FastAPI service layer in `src/api/` and `src/services/` with ASGI entrypoint `server.py`:
+1. **Asynchronous Dispatch:** `POST /api/v1/analyses` accepts user requests, registers an `AnalysisRun` entity in state `QUEUED`, and delegates computation to FastAPI `BackgroundTasks`. The API returns HTTP 201 immediately, keeping the event loop unblocked.
+2. **Deterministic Synchronous Mode:** For automated integration testing, the endpoint supports `?sync=true` to execute in-process and block until `SUCCESS` or `FAILED`.
+3. **Dependency Injection & RLS Binding:** Every user-owned route uses `get_db_session`, which auto-provisions or retrieves user profiles and executes `SET LOCAL ROLE dharascope_app` with session variables `request.jwt.claim.sub` and `request.jwt.claim.role`.
+4. **Information Leakage Prevention:** Global exception handlers catch internal errors, log stack traces server-side, and return sanitized envelopes (`{"error": ..., "detail": ..., "status_code": ...}`). File paths and credentials are removed via `sanitize_error_message`.
+5. **Artifact Delivery Security:** Artifact listings provide secure relative download URLs (`/api/v1/artifacts/{id}/download`) instead of absolute local file paths, with ownership checks before streaming files.

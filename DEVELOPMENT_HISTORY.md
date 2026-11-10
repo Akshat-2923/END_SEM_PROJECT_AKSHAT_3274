@@ -248,4 +248,62 @@
   - `test_production_missing_issuer_fails_closed`: Proves missing issuer in production triggers HTTP 500 fail-closed response.
 - **Automated Test Results:** Full test suite expanded from 85 to **92 tests**, all passing with zero regressions (`92 passed, 4 warnings in 18.68s`).
 
+---
+
+## 10. Milestone 10: Phase 2.2 Part C — FastAPI Application Service Layer
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part C  
+**Scope:** REST API Application Bootstrap, Pydantic Schemas, Service Layer, Asynchronous Pipeline Background Dispatch, Artifact Delivery, and Integration Tests  
+
+### 10.1 Application Bootstrap & Schema Architecture
+- Created `server.py` as the ASGI application entrypoint, instantiating `app = create_app()` and providing uvicorn server startup while ensuring `src.config` is loaded first to protect against Windows PROJ conflicts.
+- Built `src/api/app.py` utilizing the application factory pattern, configuring CORS middleware, global exception handlers for `AOIValidationError`, `ReportingError`, `RequestValidationError`, `HTTPException`, and catching generic uncaught exceptions with sanitized error envelopes.
+- Formulated Pydantic schema models in `src/api/schemas/`:
+  - `common.py`: `APIErrorResponse` and `ValidationErrorResponse`.
+  - `health.py`: Detailed subsystem status (`HealthResponse`).
+  - `auth.py`: `UserProfileResponse` and `AdminUserUpdate`.
+  - `aoi.py`: `AOIValidationRequest`, `AOIValidationResponse`, `AOICreateRequest`, `AOIUpdateRequest`, `AOIResponse`, and `AOIListResponse`.
+  - `analysis.py`: `AnalysisCreateRequest`, `AnalysisResponse`, `AnalysisListResponse`, `WaterMetricsResponse`, and `ArtifactResponse`.
+
+### 10.2 Service Layer & Asynchronous Background Execution
+- **AOI Service (`src/services/aoi_service.py`):** Integrates geometry validation from `src/aoi_validation.py`, PostGIS `GEOMETRY(POLYGON, 4326)` conversion via WKT and GeoJSON, paginated queries, ownership enforcement, and safe updates/deletions.
+- **Analysis Pipeline Service (`src/services/analysis_service.py`):**
+  - Manages monthly user run quotas with transaction-safe checks.
+  - Resolves target geometries either from registered database AOIs or validated inline GeoJSON polygons.
+  - Creates database `analysis_runs` records in `QUEUED` state.
+  - Dispatches heavy scientific raster processing via FastAPI `BackgroundTasks` to `execute_pipeline_worker`.
+  - Orchestrates STAC search (`CDSESTACClient`), scene pair selection (`SceneSelector`), multi-tier band downloading (`CDSEDownloader`), NDWI calculation (`process_scene_bands`), multi-temporal change detection (`compute_water_change`), and figure generation (`plot_comparison_panel`, `plot_ndwi_single_observation`, `plot_water_change_map`).
+  - Automatically records generated rasters, figures, and manifests in `analysis_artifacts` and writes summary metrics to `water_metrics`.
+  - Sanitizes internal filesystem paths and sensitive credentials from diagnostic error messages using regex filters.
+- **Artifact & Reporting Service (`src/services/artifact_service.py`):**
+  - Enforces database ownership and Row-Level Security checks for artifact downloads.
+  - Compiles on-demand ReportLab publication-ready PDFs and RFC 4180 CSV reports from persisted run manifests upon authorized requests.
+  - Streams files using Starlette `FileResponse` without exposing absolute host filesystem paths in client responses.
+
+### 10.3 API Endpoints & Routers
+- Implemented modular routers in `src/api/routers/`:
+  - `health.py`: `GET /health`, `GET /api/v1/health`, `GET /`.
+  - `auth.py`: `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me`, `GET /api/v1/admin/users`, `PATCH /api/v1/admin/users/{user_id}`.
+  - `aois.py`: `POST /api/v1/aois/validate`, `POST /api/v1/aois`, `GET /api/v1/aois`, `GET /api/v1/aois/{id}`, `PATCH /api/v1/aois/{id}`, `DELETE /api/v1/aois/{id}`.
+  - `analyses.py`: `POST /api/v1/analyses`, `GET /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `DELETE /api/v1/analyses/{id}`, `GET /api/v1/analyses/{id}/metrics`, `GET /api/v1/analyses/{id}/artifacts`, `GET /api/v1/analyses/{id}/reports/csv`, `GET /api/v1/analyses/{id}/reports/pdf`.
+  - `artifacts.py`: `GET /api/v1/artifacts/{id}/download`.
+
+### 10.4 Architectural Decision Records & Traceability
+- Added ADR-009 ("FastAPI Application Service Layer, Schema Validation, and Asynchronous Pipeline Worker") to `docs/TECHNICAL_DECISIONS.md`.
+- Added Module 8 (FastAPI Application Service Layer & Gateway) with requirements FR-8.1 through FR-8.5 to `docs/SRS.md`.
+- Documented complete endpoint specifications in `docs/API_CONTRACTS.md`.
+- Documented REST API latency and background concurrency constraints in `docs/SYSTEM_CONSTRAINTS.md`.
+
+### 10.5 Automated Integration Test Suite
+- Built `tests/test_api_service_layer.py` containing 33 integration tests across 6 test classes:
+  - `TestSystemHealthEndpoints`: Health check and OpenAPI docs availability.
+  - `TestAuthenticationAndAuthorization`: JWT Bearer enforcement, role privileges, and admin quota administration.
+  - `TestAOIEndpoints`: AOI geometry validation and full CRUD lifecycle.
+  - `TestCrossUserResourceIsolation`: Multi-tenant isolation for private AOIs and public AOI shared viewing.
+  - `TestAnalysisPipelineEndpoints`: Pipeline run triggers, parameter validations, and full background synthetic raster processing.
+  - `TestReportDownloadEndpoints`: Authorized PDF/CSV downloads, uncompleted run download rejections, and cross-user report protections.
+  - `TestErrorSanitizationAndEdgeCases`: 404/422 status codes and error payload sanitization.
+- **Automated Test Suite Expansion:** Full repository test suite expanded from 92 to **125 tests**, all passing with zero regressions (`125 passed in 62.73s`).
+
 

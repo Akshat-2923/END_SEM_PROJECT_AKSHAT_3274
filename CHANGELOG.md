@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-11-10
+### Added
+- **FastAPI Application Bootstrap & Configuration (`src/api/app.py`, `server.py`):**
+  - Application factory with configurable CORS middleware, standardized error handlers, and interactive OpenAPI documentation (`/docs`, `/redoc`, `/openapi.json`).
+  - Production ASGI entrypoint `server.py` loading `src.config` first to guarantee Windows PROJ runtime isolation before initializing geospatial libraries.
+- **Pydantic Validation & Serialization Layer (`src/api/schemas/`):**
+  - Standardized error response envelopes (`APIErrorResponse`, `ValidationErrorResponse`) preventing internal stack trace and filesystem path leakage.
+  - Health check schemas (`HealthResponse`), User/Admin management schemas (`UserProfileResponse`, `AdminUserUpdate`), AOI validation and CRUD schemas (`AOIValidationRequest`, `AOICreateRequest`, `AOIResponse`), and Analysis/Artifact schemas (`AnalysisCreateRequest`, `AnalysisResponse`, `WaterMetricsResponse`, `ArtifactResponse`).
+- **Application Service Layer (`src/services/`):**
+  - `aoi_service.py`: Encapsulates geographical polygon validation (`src/aoi_validation.py`), PostGIS geometry creation (`EPSG:4326`), paginated listing, ownership updates, and deletion.
+  - `analysis_service.py`: Manages user run quotas, AOI resolution, asynchronous background pipeline execution via FastAPI `BackgroundTasks`, status tracking, and error sanitization.
+  - `artifact_service.py`: Enforces ownership and RLS checks on artifact downloads, generates ReportLab PDF and RFC 4180 CSV reports on demand, and prepares streaming file responses.
+- **RESTful Endpoints & Routers (`src/api/routers/`):**
+  - `health.py`: `GET /health`, `GET /api/v1/health`, `GET /`.
+  - `auth.py`: `GET /api/v1/auth/me`, `PATCH /api/v1/auth/me`, `GET /api/v1/admin/users`, `PATCH /api/v1/admin/users/{user_id}`.
+  - `aois.py`: `POST /api/v1/aois/validate`, `POST /api/v1/aois`, `GET /api/v1/aois`, `GET /api/v1/aois/{id}`, `PATCH /api/v1/aois/{id}`, `DELETE /api/v1/aois/{id}`.
+  - `analyses.py`: `POST /api/v1/analyses`, `GET /api/v1/analyses`, `GET /api/v1/analyses/{id}`, `DELETE /api/v1/analyses/{id}`, `GET /api/v1/analyses/{id}/metrics`, `GET /api/v1/analyses/{id}/artifacts`, `GET /api/v1/analyses/{id}/reports/csv`, `GET /api/v1/analyses/{id}/reports/pdf`.
+  - `artifacts.py`: `GET /api/v1/artifacts/{id}/download`.
+- **Automated Integration Test Suite (`tests/test_api_service_layer.py`):**
+  - Added 33 comprehensive integration tests covering system health, authentication, admin controls, AOI lifecycle and validation, multi-tenant RLS isolation, background pipeline execution, report downloads, and error sanitization. Full repository test suite expanded from 92 to 125 passing tests.
+
+---
+
 ## [0.6.1] - 2026-11-10
 ### Security
 - **Hardened JWT Role Derivation:** Patched `AuthenticatedUser.from_claims()` in `src/auth.py` to extract user authorization roles strictly from server-controlled `app_metadata.role`.

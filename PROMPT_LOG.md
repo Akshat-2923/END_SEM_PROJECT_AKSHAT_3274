@@ -372,5 +372,54 @@
   - Modified: `src/auth.py`, `alembic/versions/5903f15a19ed_enable_rls_and_policies.py`, `tests/test_auth_jwt.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/SRS.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`
 - **Verification:** 92/92 automated pytest tests passing (7 new security tests); verified trusted role extraction from `app_metadata.role` exclusively, client `user_metadata.role` privilege escalation rejection, production fail-closed configuration guards, and PostgreSQL non-superuser / `NOBYPASSRLS` audit.
 
+---
+
+### Task 14: Phase 2.2 Part C — FastAPI Application Service Layer
+- **Date:** 2026-11-10
+- **Development Stage:** Phase 2.2 Part C (Application Service Layer & REST Gateway)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.2 Part C: FastAPI Application Service Layer
+
+  Implement Phase 2.2 Part C on top of the verified B2 security baseline (1fdd307).
+
+  First inspect: repository structure, Git status, current architecture, database models, authentication dependencies, AOI validation, satellite pipeline, and reporting modules.
+
+  ### Scope
+
+  Build the FastAPI application service layer:
+
+  1. Application bootstrap, configuration and health endpoint.
+  2. Authenticated user and admin dependencies using existing src/auth.py.
+  3. AOI CRUD endpoints with ownership enforcement and existing AOI validation.
+  4. Analysis-run creation, status tracking and lifecycle management.
+  5. Integration with existing STAC retrieval, NDWI, change detection and visualization modules.
+  6. Results and analysis-artifact endpoints.
+  7. CSV/PDF report generation and secure downloads.
+  8. OpenAPI documentation and consistent error responses.
+
+  ### Non-negotiable constraints
+
+  - Preserve existing scientific calculations and Phase 1 behavior.
+  - Do not duplicate business logic in API routes.
+  - Use service-layer functions and dependency injection.
+  - Enforce ownership and RLS for every user-owned resource.
+  - Use existing src/aoi_validation.py for incoming geometry checks.
+  - Reject out-of-bounds AOIs before processing.
+  - Never expose Supabase service-role credentials.
+  - Never return filesystem paths, secrets, or internal exception traces in API responses.
+  - Long-running satellite analysis must NOT block the API event loop.
+  - Add comprehensive automated integration tests for the API layer.
+  - Update all permanent documentation.
+  - Commit message: Phase 2.2C: Implement FastAPI application service layer
+  - Do NOT start Phase 2.3 in this milestone.
+  ```
+- **Files Created/Modified:**
+  - Created: `server.py`, `src/api/__init__.py`, `src/api/app.py`, `src/api/dependencies.py`, `src/api/schemas/__init__.py`, `src/api/schemas/common.py`, `src/api/schemas/health.py`, `src/api/schemas/auth.py`, `src/api/schemas/aoi.py`, `src/api/schemas/analysis.py`, `src/services/__init__.py`, `src/services/aoi_service.py`, `src/services/analysis_service.py`, `src/services/artifact_service.py`, `src/api/routers/__init__.py`, `src/api/routers/health.py`, `src/api/routers/auth.py`, `src/api/routers/aois.py`, `src/api/routers/analyses.py`, `src/api/routers/artifacts.py`, `tests/test_api_service_layer.py`
+  - Modified: `docs/API_CONTRACTS.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SRS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `tests/conftest.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 125/125 automated pytest tests passing with zero regressions (33 new integration tests in `test_api_service_layer.py` covering health, authentication, admin endpoints, AOI validation/CRUD, multi-tenant RLS isolation, background pipeline execution, report downloads, and error sanitization).
+
+
 
 
