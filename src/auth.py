@@ -354,18 +354,6 @@ def get_current_user(
     return verify_supabase_jwt(credentials.credentials)
 
 
-def require_admin(
-    current_user: AuthenticatedUser = Depends(get_current_user),
-) -> AuthenticatedUser:
-    """FastAPI dependency: Enforces that the current authenticated user has admin privileges."""
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: Admin privileges required",
-        )
-    return current_user
-
-
 # ---------------------------------------------------------------------------
 # Database Session Context & Row-Level Security (RLS) Propagation
 # ---------------------------------------------------------------------------
@@ -468,3 +456,92 @@ def update_user_profile(
 
     session.flush()
     return profile
+
+
+def verify_admin_privileges(
+    user: AuthenticatedUser,
+    session: Optional[Session] = None,
+) -> AuthenticatedUser:
+    """Verifies that user has admin claim and active admin role in profiles table.
+
+    1. Cryptographic/Claim Check: Confirms the JWT contains trusted app_metadata.role == 'admin'.
+       Any non-admin role or missing claim is rejected immediately with 403 Forbidden.
+    2. Authoritative Database Check: Queries the user's UUID in the profiles table using
+       the restricted RLS-aware database session.
+       - A revoked admin with an unexpired JWT is immediately rejected with 403 Forbidden.
+       - Database connection or query errors fail closed with 500 Internal Server Error.
+    """
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin privileges required",
+        )
+
+    def _verify_profile_role(s: Session) -> None:
+        try:
+            profile = s.scalar(select(Profile).where(Profile.id == user.id))
+            if profile is None:
+                profile = get_or_create_profile(s, user)
+        except Exception as exc:
+            logger.error(
+                "Authoritative admin role verification failed due to database query error: %s",
+                exc,
+            )
+            # Database failures must fail closed for admin endpoints
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authorization verification failed due to database error",
+            ) from exc
+
+        if profile.role != "admin":
+            logger.warning(
+                "Revoked or unauthorized admin access attempt: User %s presented admin credentials but database role is '%s'",
+                user.id,
+                profile.role,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Admin privileges revoked or not granted",
+            )
+
+    if session is not None:
+        _verify_profile_role(session)
+    else:
+        try:
+            with get_authenticated_db(user) as auth_session:
+                _verify_profile_role(auth_session)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Database connection failure in verify_admin_privileges: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authorization verification failed due to database connection error",
+            ) from exc
+
+    return user
+
+
+def require_admin(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> AuthenticatedUser:
+    """FastAPI dependency: Enforces that the current authenticated user has admin privileges.
+
+    Performs authoritative database role check using restricted RLS-aware session.
+    """
+    return verify_admin_privileges(current_user)
+
+
+def __getattr__(name: str):
+    """Lazy export of role synchronization utilities to prevent circular imports."""
+    if name in (
+        "execute_reliable_role_update",
+        "reconcile_user_role",
+        "RoleSyncJournal",
+        "RoleSyncJournalEntry",
+        "SyncState",
+        "get_role_sync_journal",
+    ):
+        from src.services import role_sync_service
+        return getattr(role_sync_service, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

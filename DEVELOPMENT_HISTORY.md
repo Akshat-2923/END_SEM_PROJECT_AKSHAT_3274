@@ -358,3 +358,44 @@
 - **Automated Test Suite Expansion:** Full repository test suite expanded from 125 to **151 tests**, all passing with zero regressions (`151 passed in 77.06s`).
 
 
+
+
+---
+
+## 13. Milestone 13: Phase 2.2D.1 — Role Consistency & Immediate Admin Revocation Hardening
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part D.1  
+**Scope:** Distributed Consistency Strategy, Compensating Updates, Role Sync Journal, Immediate Admin Revocation via Authoritative DB Checks, and Storage Verification Boundaries  
+
+### 13.1 Cross-System Synchronization Reliability (`src/services/role_sync_service.py`)
+- **Audit Findings:** The previous sequence (Supabase Auth first, then PostgreSQL) risked cross-system drift if Supabase succeeded but the PostgreSQL commit or flush subsequently failed (e.g. database constraint error, connection drop, disk failure).
+- **Two-Phase Consistency & SAGA Pattern:** Implemented `execute_reliable_role_update()` with `RoleSyncJournal`:
+  1. Record intent (`PENDING`) in durable JSONL journal (`outputs/metadata/role_sync_audit.jsonl`).
+  2. Call Supabase Auth Admin API (`IDP_UPDATED`). On failure: record `FAILED`, PostgreSQL is untouched.
+  3. Update PostgreSQL `profiles.role` and flush session.
+  4. On PostgreSQL flush/commit failure: caught exception, record `COMPENSATING`, dispatch compensating update to Supabase Auth restoring `old_role`.
+  5. If compensation succeeds: record `COMPENSATED`, rollback session, raise HTTP 500 (both systems remain in agreement at `old_role`).
+  6. If compensation fails: record `DESYNCHRONIZED`, log critical alert, rollback session, raise HTTP 502. Systems never silently report success while disagreeing.
+  7. Retries are idempotent: unchanged roles return immediately without redundant remote requests.
+- **Durable Reconciliation:** Implemented `reconcile_user_role()` and administrative endpoint `POST /api/v1/admin/users/{user_id}/reconcile` allowing on-demand drift reconciliation.
+
+### 13.2 Immediate Admin Revocation (Authoritative Database Privilege Check)
+- **Audit Findings:** Previously, `require_admin` only validated that the JWT claimed `app_metadata.role == "admin"`. A revoked admin user holding an unexpired JWT retained administrative access until token expiration (up to 3600 seconds).
+- **Two-Tier Authoritative Verification:** Hardened `verify_admin_privileges()` and `require_admin` in `src/auth.py`:
+  1. Fast-path check: JWT must claim `app_metadata.role == "admin"` (non-admin tokens rejected immediately with HTTP 403 without touching DB).
+  2. Authoritative check: Queries `profiles.role` for the authenticated caller's UUID within a restricted RLS-aware database session (`SET LOCAL ROLE dharascope_app; set_config('request.jwt.claim.sub', ...)`).
+  3. Immediate Revocation: If the user's role in PostgreSQL is `'user'` (revoked), the request is rejected with `403 Forbidden: Admin privileges revoked or not granted`. Revocation is effective immediately (0 delay).
+  4. Database Failures Fail Closed: Connection errors or SQL exceptions fail closed with HTTP 500, never granting administrative bypass.
+  5. Ordinary Authenticated Access: Normal endpoints (`/api/v1/auth/me`, `/api/v1/aois`, `/api/v1/analyses`) remain unaffected.
+
+### 13.3 Storage Verification Boundaries (`tests/test_storage.py`)
+- **Mock vs. Live Segregation:** Confirmed and documented that default unit and integration tests run offline against mocked Supabase HTTP responses.
+- **Decoupled Live Cloud Suite:** Created `TestLiveSupabaseStorageIntegration` in `tests/test_storage.py`, strictly guarded by `@pytest.mark.skipif(os.getenv("DHARASCOPE_LIVE_SUPABASE_STORAGE") != "1")`. Prevents claiming unverified external cloud integration without live credentials and buckets.
+
+### 13.4 Verification Evidence
+- Expanded test suite from 151 to **160 tests** (plus 1 skipped live integration test):
+  - `tests/test_admin_role_sync.py`: 17 passed (+7 new tests covering compensating rollback, desync alerts, idempotency, reconciliation, immediate revocation with stale JWT, and DB fail-closed).
+  - `tests/test_auth_jwt.py`: 24 passed (+2 new tests covering stale token revocation and fail-closed DB errors).
+  - `tests/test_storage.py`: 16 passed, 1 skipped.
+- Full test suite execution: **160 passed, 1 skipped, 173 warnings in 79.08s**.

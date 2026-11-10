@@ -517,3 +517,75 @@
 
 
 
+
+---
+
+### Task 17: Phase 2.2D.1 — Role Consistency and Revocation Hardening
+- **Date:** 2026-11-10T23:14:22+05:30
+- **Development Stage:** Phase 2.2 Part D.1
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.2D.1: Role Consistency and Revocation Hardening
+
+  Work from commit 22826a4.
+
+  Do not redesign the storage subsystem or begin frontend integration.
+
+  ### 1. Cross-system synchronization reliability
+
+  Audit the Supabase Auth and PostgreSQL role-update sequence.
+
+  The current implementation is not a truly atomic distributed transaction.
+
+  Implement a reliable consistency strategy:
+  - Record the intended role change and synchronization state.
+  - Handle Supabase success followed by PostgreSQL commit failure.
+  - Implement compensating updates or a durable retry/reconciliation mechanism.
+  - Ensure retries are idempotent.
+  - Never silently report success while the two systems disagree.
+
+  ### 2. Immediate admin revocation
+
+  Audit how require_admin determines privileges.
+
+  Implement an authoritative database role check for administrative requests, using the authenticated user's UUID and the restricted RLS-aware database session.
+
+  Requirements:
+  - A revoked admin must lose access on subsequent requests, even with an unexpired old JWT.
+  - A normal user must never gain admin privileges through client-controlled metadata.
+  - Database failures must fail closed for admin endpoints.
+  - Preserve ordinary authenticated-user access.
+  - Test promotion, revocation, stale JWTs, database errors and cross-user authorization.
+
+  ### 3. Storage verification boundaries
+
+  Do not claim live Supabase Storage integration is verified unless real external credentials and an actual bucket are available.
+
+  Keep mock-based tests separate from live integration tests.
+
+  ### 4. Regression and documentation
+
+  Run targeted security tests and the full test suite.
+
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - Relevant security and API documentation.
+
+  Commit relevant changes with:
+
+  Phase 2.2D.1: Harden role consistency and immediate admin revocation
+
+  Verify the commit hash, staged diff and clean working tree.
+
+  Do not start Phase 2.3 during this task.
+
+  Provide exact evidence for the stale-token revocation test and synchronization failure-recovery test.
+  ```
+- **Files Created/Modified:**
+  - Created: `src/services/role_sync_service.py`
+  - Modified: `.gitignore`, `src/auth.py`, `src/api/routers/auth.py`, `tests/test_admin_role_sync.py`, `tests/test_auth_jwt.py`, `tests/test_storage.py`, `docs/API_CONTRACTS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 160 passed, 1 skipped (live external storage), 0 failed across 14 test modules in 79.08s. Includes exact tests proving immediate admin revocation with stale JWT and compensating rollback upon PostgreSQL commit failure.

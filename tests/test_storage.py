@@ -1,5 +1,6 @@
 """Tests for the DharaScope Storage Subsystem (Local & Supabase Storage)."""
 
+import os
 from pathlib import Path
 import tempfile
 import uuid
@@ -263,3 +264,40 @@ class TestArtifactUploadFailureHandling:
         with get_db() as session:
             artifacts = session.query(AnalysisArtifact).filter(AnalysisArtifact.analysis_run_id == run_id).all()
             assert len(artifacts) == 0  # No misleading phantom records!
+
+
+class TestLiveSupabaseStorageIntegration:
+    """Live external integration tests for Supabase Storage.
+
+    Decoupled from the mock test suite. SKIPPED by default.
+    Only executed when real external credentials and an actual bucket are available
+    via DHARASCOPE_LIVE_SUPABASE_STORAGE=1, SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY.
+    """
+
+    @pytest.mark.skipif(
+        os.getenv("DHARASCOPE_LIVE_SUPABASE_STORAGE") != "1",
+        reason="Live Supabase Storage credentials and bucket not available; decoupled from mock test suite.",
+    )
+    def test_live_storage_roundtrip(self, temp_dir, sample_file):
+        """Perform real upload and download roundtrip against live Supabase Storage bucket."""
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        if not url or not key:
+            pytest.skip("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured")
+
+        storage = SupabaseStorageBackend(
+            supabase_url=url,
+            service_role_key=key,
+            cache_dir=temp_dir / "live_cache",
+        )
+        test_key = f"integration_tests/live_test_{uuid.uuid4().hex[:8]}.pdf"
+        dest = storage.upload_file(sample_file, BUCKET_REPORTS, test_key)
+        assert dest == test_key
+        assert storage.exists(BUCKET_REPORTS, test_key)
+
+        downloaded = storage.download_file(BUCKET_REPORTS, test_key)
+        assert downloaded.exists()
+        assert downloaded.read_bytes() == sample_file.read_bytes()
+
+        # Clean up
+        assert storage.delete_file(BUCKET_REPORTS, test_key) is True

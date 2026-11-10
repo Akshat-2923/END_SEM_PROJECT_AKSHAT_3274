@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.3] - 2026-11-10
+### Added
+- **Distributed Role Consistency & Compensating Recovery (`src/services/role_sync_service.py`):**
+  - Implemented `RoleSyncJournal` and `execute_reliable_role_update()` providing two-phase consistency across Supabase Auth GoTrue Admin API and PostgreSQL `profiles.role`.
+  - Intent logging: records transitions (`PENDING`, `IDP_UPDATED`, `COMMITTED`, `COMPENSATING`, `COMPENSATED`, `FAILED`, `DESYNCHRONIZED`, `RECONCILED`) to durable JSONL journal (`outputs/metadata/role_sync_audit.jsonl`).
+  - Compensating rollback: if PostgreSQL commit or flush fails after Supabase update, automatically dispatches compensating update to Supabase Auth restoring `old_role` (returning HTTP 500). If compensation also fails, records `DESYNCHRONIZED` and logs critical alert (HTTP 502).
+  - Idempotent retries: unchanged roles return immediately without redundant external operations.
+  - Reconciliation endpoint: added `POST /api/v1/admin/users/{user_id}/reconcile` and `reconcile_user_role()` for on-demand role reconciliation.
+- **Decoupled Live Storage Integration Suite (`tests/test_storage.py`):**
+  - Added `TestLiveSupabaseStorageIntegration` guarded by `@pytest.mark.skipif(os.getenv("DHARASCOPE_LIVE_SUPABASE_STORAGE") != "1")` to keep offline mock test suites strictly separated from live cloud infrastructure verification.
+
+### Security
+- **Immediate Admin Revocation (`src/auth.py`):**
+  - Hardened `verify_admin_privileges()` and `require_admin()` to enforce authoritative database role checks on `profiles.role` using the caller's UUID in a restricted RLS-aware session.
+  - Immediate revocation: revoked administrators presenting an unexpired JWT with `app_metadata.role = "admin"` are immediately blocked with `403 Forbidden` on their very next administrative request, eliminating token TTL window delays.
+  - Fail-closed security: database connection or query errors during admin privilege verification fail closed with `500 Internal Server Error`, never permitting administrative bypass.
+  - Ordinary authenticated user access (`/api/v1/auth/me`, `/api/v1/aois`, `/api/v1/analyses`) remains completely preserved.
+
+---
+
 ## [0.7.2] - 2026-11-10
 ### Added
 - **Supabase Auth Admin Synchronization (`src/auth.py`, `src/api/routers/auth.py`):**

@@ -254,9 +254,10 @@ class TestFastAPIAuthorizationDependencies:
 
     def test_require_admin_success(self):
         """Test require_admin passes for admin user."""
+        uid = uuid.uuid4()
         admin_user = AuthenticatedUser(
-            id=uuid.uuid4(),
-            email="admin@dharascope.org",
+            id=uid,
+            email=f"admin_{uid.hex[:6]}@dharascope.org",
             role="admin",
             is_admin=True,
             claims={},
@@ -276,6 +277,54 @@ class TestFastAPIAuthorizationDependencies:
             require_admin(regular_user)
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
         assert "Admin privileges required" in exc_info.value.detail
+
+    def test_require_admin_stale_jwt_revocation(self):
+        """Security Proof: require_admin rejects admin user when database profile has been revoked to user."""
+        revoked_uid = uuid.uuid4()
+        with get_db() as session:
+            profile = Profile(
+                id=revoked_uid,
+                email=f"revoked_{revoked_uid.hex[:6]}@dharascope.org",
+                role="user",
+                quota_monthly_runs=50,
+            )
+            session.add(profile)
+            session.commit()
+
+        # Presenting an unexpired JWT claiming admin
+        stale_admin_user = AuthenticatedUser(
+            id=revoked_uid,
+            email=f"revoked_{revoked_uid.hex[:6]}@dharascope.org",
+            role="admin",
+            is_admin=True,
+            claims={},
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            require_admin(stale_admin_user)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert "revoked or not granted" in exc_info.value.detail.lower()
+
+    def test_require_admin_database_error_fails_closed(self, monkeypatch):
+        """Security Proof: Database error during require_admin verification fails closed with 500."""
+        from sqlalchemy.orm import Session
+        from sqlalchemy.exc import SQLAlchemyError
+
+        def failing_scalar(self, *args, **kwargs):
+            raise SQLAlchemyError("Simulated database failure")
+
+        monkeypatch.setattr(Session, "scalar", failing_scalar)
+
+        admin_user = AuthenticatedUser(
+            id=uuid.uuid4(),
+            email="admin_err@dharascope.org",
+            role="admin",
+            is_admin=True,
+            claims={},
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            require_admin(admin_user)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "database error" in exc_info.value.detail.lower()
 
 
 class TestProfileManagementAndPrivilegeEscalation:

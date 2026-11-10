@@ -124,13 +124,14 @@ Updates user's own display profile (`full_name`). Regular users cannot alter `ro
 Lists all user profiles in the database.
 
 - **Auth Required:** Yes (`admin` only)
+- **Authoritative Database Privilege Check & Immediate Revocation:** Validates that the caller's UUID corresponds to an active `role = 'admin'` record in the PostgreSQL `profiles` table within a restricted RLS-aware session. A revoked administrator holding an unexpired JWT is immediately rejected with `403 Forbidden`. Database errors fail closed with `500 Internal Server Error`.
 - **Response `200 OK`:** `List[UserProfileResponse]`
-- **Response `403 Forbidden`:** If accessed by a regular user.
+- **Response `403 Forbidden`:** If accessed by a regular user or revoked admin.
 
 #### `PATCH /api/v1/admin/users/{user_id}`
 Updates any user's role or monthly quota.
 
-- **Auth Required:** Yes (`admin` only)
+- **Auth Required:** Yes (`admin` only, verified authoritatively in PostgreSQL)
 - **Request Body:**
   ```json
   {
@@ -140,8 +141,22 @@ Updates any user's role or monthly quota.
   }
   ```
 - **Response `200 OK`:** Updated `UserProfileResponse`.
-- **Identity Provider Synchronization (Phase 2.2D):** Modifying `role` synchronizes directly with Supabase Auth GoTrue Admin API (`PUT /auth/v1/admin/users/{user_id}`), setting trusted `app_metadata.role`. If Supabase synchronization fails (network timeout, 404, or 500), the request fails with HTTP 502/404 and the PostgreSQL database role update is rolled back.
-- **Stale JWT Lifecycle & Maximum Revocation Delay:** While `app_metadata.role` is updated immediately in Supabase, active JWTs already in circulation retain their claims until expiration. The maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens immediately reflect the updated role.
+- **Distributed Two-Phase Consistency & Compensating Rollback (Phase 2.2D.1):** Modifying `role` records an audit intent in `RoleSyncJournal`, pushes updates to Supabase GoTrue Admin API (`PUT /auth/v1/admin/users/{user_id}`), and commits to PostgreSQL `profiles.role`. If Supabase fails, the database remains untouched. If Supabase succeeds but PostgreSQL commit fails, a compensating call immediately rolls back Supabase to the previous role (HTTP 500 returned). If both fail, `DESYNCHRONIZED` is logged and HTTP 502 returned. Retries are idempotent.
+- **Immediate Admin Revocation (Phase 2.2D.1):** Revoked administrators lose access on their very next request to any administrative endpoint, eliminating the historical token TTL window delay.
+
+#### `POST /api/v1/admin/users/{user_id}/reconcile`
+Idempotently reconciles role drift between PostgreSQL and Supabase Auth.
+
+- **Auth Required:** Yes (`admin` only)
+- **Response `200 OK`:**
+  ```json
+  {
+    "user_id": "c698f83e-7f7d-458e-bd64-73368c952089",
+    "authoritative_role": "user",
+    "status": "reconciled",
+    "sync_id": "7f884210-61d4-4ea0-bd61-e0a5c48b2612"
+  }
+  ```
 
 ---
 
@@ -342,4 +357,6 @@ Downloads any individual generated artifact (PNG comparison panel, transition ma
 
 - **Auth Required:** Yes
 - **Response `200 OK`:** File stream with appropriate MIME type.
-- **Storage Subsystem (Phase 2.2D):** Handled via `src/storage.py` abstraction. In local mode (`SUPABASE_STORAGE_ENABLED=false`), artifacts are streamed directly from `outputs/`. In cloud mode (`SUPABASE_STORAGE_ENABLED=true`), artifacts are downloaded from Supabase Storage buckets (`maps`, `reports`, `rasters`) via authenticated requests using the backend service-role key, cached, and streamed securely to the verified owner. Cross-user access is strictly blocked via parent `AnalysisRun` ownership verification.
+- **Storage Subsystem (Phase 2.2D & 2.2D.1):** Handled via `src/storage.py` abstraction. In local mode (`SUPABASE_STORAGE_ENABLED=false`), artifacts are streamed directly from `outputs/`. In cloud mode (`SUPABASE_STORAGE_ENABLED=true`), artifacts are downloaded from Supabase Storage buckets (`maps`, `reports`, `rasters`) via authenticated requests using the backend service-role key, cached, and streamed securely to the verified owner. Cross-user access is strictly blocked via parent `AnalysisRun` ownership verification.
+- **Verification Boundary Notice:** Offline and CI test environments verify the Supabase Storage subsystem through mocked HTTP responses (`tests/test_storage.py`). Live external cloud verification is decoupled into `TestLiveSupabaseStorageIntegration` and requires actual external credentials (`DHARASCOPE_LIVE_SUPABASE_STORAGE=1`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) with pre-provisioned buckets.
+

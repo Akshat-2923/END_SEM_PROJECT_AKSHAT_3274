@@ -240,3 +240,36 @@ Implement a modular FastAPI service layer in `src/api/` and `src/services/` with
      - `SupabaseStorageBackend`: Uploads artifacts to Supabase Storage buckets (`rasters`, `maps`, `reports`) via REST API using service-role credentials.
    - **Upload Failure Integrity:** During pipeline execution, if an artifact upload fails, the error is caught and logged, and the database record is **not** created. This prevents phantom database rows referencing non-existent storage payloads.
    - **Authorized Delivery:** Downloads continue to enforce parent `AnalysisRun` ownership and RLS checks before serving file bytes.
+
+
+---
+
+### ADR-011: Distributed Role Consistency, Compensating Updates, and Immediate Admin Revocation
+
+#### Status
+**IMPLEMENTED AND VERIFIED (Phase 2.2 Part D.1)**
+
+#### Context
+1. **Cross-System Synchronization Asymmetry:** In Phase 2.2D, `admin_update_user` called Supabase Auth GoTrue Admin API before updating PostgreSQL `profiles.role`. If Supabase succeeded but the PostgreSQL commit subsequently failed (e.g., database constraint failure, connection dropout, disk exhaustion), Supabase Auth remained updated to the new role while PostgreSQL rolled back to the old role, resulting in cross-system state drift.
+2. **Stale JWT Revocation Delay:** Because authorization checks relied on cryptographic JWT claims (`app_metadata.role`), a revoked administrator holding an unexpired JWT retained administrative access for the remainder of the token TTL (up to 3600 seconds).
+3. **Storage Verification Boundaries:** Automated tests for Supabase Storage relied on mocked HTTP responses, which needed explicit demarcation from live cloud integration requiring live credentials and buckets.
+
+#### Decision
+1. **Two-Phase Consistency & Compensating Rollback:**
+   - Implemented `RoleSyncJournal` in `src/services/role_sync_service.py` to record audit intents (`PENDING`, `IDP_UPDATED`, `COMMITTED`, `COMPENSATING`, `COMPENSATED`, `FAILED`, `DESYNCHRONIZED`, `RECONCILED`).
+   - If PostgreSQL commit or flush fails after Supabase Auth was updated, a compensating update is immediately dispatched to Supabase Auth to restore `old_role`.
+   - If compensation succeeds, the journal records `COMPENSATED`, PostgreSQL rolls back, and the client receives HTTP 500. Both systems remain in agreement at `old_role`.
+   - If compensation also fails, the journal records `DESYNCHRONIZED`, a critical alert is logged, and the client receives HTTP 502. The systems never silently report success while disagreeing.
+   - Idempotency guarantees prevent duplicate or corrupt state changes on retries.
+   - Added `POST /api/v1/admin/users/{user_id}/reconcile` and `reconcile_user_role` for durable admin reconciliation.
+2. **Immediate Admin Revocation (Authoritative Database Check):**
+   - Hardened `verify_admin_privileges` and `require_admin` in `src/auth.py`.
+   - For all administrative requests, the backend performs a two-tier check:
+     1. Fast-path check: JWT must claim `app_metadata.role == 'admin'`.
+     2. Authoritative check: Queries `profiles.role` for the caller's UUID within a restricted RLS-aware database session.
+   - A revoked admin presenting an unexpired JWT is immediately rejected with HTTP 403 Forbidden on the subsequent request, achieving immediate revocation (0 delay).
+   - Database connection or query errors fail closed with HTTP 500, never granting administrative bypass.
+   - Ordinary authenticated user access (`/api/v1/auth/me`, `/api/v1/aois`, `/api/v1/analyses`) remains unaffected.
+3. **Decoupled Live Storage Integration:**
+   - Dedicated `TestLiveSupabaseStorageIntegration` in `tests/test_storage.py` guarded by `@pytest.mark.skipif(os.getenv("DHARASCOPE_LIVE_SUPABASE_STORAGE") != "1")`.
+   - Mock-based unit and integration tests verify contract behavior offline, while live testing is strictly opt-in with verified external credentials.

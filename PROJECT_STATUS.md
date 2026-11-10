@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C & Part D)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C, Part D & Part D.1)  
 **Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -35,11 +35,13 @@ In **Phase 2.2, Part C**, the project implemented the complete FastAPI Applicati
 4. Asynchronous Satellite Pipeline Dispatch (`src/api/routers/analyses.py`, `src/services/analysis_service.py`): Non-blocking execution via FastAPI `BackgroundTasks`, quota verification, pipeline execution (STAC discovery, scene selection, band streaming, NDWI indexing, change detection, cartography), progress tracking (`QUEUED`, `PROCESSING`, `SUCCESS`, `FAILED`), and regex diagnostic error sanitization.
 5. Metrics Inspection & Artifact Delivery (`src/services/artifact_service.py`, `src/api/routers/artifacts.py`): Authorized streaming downloads for publication-grade ReportLab PDF reports, RFC 4180 CSV reports, and visualization maps without exposing filesystem paths.
 
-In **Phase 2.2, Part D**, the project resolved admin identity provider synchronization and storage subsystem requirements:
-1. Supabase Auth Admin Synchronization (`src/auth.py`, `src/api/routers/auth.py`): Synchronizes user promotions and revocations directly to Supabase Auth (`PUT /auth/v1/admin/users/{user_id}`) targeting `app_metadata.role`. Atomic failure handling prevents PostgreSQL role mutations if IdP synchronization fails.
-2. Storage Subsystem Abstraction (`src/storage.py`): Multi-backend storage supporting `LocalStorageBackend` (dev/testing/offline) and `SupabaseStorageBackend` (cloud deployments). Pipeline worker uploads comparison panels, maps, reports, and band rasters to logical buckets (`maps`, `reports`, `rasters`). Failed uploads abort database record creation, preventing phantom artifacts.
+In **Phase 2.2, Part D & Part D.1**, the project hardened admin role consistency, revocation, and storage verification boundaries:
+1. Supabase Auth Admin Synchronization (`src/auth.py`, `src/api/routers/auth.py`): Synchronizes user promotions and revocations directly to Supabase Auth (`PUT /auth/v1/admin/users/{user_id}`) targeting `app_metadata.role`.
+2. Distributed Two-Phase Consistency & SAGA Compensating Recovery (`src/services/role_sync_service.py`): Managed via `RoleSyncJournal`. If PostgreSQL commit or flush fails after Supabase update, an automatic compensating update restores the previous role in Supabase Auth (returning HTTP 500). Dual failure logs `DESYNCHRONIZED` alert (HTTP 502). Idempotent retries and `POST /api/v1/admin/users/{user_id}/reconcile` endpoint guarantee eventual consistency.
+3. Immediate Admin Revocation (`src/auth.py`): Every administrative endpoint performs an authoritative database lookup on `profiles.role` using the caller's UUID within a restricted RLS-aware session. A revoked administrator is immediately blocked with HTTP 403 Forbidden on their very next request (0 delay), even when holding an unexpired JWT. Database errors fail closed with HTTP 500.
+4. Storage Subsystem & Decoupled Verification Boundaries (`src/storage.py`, `tests/test_storage.py`): Local storage for offline/dev environments and Supabase Storage for cloud deployments. Mock-based test suite covers all unit/integration contracts offline; live testing is strictly decoupled into `TestLiveSupabaseStorageIntegration` guarded by `DHARASCOPE_LIVE_SUPABASE_STORAGE=1`.
 
-The automated test suite has expanded to **151 tests**, all passing with zero regressions (100% pass rate).
+The automated test suite has expanded to **160 passed tests** (plus 1 skipped live integration test), all passing with zero regressions (100% pass rate).
 
 ---
 

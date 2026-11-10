@@ -14,8 +14,10 @@ from src.api.schemas.auth import (
 )
 from src.auth import (
     AuthenticatedUser,
+    execute_reliable_role_update,
     get_current_user,
     get_or_create_profile,
+    reconcile_user_role,
     sync_user_role_to_supabase,
     update_user_profile,
 )
@@ -94,9 +96,12 @@ def admin_update_user(
         )
 
     if payload.role is not None and payload.role != target_profile.role:
-        # Synchronize with authoritative Supabase Auth GoTrue Admin API first
-        sync_user_role_to_supabase(user_id=user_id, new_role=payload.role)
-        target_profile.role = payload.role
+        # Distributed two-phase role update with compensating recovery
+        execute_reliable_role_update(
+            session=session,
+            target_profile=target_profile,
+            new_role=payload.role,
+        )
     if payload.quota_monthly_runs is not None:
         target_profile.quota_monthly_runs = payload.quota_monthly_runs
     if payload.full_name is not None:
@@ -104,3 +109,17 @@ def admin_update_user(
 
     session.flush()
     return target_profile
+
+
+@router.post(
+    "/admin/users/{user_id}/reconcile",
+    status_code=status.HTTP_200_OK,
+    summary="Reconcile User Role Consistency (Admin Only)",
+    description="Administrative endpoint to reconcile role drift between PostgreSQL and Supabase Auth.",
+)
+def admin_reconcile_user_role(
+    user_id: uuid.UUID,
+    session: Session = Depends(get_admin_db_session),
+) -> dict:
+    """Reconcile authorization role state between database and identity provider."""
+    return reconcile_user_role(session=session, user_id=user_id)

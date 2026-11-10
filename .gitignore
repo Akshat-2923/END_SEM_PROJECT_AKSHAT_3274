@@ -29,6 +29,7 @@ outputs/*-*-*-*-*/
 # Logs
 *.log
 logs/*.log
+*.jsonl
 
 # IDE & OS
 .vscode/
