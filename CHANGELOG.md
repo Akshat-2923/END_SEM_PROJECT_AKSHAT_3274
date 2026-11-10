@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1] - 2026-11-10
+### Security
+- **Hardened JWT Role Derivation:** Patched `AuthenticatedUser.from_claims()` in `src/auth.py` to extract user authorization roles strictly from server-controlled `app_metadata.role`.
+- **Eliminated User Metadata Trust:** Completely removed `user_metadata` as a source of authorization claims, preventing client self-promotion to `admin` during signup or profile updates.
+- **Supabase System Role Decoupling:** Explicitly separated Supabase's standard session claim `role: "authenticated"` from application authorization; non-explicit or missing roles default unconditionally to `user`.
+- **Database Non-Superuser Role Hardening:** Updated migration `5903f15a19ed_enable_rls_and_policies.py` to explicitly declare `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE` on `dharascope_app` to ensure PostgreSQL Row-Level Security cannot be bypassed.
+- **Production Fail-Closed Enforcement:** Added fail-closed checks in `get_jwt_secret()` and `get_jwt_issuer()` to raise HTTP 500 in production when `SUPABASE_JWT_SECRET` or `SUPABASE_ISSUER` / `SUPABASE_URL` is omitted.
+
+### Fixed
+- Fixed security test `test_production_missing_jwt_secret_fails_closed` in `tests/test_auth_jwt.py` to isolate missing secret evaluation from missing issuer evaluation.
+
+### Added
+- Added 7 automated security tests in `tests/test_auth_jwt.py` verifying client `user_metadata.role = admin` rejection, missing role defaults, invalid role strings, Supabase system claim isolation, auto-provisioning role safety, and production fail-closed behaviors. Test suite total expanded to 92 passing tests.
+
+---
+
 ## [0.6.0] - 2026-11-07
 ### Added
 - Implemented Supabase Auth and FastAPI security layer in `src/auth.py`:

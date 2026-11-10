@@ -52,20 +52,27 @@ class AuthenticatedUser:
 
         email = claims.get("email", "")
 
-        # Role extraction hierarchy:
-        # 1. app_metadata.role (Supabase canonical custom role claim)
-        # 2. user_metadata.role
-        # 3. top-level role claim (if explicitly set to 'admin')
-        app_metadata = claims.get("app_metadata", {})
-        user_metadata = claims.get("user_metadata", {})
+        # Security Hardening (Phase 2.2B2 Audit):
+        # Application authorization roles MUST be derived exclusively from trusted
+        # `app_metadata.role`. The `user_metadata` claim in Supabase is completely
+        # user-writable via client SDKs and MUST NEVER be used for authorization
+        # or privilege assignment.
+        # Furthermore, Supabase's standard top-level `role` claim defaults to
+        # 'authenticated' (indicating token type/audience) and MUST NEVER be
+        # interpreted as an application administrator role.
+        app_metadata = claims.get("app_metadata")
+        if not isinstance(app_metadata, dict):
+            app_metadata = {}
 
-        claimed_role = (
-            app_metadata.get("role")
-            or user_metadata.get("role")
-            or (claims.get("role") if claims.get("role") == "admin" else None)
-            or "user"
-        )
-        normalized_role = "admin" if claimed_role == "admin" else "user"
+        raw_role = app_metadata.get("role")
+        if isinstance(raw_role, str):
+            candidate_role = raw_role.strip().lower()
+        else:
+            candidate_role = ""
+
+        # Only explicitly authorized application roles are recognized;
+        # missing, malformed, non-string, or unknown roles strictly default to 'user'.
+        normalized_role = "admin" if candidate_role == "admin" else "user"
 
         return cls(
             id=user_uuid,
@@ -79,7 +86,13 @@ class AuthenticatedUser:
 def get_jwt_secret() -> str:
     """Retrieve Supabase JWT secret from environment variables."""
     secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("JWT_SECRET")
+    env = (os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "").lower()
     if not secret:
+        if env in ("production", "prod"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Security misconfiguration: SUPABASE_JWT_SECRET must be configured in production",
+            )
         # Default fallback for testing or development only
         return "dharascope_test_jwt_secret_key_minimum_32_bytes_long"
     return secret
@@ -92,9 +105,16 @@ def get_jwt_audience() -> Optional[str]:
 
 def get_jwt_issuer() -> Optional[str]:
     """Retrieve expected JWT issuer, if configured."""
-    return os.getenv("SUPABASE_ISSUER") or (
+    issuer = os.getenv("SUPABASE_ISSUER") or (
         f"{os.getenv('SUPABASE_URL')}/auth/v1" if os.getenv("SUPABASE_URL") else None
     )
+    env = (os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "").lower()
+    if not issuer and env in ("production", "prod"):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Security misconfiguration: SUPABASE_ISSUER or SUPABASE_URL must be configured in production",
+        )
+    return issuer
 
 
 def verify_supabase_jwt(

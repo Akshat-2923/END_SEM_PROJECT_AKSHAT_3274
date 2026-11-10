@@ -2,8 +2,8 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Part A, Part B1 & Part B2 Complete; Part C Pending)  
-**Last Updated:** 2026-11-07  
+**Current Phase:** Phase 2.2 — Platform Evolution (Part A, Part B1 & Part B2 Security Hardened; Part C Pending)  
+**Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
 ---
@@ -21,12 +21,14 @@ In **Phase 2.2, Part B1**, the project implemented the complete PostgreSQL 16 + 
 2. `alembic/`: Complete database migration lifecycle using `geoalchemy2.alembic_helpers`, tested with full upgrade and downgrade cycles.
 3. Live PostGIS verification: Executed against PostgreSQL 16.15 + PostGIS 3.6.2, verifying geodetic spatial calculations (`ST_Area(geometry::geography)`) align with the Python validation engine.
 
-In **Phase 2.2, Part B2**, the project completed full authentication, authorization, and database-level security:
-1. `src/auth.py`: Cryptographic Supabase JWT Bearer token validation (HS256 symmetric and RS256/ES256 asymmetric JWKS), identity and role extraction, FastAPI dependencies (`get_current_user`, `require_admin`), and profile auto-provisioning with anti-privilege escalation guards.
-2. Transaction-local PostgreSQL session identity propagation: `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)` scoped strictly to the active transaction.
-3. PostgreSQL Row-Level Security (RLS): Enabled and forced across all 5 tables with 20 granular policies verifying cross-user isolation, public AOI protections, and child metric/artifact inheritance.
+In **Phase 2.2, Part B2 & Security Hardening**, the project completed full authentication, authorization, database-level security, and role trust boundary hardening:
+1. `src/auth.py`: Cryptographic Supabase JWT Bearer token validation (HS256 symmetric and RS256/ES256 asymmetric JWKS), identity and role extraction derived strictly and exclusively from `app_metadata.role`, FastAPI dependencies (`get_current_user`, `require_admin`), and profile auto-provisioning with anti-privilege escalation guards.
+2. Untrusted Metadata Rejection: Completely eliminated user-writable `user_metadata` as a source of authorization claims and separated Supabase's standard session claim `role: "authenticated"` from application admin privileges.
+3. Production Fail-Closed Guards: Enforced mandatory `SUPABASE_JWT_SECRET` and `SUPABASE_ISSUER` / `SUPABASE_URL` in production, failing closed with HTTP 500 upon missing configuration.
+4. Transaction-local PostgreSQL session identity propagation: `SET LOCAL ROLE dharascope_app;` and `set_config('request.jwt.claim.sub', :sub, true)` scoped strictly to the active transaction.
+5. PostgreSQL Row-Level Security (RLS): Enabled and forced across all 5 tables with 20 granular policies verifying cross-user isolation, public AOI protections, and child metric/artifact inheritance. Role `dharascope_app` is non-superuser, has `NOBYPASSRLS`, and does not own tables.
 
-The automated test suite has expanded to **85 tests**, all passing with zero regressions.
+The automated test suite has expanded to **92 tests**, all passing with zero regressions.
 
 ---
 
@@ -76,11 +78,11 @@ The automated test suite has expanded to **85 tests**, all passing with zero reg
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 85
-- **Pass Rate:** 100% (85 passed, 0 failed, 4 deprecation warnings in 9.65s)
+- **Total Automated Tests:** 92
+- **Pass Rate:** 100% (92 passed, 0 failed, 4 deprecation warnings in 18.68s)
 - **Test Modules:**
   1. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
-  2. `tests/test_auth_jwt.py`: 15 passed (valid user/admin JWTs, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation).
+  2. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
   3. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
   4. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
   5. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
@@ -90,12 +92,6 @@ The automated test suite has expanded to **85 tests**, all passing with zero reg
   9. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
   10. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
   11. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
-  2. `tests/test_reporting.py`: 7 passed (manifest metric extraction, CSV formatting, PDF generation with/without figures, synthetic provenance tagging).
-  3. `tests/test_change_detection.py`: 3 passed (change matrix, zero baseline, spatial mismatch).
-  4. `tests/test_downloader.py`: 11 passed (credentials detection, auth requirements, trusted redirects, HTML rejection, file truncation, raster verification, synthetic generation, mode resolution).
-  5. `tests/test_stac_client.py`: 3 passed (bbox validation, metadata extraction, HTTP error handling).
-  6. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero denominator, water classification, shape mismatch).
-  7. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full integration from arrays to transition matrix).
 
 ---
 

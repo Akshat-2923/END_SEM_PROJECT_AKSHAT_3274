@@ -310,4 +310,67 @@
   - Modified: `requirements.txt` (added `fastapi>=0.110.0`, `uvicorn>=0.28.0`, `pyjwt[crypto]>=2.8.0`, `httpx>=0.27.0`), `alembic/env.py`, `.env.example`, `tests/test_database_models.py`, `tests/test_database_migrations.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/SRS.md`, `docs/REQUIREMENTS_TRACEABILITY.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`
 - **Verification:** 85/85 automated pytest tests passing (21 new security & auth tests); full PostgreSQL 16 + PostGIS 3.6 RLS enforcement verified against live database for cross-user isolation, child metric/artifact inheritance, and anti-privilege escalation.
 
+---
+
+### Task 13: Phase 2.2B2 Security Hardening — Trusted Role Extraction & Production Guards
+- **Date:** 2026-11-10
+- **Development Stage:** Phase 2.2B2 Security Hardening
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.2B2 Security Hardening
+
+  Audit and fix the authentication role-extraction vulnerability before starting Phase 2.2 Part C.
+
+  ### 1. Critical fix
+  - Inspect `src/auth.py`.
+  - Remove `user_metadata` as a source of authorization privileges.
+  - Derive application roles exclusively from trusted `app_metadata.role`.
+  - Default missing or unrecognized roles to `user`.
+  - Never interpret Supabase's standard `role` claim (`authenticated`) as an application admin role.
+  - Ensure profile auto-provisioning uses only this trusted role.
+  - Preserve existing JWT verification and RLS architecture.
+
+  ### 2. Security tests
+  Add tests proving:
+  - A valid signed JWT with `user_metadata.role = admin` cannot obtain admin privileges.
+  - A JWT without `app_metadata.role` defaults to user.
+  - An explicitly trusted `app_metadata.role = admin` is recognized.
+  - Unknown roles cannot obtain elevated privileges.
+  - Profile auto-provisioning cannot create an admin profile from user-controlled metadata.
+  - Existing RLS and privilege-escalation tests continue passing.
+
+  Run these tests against the actual authentication and PostgreSQL security implementations.
+
+  ### 3. Additional audit
+  Inspect:
+  - Whether the database role executing queries is guaranteed to be a non-superuser, has `NOBYPASSRLS`, and does not own application tables.
+  - Production database connection configuration uses dedicated application credentials.
+  - JWT issuer validation cannot be skipped when `ENVIRONMENT=production`.
+  - Supabase service-role credentials can never enter client-facing frontend code or logs.
+
+  Document any configuration recommendations in `docs/SYSTEM_CONSTRAINTS.md`.
+
+  ### 4. Documentation & permanent records
+  - Update `DEVELOPMENT_HISTORY.md`
+  - Update `PROMPT_LOG.md`
+  - Update `CHANGELOG.md`
+  - Update `PROJECT_STATUS.md`
+  - Update `docs/SRS.md`, `docs/TECHNICAL_DECISIONS.md`, and `docs/SYSTEM_CONSTRAINTS.md`
+
+  ### 5. Git version control
+  - Run the full test suite and confirm zero regressions.
+  - Inspect `git diff` to ensure only the intended changes are staged.
+  - Stage only the relevant files.
+  - Commit with the message: `Phase 2.2B2: Harden trusted JWT role extraction`
+  - Verify the commit using `git log -1 --oneline` and check `git status`.
+
+  ### 6. Scope restriction
+  Do not start Phase 2.2 Part C in this task.
+  ```
+- **Files Created/Modified:**
+  - Modified: `src/auth.py`, `alembic/versions/5903f15a19ed_enable_rls_and_policies.py`, `tests/test_auth_jwt.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`, `docs/SRS.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`
+- **Verification:** 92/92 automated pytest tests passing (7 new security tests); verified trusted role extraction from `app_metadata.role` exclusively, client `user_metadata.role` privilege escalation rejection, production fail-closed configuration guards, and PostgreSQL non-superuser / `NOBYPASSRLS` audit.
+
+
 

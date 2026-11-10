@@ -31,6 +31,7 @@ def create_test_jwt(
     email: str = "hydrologist@dharascope.org",
     role: str = "authenticated",
     app_metadata: Optional[Dict[str, Any]] = None,
+    user_metadata: Optional[Dict[str, Any]] = None,
     exp_delta: int = 3600,
     secret: str = TEST_SECRET,
     algorithm: str = "HS256",
@@ -43,8 +44,8 @@ def create_test_jwt(
         "sub": user_id,
         "email": email,
         "role": role,
-        "app_metadata": app_metadata or {"role": "user", "provider": "email"},
-        "user_metadata": {"full_name": "Test Hydrologist"},
+        "app_metadata": app_metadata if app_metadata is not None else {"role": "user", "provider": "email"},
+        "user_metadata": user_metadata if user_metadata is not None else {"full_name": "Test Hydrologist"},
         "iss": issuer,
         "aud": audience,
         "iat": int(time.time()),
@@ -90,6 +91,83 @@ class TestSupabaseJWTVerification:
         assert user.id == admin_uuid
         assert user.role == "admin"
         assert user.is_admin is True
+
+    def test_user_metadata_role_admin_cannot_obtain_admin_privileges(self):
+        """Security Proof: User-controlled user_metadata cannot elevate to admin."""
+        user_uuid = uuid.uuid4()
+        # Malicious user attempts to supply role: admin in user_metadata
+        token = create_test_jwt(
+            sub=str(user_uuid),
+            email="attacker@dharascope.org",
+            app_metadata={"role": "user"},
+            user_metadata={"role": "admin", "full_name": "Rogue User"},
+        )
+        user = verify_supabase_jwt(
+            token,
+            secret=TEST_SECRET,
+            issuer=TEST_ISSUER,
+            audience=TEST_AUDIENCE,
+        )
+
+        assert user.id == user_uuid
+        assert user.role == "user"
+        assert user.is_admin is False
+
+        # Must fail admin authorization dependency
+        with pytest.raises(HTTPException) as exc_info:
+            require_admin(user)
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_missing_app_metadata_role_defaults_to_user(self):
+        """Verify tokens without app_metadata.role safely default to user."""
+        user_uuid = uuid.uuid4()
+        # Empty or absent app_metadata
+        token = create_test_jwt(
+            sub=str(user_uuid),
+            email="plain@dharascope.org",
+            app_metadata={},
+            user_metadata={"role": "admin"},
+        )
+        user = verify_supabase_jwt(
+            token,
+            secret=TEST_SECRET,
+            issuer=TEST_ISSUER,
+            audience=TEST_AUDIENCE,
+        )
+
+        assert user.role == "user"
+        assert user.is_admin is False
+
+    def test_unknown_roles_cannot_obtain_elevated_privileges(self):
+        """Verify unrecognized or non-admin roles strictly default to user."""
+        for rogue_role in ["superuser", "root", "manager", "staff", "owner", 1234, True, None]:
+            token = create_test_jwt(
+                email="unknown@dharascope.org",
+                app_metadata={"role": rogue_role},
+            )
+            user = verify_supabase_jwt(
+                token,
+                secret=TEST_SECRET,
+                issuer=TEST_ISSUER,
+                audience=TEST_AUDIENCE,
+            )
+            assert user.role == "user", f"Rogue role {rogue_role} was not defaulted to user"
+            assert user.is_admin is False
+
+    def test_supabase_standard_role_claim_never_elevates(self):
+        """Verify Supabase top-level role claim ('authenticated') is not treated as an admin role."""
+        token = create_test_jwt(
+            role="authenticated",
+            app_metadata={},
+        )
+        user = verify_supabase_jwt(
+            token,
+            secret=TEST_SECRET,
+            issuer=TEST_ISSUER,
+            audience=TEST_AUDIENCE,
+        )
+        assert user.role == "user"
+        assert user.is_admin is False
 
     def test_missing_or_empty_jwt(self):
         """Verify missing token raises 401 Unauthorized."""
@@ -282,3 +360,53 @@ class TestProfileManagementAndPrivilegeEscalation:
         assert profile.role == "admin"
         assert profile.quota_monthly_runs == 200
         assert profile.full_name == "Lead Administrator"
+
+    def test_profile_autoprovisioning_cannot_create_admin_from_user_metadata(self):
+        """Security Proof: Profile auto-provisioning ignores user_metadata role=admin."""
+        user_uuid = uuid.uuid4()
+        token = create_test_jwt(
+            sub=str(user_uuid),
+            email=f"rogue_{uuid.uuid4().hex[:6]}@example.com",
+            app_metadata={"role": "user"},
+            user_metadata={"role": "admin"},
+        )
+        user = verify_supabase_jwt(
+            token,
+            secret=TEST_SECRET,
+            issuer=TEST_ISSUER,
+            audience=TEST_AUDIENCE,
+        )
+
+        profile = get_or_create_profile(self.session, user)
+        assert profile.role == "user"
+        assert profile.role != "admin"
+
+
+class TestProductionConfigurationGuards:
+    """Tests verifying fail-closed configuration enforcement in production environments."""
+
+    def test_production_missing_jwt_secret_fails_closed(self, monkeypatch):
+        """Verify server refuses to run in production without SUPABASE_JWT_SECRET."""
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("SUPABASE_ISSUER", "https://mock.supabase.co/auth/v1")
+        monkeypatch.delenv("SUPABASE_JWT_SECRET", raising=False)
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+
+        token = create_test_jwt()
+        with pytest.raises(HTTPException) as exc_info:
+            verify_supabase_jwt(token)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "SUPABASE_JWT_SECRET must be configured" in exc_info.value.detail
+
+    def test_production_missing_issuer_fails_closed(self, monkeypatch):
+        """Verify server refuses to run in production without SUPABASE_ISSUER or SUPABASE_URL."""
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("SUPABASE_JWT_SECRET", TEST_SECRET)
+        monkeypatch.delenv("SUPABASE_ISSUER", raising=False)
+        monkeypatch.delenv("SUPABASE_URL", raising=False)
+
+        token = create_test_jwt()
+        with pytest.raises(HTTPException) as exc_info:
+            verify_supabase_jwt(token)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "SUPABASE_ISSUER or SUPABASE_URL must be configured" in exc_info.value.detail

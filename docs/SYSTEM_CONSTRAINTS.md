@@ -114,3 +114,11 @@ The table below documents all operational performance targets for DharaScope. Ea
 - **Child Record Inheritance:** Child tables (`water_metrics`, `analysis_artifacts`) inherit ownership restrictions from `analysis_runs` via correlated existence queries.
 - **Anti-Privilege Escalation:** PostgreSQL RLS `WITH CHECK` policies prevent regular users from updating their `role` to `'admin'`.
 - **90-Day Output Retention:** Intermediate raster files in the `rasters/` storage bucket are purged after 90 days to respect storage limits, while summary metrics and PDF reports are preserved permanently for academic auditability.
+
+### 6.3 Trusted Role Provenance & Production Configuration Guards
+- **Untrusted User Metadata:** In Supabase Auth, `user_metadata` is client-writable during signup and `updateUser()` calls. Under no circumstances may `user_metadata.role` or any client-supplied property elevate application privileges.
+- **Server-Controlled Role Provenance:** Application authorization roles (`admin`, `user`) are extracted strictly and exclusively from `app_metadata.role`.
+- **Supabase System Role Separation:** The top-level Supabase JWT claim `role: "authenticated"` indicates an active authenticated session and must never be interpreted as an application administrative role. Tokens without an explicit `app_metadata.role = "admin"` unconditionally default to role `user`.
+- **Database Role Constraints:** The `dharascope_app` database role must have `NOSUPERUSER` and `NOBYPASSRLS` privileges and must not own the application tables, ensuring PostgreSQL evaluates Row-Level Security policies on every query.
+- **Production Fail-Closed Enforcement:** When running in production (`ENVIRONMENT=production` or `DHARASCOPE_ENV=production`), the backend enforces that `SUPABASE_JWT_SECRET` and `SUPABASE_ISSUER` (or `SUPABASE_URL`) are explicitly provided. If either is missing, request validation immediately fails closed with HTTP 500 Internal Server Error.
+- **Zero Service-Role Exposure:** The Supabase `service_role` key bypasses all RLS checks and must never be exposed to frontend clients, logged to console/files, or configured in client-facing environments.

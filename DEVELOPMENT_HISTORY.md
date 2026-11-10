@@ -217,4 +217,35 @@
 - Created `tests/test_database_security_rls.py` (6 tests) verifying actual PostgreSQL RLS execution: User A vs User B private AOI isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection.
 - **Test Suite Results:** Expanded automated test suite from 64 to **85 tests**, all passing with zero regressions (`85 passed, 4 warnings in 9.65s`).
 
+---
+
+## 9. Milestone 9: Phase 2.2B2 Security Hardening (Trusted Role Extraction & Production Guards)
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part B2 Security Hardening  
+**Scope:** Authentication Trust Boundary, Role Extraction, Production Fail-Closed Guards & Security Audit  
+
+### 9.1 Vulnerability Identification & Root Cause
+- In the initial Phase 2.2B2 implementation, `AuthenticatedUser.from_claims()` evaluated user authorization roles by falling back to `claims.get("user_metadata", {}).get("role")` and top-level `claims.get("role")`.
+- In Supabase Auth, `user_metadata` is client-controlled: unauthenticated callers during `auth.signUp()` or authenticated users during `auth.updateUser()` can write arbitrary JSON payloads into `user_metadata`.
+- Consequently, an untrusted user could supply `{"data": {"role": "admin"}}` during signup, causing the backend to elevate their session to `role = "admin"` and auto-provision an admin database profile.
+
+### 9.2 Remediation & Architectural Hardening
+- **Strict Role Extraction:** Modified `src/auth.py` so application roles are derived **strictly and exclusively** from `claims.get("app_metadata", {}).get("role")`.
+- **Rejection of Client Metadata:** Discarded `user_metadata` entirely from authorization decisions.
+- **Supabase System Role Separation:** Prevented mapping of Supabase's top-level session claim `role: "authenticated"` to application administrative permissions. Any unrecognized, non-string, or missing role unconditionally defaults to `"user"`.
+- **Database Role Hardening:** Updated migration `5903f15a19ed_enable_rls_and_policies.py` to explicitly enforce `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE` on the `dharascope_app` role. Audited PostgreSQL: verified `dharascope_app` does not own application tables (table owner remains `postgres`), ensuring RLS is strictly evaluated.
+- **Production Fail-Closed Guards:** Updated `get_jwt_secret()` and `get_jwt_issuer()` in `src/auth.py` to raise HTTP 500 configuration errors in production (`ENVIRONMENT=production` or `DHARASCOPE_ENV=production`) if `SUPABASE_JWT_SECRET` or `SUPABASE_ISSUER` / `SUPABASE_URL` is missing.
+
+### 9.3 Security Verification & Expanded Test Coverage
+- Expanded `tests/test_auth_jwt.py` with 7 new security test cases:
+  - `test_user_metadata_role_admin_cannot_obtain_admin_privileges`: Proves signed JWT with `user_metadata.role = "admin"` gets `role = "user"` and is denied admin access (HTTP 403).
+  - `test_missing_app_metadata_role_defaults_to_user`: Proves missing role defaults safely to `"user"`.
+  - `test_unknown_roles_cannot_obtain_elevated_privileges`: Proves invalid role strings (`superuser`, `root`, `manager`, integers, `None`) normalize to `"user"`.
+  - `test_supabase_standard_role_claim_never_elevates`: Proves top-level `role: "authenticated"` never elevates privileges.
+  - `test_profile_autoprovisioning_cannot_create_admin_from_user_metadata`: Proves profile auto-provisioning stores `role = "user"` even when user-metadata claims `role: "admin"`.
+  - `test_production_missing_jwt_secret_fails_closed`: Proves missing secret in production triggers HTTP 500 fail-closed response.
+  - `test_production_missing_issuer_fails_closed`: Proves missing issuer in production triggers HTTP 500 fail-closed response.
+- **Automated Test Results:** Full test suite expanded from 85 to **92 tests**, all passing with zero regressions (`92 passed, 4 warnings in 18.68s`).
+
 

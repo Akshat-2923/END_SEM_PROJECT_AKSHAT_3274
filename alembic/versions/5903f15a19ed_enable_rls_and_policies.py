@@ -46,7 +46,9 @@ def upgrade() -> None:
     DO $$
     BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dharascope_app') THEN
-        CREATE ROLE dharascope_app WITH LOGIN NOSUPERUSER;
+        CREATE ROLE dharascope_app WITH LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+      ELSE
+        ALTER ROLE dharascope_app WITH NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
       END IF;
     END
     $$;

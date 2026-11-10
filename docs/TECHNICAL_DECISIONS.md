@@ -125,6 +125,10 @@ Delegate identity management to **Supabase Auth** and validate sessions stateles
    SELECT set_config('request.jwt.claim.role', :role, true);
    ```
    Setting `is_local = true` ensures parameters are strictly transaction-scoped, preventing connection pool pollution. PostgreSQL RLS policies evaluate `auth.uid()` and `auth.role()` on all 5 entity tables.
+5. **Trusted Role Extraction & Metadata Boundary:**
+   In Supabase Auth, `user_metadata` is writable by unauthenticated and authenticated clients during signup and profile updates (`auth.updateUser()`). Therefore, `user_metadata` must **never** be used to determine authorization privileges. Application roles (`admin` vs `user`) are extracted strictly from server-managed `app_metadata.role` (which can only be altered by database triggers or service-role administrative endpoints). Supabase's default top-level `role: "authenticated"` is a system audience identifier and is never mapped to administrative authority. Any token missing an explicit `app_metadata.role = "admin"` defaults to `user`.
+6. **Production Configuration Fail-Closed Guards:**
+   When `ENVIRONMENT=production`, FastAPI halts startup / token verification with HTTP 500 if either `SUPABASE_JWT_SECRET` (or `JWT_SECRET`) or `SUPABASE_ISSUER` / `SUPABASE_URL` is omitted, eliminating reliance on development defaults or unverified issuers in production.
 
 ---
 
