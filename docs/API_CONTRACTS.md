@@ -140,6 +140,7 @@ Updates any user's role or monthly quota.
   }
   ```
 - **Response `200 OK`:** Updated `UserProfileResponse`.
+- **Audit Note & Known Behavior:** Modifying `role` updates the PostgreSQL `profiles.role` record. It does not mutate Supabase's `app_metadata.role` identity provider record (which requires service-role Admin API access). Because application authorization derives strictly from the cryptographic JWT `app_metadata.role`, changing a role in the database does not elevate an active session or immediately revoke an unexpired admin JWT until the token expires (up to 3600s TTL).
 
 ---
 
@@ -221,6 +222,7 @@ Deletes an AOI. Only the owner or an admin can delete; other users receive `403 
 Creates and launches an analysis run. Runs in the background without blocking the event loop.
 
 - **Query Parameters:** `sync: bool = false` (if `true`, executes synchronously for tests).
+- **Execution Lifecycle & Restart Note:** In default asynchronous mode (`sync=false`), the task is enqueued to FastAPI's in-process `BackgroundTasks`. Tasks do not survive server restarts; if the application process restarts during execution, jobs in `QUEUED` or `PROCESSING` state are orphaned in the database.
 - **Request Body:**
   ```json
   {
@@ -339,3 +341,4 @@ Downloads any individual generated artifact (PNG comparison panel, transition ma
 
 - **Auth Required:** Yes
 - **Response `200 OK`:** File stream with appropriate MIME type.
+- **Storage Subsystem Note:** Artifacts are retrieved from local filesystem storage (`outputs/<user_id>/<run_id>/`). Cloud object storage streaming (Supabase Storage / S3) is scheduled for Phase 2.3. Downloads strictly enforce parent run ownership and RLS checks before serving file bytes.

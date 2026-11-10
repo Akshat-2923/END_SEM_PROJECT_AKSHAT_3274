@@ -205,3 +205,15 @@ Implement a modular FastAPI service layer in `src/api/` and `src/services/` with
 3. **Dependency Injection & RLS Binding:** Every user-owned route uses `get_db_session`, which auto-provisions or retrieves user profiles and executes `SET LOCAL ROLE dharascope_app` with session variables `request.jwt.claim.sub` and `request.jwt.claim.role`.
 4. **Information Leakage Prevention:** Global exception handlers catch internal errors, log stack traces server-side, and return sanitized envelopes (`{"error": ..., "detail": ..., "status_code": ...}`). File paths and credentials are removed via `sanitize_error_message`.
 5. **Artifact Delivery Security:** Artifact listings provide secure relative download URLs (`/api/v1/artifacts/{id}/download`) instead of absolute local file paths, with ownership checks before streaming files.
+
+#### Post-Implementation Audit & Known Limitations (Phase 2.2C Audit)
+1. **In-Memory Background Worker Limitations:**
+   - FastAPI `BackgroundTasks` operates strictly in-process. If the Uvicorn process restarts, crashes, or is deployed during execution, tasks in `QUEUED` or `PROCESSING` state are dropped from memory and remain frozen as orphaned records in the database.
+   - Worker database sessions are independently managed and closed via `get_authenticated_db()`, but job durability across restarts requires an external persistent task queue (e.g. Celery, Redis Queue, or ARQ) for production environments.
+2. **Artifact Storage Medium:**
+   - Artifacts (rasters, maps, CSVs, PDFs) are currently persisted exclusively to the local filesystem (`outputs/<user_id>/<run_id>/`).
+   - The database records logical bucket names (`rasters`, `maps`, `reports`), but physical upload to remote Supabase Storage / S3 buckets remains deferred to Phase 2.3.
+3. **Admin Role Synchronization & Stale JWT Propagation:**
+   - `PATCH /api/v1/admin/users/{user_id}` mutates `profiles.role` in the PostgreSQL database only. It does not update Supabase's `app_metadata.role` (which requires Supabase Service Role credentials).
+   - Because authorization strictly derives from the cryptographically verified JWT (`app_metadata.role`), promoting a user in the database does not grant immediate admin privileges until the user obtains a new token containing `app_metadata.role = "admin"`.
+   - Conversely, revoking admin privileges in the database does not invalidate an active JWT with `app_metadata.role = "admin"` until its expiration (standard TTL: 3600 seconds). Production deployments require a server-side token denylist or webhook synchronization with Supabase GoTrue Admin API.

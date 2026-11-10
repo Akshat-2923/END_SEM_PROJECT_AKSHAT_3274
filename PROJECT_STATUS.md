@@ -94,7 +94,8 @@ The automated test suite has expanded to **125 tests**, all passing with zero re
 ## 3. Automated Test Suite Metrics
 
 - **Total Automated Tests:** 125
-- **Pass Rate:** 100% (125 passed, 0 failed, 147 warnings in 62.73s)
+- **Pass Rate:** 100% (125 passed, 0 failed, 145 warnings in 71.75s)
+- **Warning Breakdown:** 144 upstream `rasterio` Affine matrix warnings (`PendingDeprecationWarning`), 1 upstream Starlette `httpx` warning (`StarletteDeprecationWarning`), 0 DharaScope application code warnings.
 - **Test Modules:**
   1. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
   2. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
@@ -127,15 +128,19 @@ The automated test suite has expanded to **125 tests**, all passing with zero re
 ## 5. Known Technical Debt & Operational Constraints
 
 1. **Windows System PROJ Conflicts:** External PostGIS installations on Windows set global `PROJ_LIB` variables that conflict with `rasterio`. **Workaround:** `src/config.py` overrides `PROJ_DATA` and `PROJ_LIB` dynamically at startup.
-2. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
-3. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.2 Part B.
-4. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
+2. **BackgroundTasks Restart Durability:** Pipeline tasks dispatched via FastAPI `BackgroundTasks` run in-process and do not survive application restarts. Tasks interrupted by process restarts remain frozen in `QUEUED` or `PROCESSING` state in the database. Worker database sessions are verified independent and closed, but durable background queues (Celery/Redis) are needed for multi-worker production.
+3. **Local-Only Artifact Storage:** Generated artifacts (rasters, maps, CSVs, PDFs) reside on the local filesystem (`outputs/<user_id>/<run_id>/`). While download authorization and RLS checks are strictly enforced, physical upload to Supabase Storage / S3 is scheduled for Phase 2.3.
+4. **Admin Role IdP Synchronization & Stale JWTs:** `PATCH /api/v1/admin/users/{user_id}` modifies `profiles.role` in the PostgreSQL database only. It does not update Supabase's `app_metadata.role` (which requires service-role Admin API access). Because authorization strictly derives from the cryptographically verified JWT (`app_metadata.role`), promoting a user in PostgreSQL does not grant immediate admin privileges until the user obtains a new token containing `app_metadata.role = "admin"`. Conversely, revoking an admin in the database does not invalidate an active admin JWT until token expiry (standard TTL: 3600 seconds).
+5. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
+6. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
+7. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
 
 ---
 
-## 6. Recommended Next Priorities (Phase 2.2, Part B)
+## 6. Recommended Next Priorities (Phase 2.3)
 
-1. **PostgreSQL + PostGIS Schema Migration:** Formulate SQL DDL scripts creating `profiles`, `aois`, `analysis_runs`, and `water_metrics` with Row-Level Security policies.
-2. **FastAPI Application Gateway:** Build `server.py` and `src/auth.py` exposing REST endpoints for AOI validation, STAC search, pipeline dispatch, and report export.
-3. **Supabase JWT Middleware:** Implement Bearer token extraction and cryptographic signature validation using Supabase JWKS.
+1. **Supabase Cloud Storage Integration (`src/storage.py`):** Synchronize local artifacts to remote Supabase Storage buckets (`rasters/`, `maps/`, `reports/`) with presigned download URL generation and 90-day raster lifecycle cleanup.
+2. **Supabase GoTrue Admin API Client:** Implement webhook or admin service-role client to synchronize `PATCH /api/v1/admin/users/{id}` role mutations back to Supabase `app_metadata.role`.
+3. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.
+4. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
 4. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.

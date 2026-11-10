@@ -420,6 +420,40 @@
   - Modified: `docs/API_CONTRACTS.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SRS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `tests/conftest.py`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** 125/125 automated pytest tests passing with zero regressions (33 new integration tests in `test_api_service_layer.py` covering health, authentication, admin endpoints, AOI validation/CRUD, multi-tenant RLS isolation, background pipeline execution, report downloads, and error sanitization).
 
+---
+
+### Task 15: Phase 2.2C Post-Implementation Verification & Architectural Audit
+- **Date:** 2026-11-10
+- **Development Stage:** Phase 2.2 Part C Post-Implementation Verification
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.2C Post-Implementation Verification
+
+  Audit the existing implementation from commit e4d70f2. Do not begin Phase 2.3 or add new features.
+
+  Verify these four areas:
+
+  1. Background jobs: Determine whether analysis tasks survive application restarts. Document the limitations of FastAPI BackgroundTasks and confirm worker database sessions are independently managed and closed.
+  2. Artifact storage: Verify whether generated PDFs, CSVs, maps and rasters are actually uploaded to the configured Supabase Storage buckets. Identify any local-only storage paths and confirm download authorization.
+  3. Admin role synchronization: Trace the admin role-update endpoint. Verify that changes update the trusted Supabase app_metadata.role source, not merely the PostgreSQL profile. Check role revocation and stale JWT behavior.
+  4. Test warnings: Categorize all 147 warnings, distinguish deprecations from runtime or resource-management issues, and fix actionable warnings where safe.
+
+  Run targeted tests and the full suite.
+
+  Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md, PROJECT_STATUS.md and relevant docs/API_CONTRACTS.md or technical decisions.
+
+  Preserve existing functionality. Do not introduce a queue system or external infrastructure unless the audit proves it necessary for the agreed MVP.
+
+  Commit only relevant changes after reviewing the diff. Verify the commit hash and clean Git status.
+
+  Final report must distinguish verified behavior, limitations, and recommendations. Do not claim production readiness without evidence.
+  ```
+- **Files Created/Modified:**
+  - Modified: `src/api/app.py`, `docs/API_CONTRACTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 125/125 automated pytest tests passing in 71.75s; audited background job lifecycle (in-memory, restart loss, independent worker sessions confirmed); audited artifact storage (local-only `outputs/<user_id>/<run_id>/`, ownership authorization confirmed); audited admin role update (PostgreSQL projection update vs Supabase `app_metadata.role` split-brain, stale JWT behavior confirmed); resolved actionable deprecation warnings (`HTTP_422_UNPROCESSABLE_CONTENT`), dropping total warnings from 147 to 145 (144 upstream `rasterio` Affine matrix warnings, 1 upstream Starlette `httpx` warning).
+
+
 
 
 

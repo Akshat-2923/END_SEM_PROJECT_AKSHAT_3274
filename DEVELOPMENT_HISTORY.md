@@ -306,4 +306,32 @@
   - `TestErrorSanitizationAndEdgeCases`: 404/422 status codes and error payload sanitization.
 - **Automated Test Suite Expansion:** Full repository test suite expanded from 92 to **125 tests**, all passing with zero regressions (`125 passed in 62.73s`).
 
+---
+
+## 11. Milestone 11: Phase 2.2C Post-Implementation Verification & Architecture Audit
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part C Post-Implementation Verification  
+**Scope:** Architectural Audit of Background Jobs, Storage Subsystems, Admin Role IdP Synchronization, and Deprecation Warning Remediation  
+
+### 11.1 Background Jobs & Lifecycle Analysis
+- **Restart Survival:** Verified that FastAPI `BackgroundTasks` operates strictly in-process. If the application server terminates or reboots during pipeline execution, pending or running tasks do not survive; corresponding database records remain frozen in `QUEUED` or `PROCESSING` state as orphaned jobs.
+- **Worker Database Session Independence:** Confirmed that `execute_pipeline_worker()` borrows a brand new SQLAlchemy session via `get_authenticated_db(user)` distinct from the HTTP request context. The worker sets transaction-local RLS claims, commits upon success, executes rollback and records sanitized failure diagnostics on errors, and unconditionally closes the session in `finally:`.
+- **Architectural Boundary:** In-process `BackgroundTasks` is appropriate for the current single-instance capstone prototype, but a durable persistent queue (e.g., Celery/Redis) with automatic job recovery is required for multi-worker production deployments.
+
+### 11.2 Artifact Storage & Authorization Verification
+- **Physical vs. Logical Storage:** Audited `src/services/analysis_service.py` and `src/services/artifact_service.py`. While the database entity `AnalysisArtifact` populates logical buckets (`rasters`, `maps`, `reports`), file payloads are stored exclusively on the local host filesystem (`outputs/<user_id>/<run_id>/`). No remote uploads to Supabase Storage / S3 occur in Phase 2.2.
+- **Download Authorization:** Confirmed that `/api/v1/artifacts/{id}/download` and report download endpoints (`/reports/csv`, `/reports/pdf`) enforce strict user ownership validation via parent `AnalysisRun` ownership checks and PostgreSQL Row-Level Security before streaming files. Cross-user unauthorized downloads return HTTP 404/403.
+
+### 11.3 Admin Role Synchronization & Token Lifecycle
+- **Projection vs. Identity Provider:** Traced `PATCH /api/v1/admin/users/{user_id}`. The endpoint mutates `profiles.role` in the PostgreSQL database only. It does not update Supabase's `app_metadata.role` (which requires service-role Admin API access).
+- **Stale Token & Revocation Behavior:** Because `src/auth.py` strictly derives application permissions from the verified JWT `app_metadata.role`, promoting a user in PostgreSQL does not grant admin access until Supabase reissues a token with `app_metadata.role = "admin"`. Conversely, revoking an admin in the database does not invalidate an active admin JWT until token expiry (standard TTL: 3600 seconds).
+
+### 11.4 Warning Categorization & Actionable Remediation
+- **Warning Count Audit:** Pytest reported 147 warnings across the 125-test suite:
+  - 144 warnings: Upstream `PendingDeprecationWarning` in `rasterio` (`rasterio/features.py`, `windows.py`, `transform.py`) due to third-party Affine matrix multiplication using `*` rather than `@`.
+  - 1 warning: Upstream `StarletteDeprecationWarning` in `fastapi.testclient` regarding `httpx` vs `httpx2`.
+  - 2 warnings: Actionable deprecations in DharaScope codebase (`src/api/app.py:84,88`) using deprecated `status.HTTP_422_UNPROCESSABLE_ENTITY`.
+- **Remediation:** Migrated `src/api/app.py` to `status.HTTP_422_UNPROCESSABLE_CONTENT` (RFC 9110). Reduced warning count from 147 to 145 with zero test regressions (125/125 passed in 71.75s).
+
 

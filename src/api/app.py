@@ -81,11 +81,11 @@ def create_app() -> FastAPI:
             error_details.append(f"{loc}: {msg}")
 
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             content={
                 "error": "RequestValidationError",
                 "detail": "; ".join(error_details) if error_details else str(exc),
-                "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT,
             },
         )
 

@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.1] - 2026-11-10
+### Fixed
+- **RFC 9110 Deprecation Remediation:** Updated `src/api/app.py` exception handlers from deprecated `status.HTTP_422_UNPROCESSABLE_ENTITY` to `status.HTTP_422_UNPROCESSABLE_CONTENT`. Actionable test deprecation warnings eliminated.
+
+### Changed
+- **Architectural Documentation & Audit Notes:**
+  - Documented FastAPI `BackgroundTasks` lifecycle: tasks run in-process and do not survive application restarts. Worker database sessions verified as independently managed via `get_authenticated_db()`.
+  - Documented artifact storage: files reside on local filesystem storage (`outputs/<user_id>/<run_id>/`); remote cloud object storage upload scheduled for Phase 2.3. Ownership authorization for downloads verified.
+  - Documented admin role synchronization: `PATCH /api/v1/admin/users/{user_id}` updates PostgreSQL `profiles.role` projection only. Role changes require Supabase Admin API synchronization to propagate into authoritative `app_metadata.role` tokens; documented stale JWT TTL behavior.
+  - Categorized test warnings: 144 upstream `rasterio` Affine matrix warnings, 1 upstream Starlette `httpx` warning, 0 application warnings remaining.
+
+---
+
 ## [0.7.0] - 2026-11-10
 ### Added
 - **FastAPI Application Bootstrap & Configuration (`src/api/app.py`, `server.py`):**
