@@ -83,3 +83,13 @@ else:
 MIN_AOI_AREA_KM2 = float(os.getenv("DHARASCOPE_MIN_AOI_KM2", "0.10"))
 MAX_AOI_AREA_KM2 = float(os.getenv("DHARASCOPE_MAX_AOI_KM2", "100.00"))
 MAX_AOI_VERTICES = int(os.getenv("DHARASCOPE_MAX_AOI_VERTICES", "500"))
+
+# Supabase Auth Admin & Cloud Storage Configuration
+# Service Role Key is strictly backend-only; never expose to clients or API responses
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_STORAGE_ENABLED = os.getenv("SUPABASE_STORAGE_ENABLED", "false").lower() in ("true", "1", "yes")
+
+STORAGE_BUCKET_RASTERS = "rasters"
+STORAGE_BUCKET_MAPS = "maps"
+STORAGE_BUCKET_REPORTS = "reports"

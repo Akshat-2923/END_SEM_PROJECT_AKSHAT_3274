@@ -334,4 +334,27 @@
   - 2 warnings: Actionable deprecations in DharaScope codebase (`src/api/app.py:84,88`) using deprecated `status.HTTP_422_UNPROCESSABLE_ENTITY`.
 - **Remediation:** Migrated `src/api/app.py` to `status.HTTP_422_UNPROCESSABLE_CONTENT` (RFC 9110). Reduced warning count from 147 to 145 with zero test regressions (125/125 passed in 71.75s).
 
+---
+
+## 12. Milestone 12: Phase 2.2D — Admin Role Synchronization & Cloud Artifact Storage
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part D  
+**Scope:** Supabase Auth GoTrue Admin API Integration, Stale JWT Lifecycle Modeling, Storage Abstraction (`src/storage.py`), and Pipeline Artifact Cloud Uploads  
+
+### 12.1 Supabase Auth GoTrue Admin API Synchronization
+- **IdP Role Propagation:** Integrated `sync_user_role_to_supabase()` in `src/auth.py`, invoking `PUT /auth/v1/admin/users/{user_id}` with `SUPABASE_SERVICE_ROLE_KEY`. Updating a user's role directly mutates the authoritative `app_metadata.role` claim.
+- **Atomic Failure Handling:** In `PATCH /api/v1/admin/users/{user_id}` ([`src/api/routers/auth.py`](file:///d:/Coding/Projects/DharaScope/src/api/routers/auth.py)), Supabase is updated first. If the network call or IdP rejects the update, the transaction is aborted and PostgreSQL `profiles.role` is never modified.
+- **Service-Role Key Security Boundary:** Key is loaded exclusively into backend server environment variables (`.env`). It is never exposed in client bundles, public configurations, or API serialization schemas. Production fail-closed guards enforce key existence.
+- **Stale Token Modeling:** Documented that active tokens in circulation retain their claims until expiration; maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens reflect updated roles immediately.
+- **Automated Tests (`tests/test_admin_role_sync.py`):** 10 automated test cases verifying promotion, revocation, network timeout/500 rollback, 404 user not found, 403 non-admin rejection, quota-only bypass, and production fail-closed behaviors.
+
+### 12.2 Storage Subsystem Abstraction (`src/storage.py`)
+- **Multi-Backend Architecture:** Implemented `BaseStorageBackend` protocol with `LocalStorageBackend` (default for development/testing/offline) and `SupabaseStorageBackend` (for configured cloud deployments).
+- **Pipeline Artifact Ingestion:** Updated `execute_pipeline_worker()` in `src/services/analysis_service.py` to upload generated comparison panels, water-change maps, single-date NDWI maps, PDF reports, CSV reports, and band rasters to logical buckets (`maps`, `reports`, `rasters`).
+- **Upload Failure Integrity:** Verified that if an upload to storage fails, the pipeline logs the failure and aborts creating that artifact's database row, preventing misleading phantom records in `analysis_artifacts`.
+- **Authorized Delivery:** Updated `src/services/artifact_service.py` to resolve files via `storage.get_local_path()` or `storage.download_file()`, preserving strict parent `AnalysisRun` ownership checks and multi-tenant RLS isolation.
+- **Automated Tests (`tests/test_storage.py`):** 16 automated test cases covering local storage lifecycle, mocked Supabase Storage uploads, downloads, signed URLs, 404 handling, factory selection, and pipeline upload failure integrity.
+- **Automated Test Suite Expansion:** Full repository test suite expanded from 125 to **151 tests**, all passing with zero regressions (`151 passed in 77.06s`).
+
 

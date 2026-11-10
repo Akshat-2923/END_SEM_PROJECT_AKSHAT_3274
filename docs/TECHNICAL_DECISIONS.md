@@ -214,6 +214,29 @@ Implement a modular FastAPI service layer in `src/api/` and `src/services/` with
    - Artifacts (rasters, maps, CSVs, PDFs) are currently persisted exclusively to the local filesystem (`outputs/<user_id>/<run_id>/`).
    - The database records logical bucket names (`rasters`, `maps`, `reports`), but physical upload to remote Supabase Storage / S3 buckets remains deferred to Phase 2.3.
 3. **Admin Role Synchronization & Stale JWT Propagation:**
-   - `PATCH /api/v1/admin/users/{user_id}` mutates `profiles.role` in the PostgreSQL database only. It does not update Supabase's `app_metadata.role` (which requires Supabase Service Role credentials).
-   - Because authorization strictly derives from the cryptographically verified JWT (`app_metadata.role`), promoting a user in the database does not grant immediate admin privileges until the user obtains a new token containing `app_metadata.role = "admin"`.
-   - Conversely, revoking admin privileges in the database does not invalidate an active JWT with `app_metadata.role = "admin"` until its expiration (standard TTL: 3600 seconds). Production deployments require a server-side token denylist or webhook synchronization with Supabase GoTrue Admin API.
+   - In Phase 2.2C audit, `PATCH /api/v1/admin/users/{user_id}` only mutated `profiles.role` in PostgreSQL without updating Supabase `app_metadata.role`.
+   - Resolved in Phase 2.2D via ADR-010.
+
+---
+
+### ADR-010: Supabase Auth Admin Role Synchronization and Cloud Storage Abstraction
+
+#### Status
+**IMPLEMENTED AND VERIFIED (Phase 2.2 Part D)**
+
+#### Context
+1. **IdP vs. Projection Split-Brain:** Following Phase 2.2B2 Security Hardening, application authorization derived strictly from the cryptographically verified JWT claim `app_metadata.role`. Updating `profiles.role` in the database via administrative endpoints failed to propagate to Supabase Auth, preventing users from receiving actual admin privileges on future tokens. Conversely, revoking privileges in the database left unexpired admin JWTs active.
+2. **Local vs. Cloud Storage Decoupling:** In Phase 2.2C, generated rasters, maps, CSVs, and PDFs were saved exclusively to the local filesystem (`outputs/<user_id>/<run_id>/`). Stateless container deployments require cloud object storage (Supabase Storage / S3) with authenticated downloads and upload failure safeguards.
+
+#### Decision
+1. **Authoritative Admin Role Synchronization:**
+   - Integrated Supabase Auth GoTrue Admin API (`PUT /auth/v1/admin/users/{user_id}`) on the backend using `SUPABASE_SERVICE_ROLE_KEY`.
+   - When updating roles, `src/auth.py` synchronizes `app_metadata.role` with Supabase Auth first. If the remote identity provider call fails (e.g. 502/network timeout/404), the transaction aborts and PostgreSQL `profiles.role` is never modified.
+   - Kept `SUPABASE_SERVICE_ROLE_KEY` strictly in backend environment configuration; it is never exposed in client bundles, API responses, or logs.
+   - **Stale JWT Lifespan:** Acknowledged and documented that active access tokens in circulation retain their claims until expiration. The maximum revocation delay is the JWT TTL (default 3600 seconds in Supabase).
+2. **Storage Subsystem Abstraction (`src/storage.py`):**
+   - Formulated `BaseStorageBackend` with concrete implementations:
+     - `LocalStorageBackend`: Default for local development, tests, and offline runs. Stores and serves directly from local disk.
+     - `SupabaseStorageBackend`: Uploads artifacts to Supabase Storage buckets (`rasters`, `maps`, `reports`) via REST API using service-role credentials.
+   - **Upload Failure Integrity:** During pipeline execution, if an artifact upload fails, the error is caught and logged, and the database record is **not** created. This prevents phantom database rows referencing non-existent storage payloads.
+   - **Authorized Delivery:** Downloads continue to enforce parent `AnalysisRun` ownership and RLS checks before serving file bytes.

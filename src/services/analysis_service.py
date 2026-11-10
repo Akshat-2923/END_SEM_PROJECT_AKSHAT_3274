@@ -33,6 +33,7 @@ from src.downloader import CDSEDownloader
 from src.reporting import generate_csv_report, generate_pdf_report
 from src.scene_selection import SceneSelector
 from src.services.aoi_service import create_aoi, get_aoi
+from src.storage import get_storage_backend
 from src.visualization import (
     plot_four_panel_comparison,
     plot_single_observation,
@@ -349,7 +350,8 @@ def execute_pipeline_worker(
             )
             session.add(metrics)
 
-            # 8. Register AnalysisArtifact Entities
+            # 8. Register & Upload AnalysisArtifact Entities
+            storage = get_storage_backend()
             artifacts_to_create = [
                 ("PANEL_PNG", "maps", panel_path, "image/png"),
                 ("MAP_PNG", "maps", change_map_path, "image/png"),
@@ -359,19 +361,41 @@ def execute_pipeline_worker(
                 ("REPORT_PDF", "reports", pdf_path, "application/pdf"),
             ]
 
+            # Upload GeoTIFF raster bands if present
+            for band_p in [t1_b3, t1_b8, t2_b3, t2_b8]:
+                bp = Path(band_p)
+                if bp.exists():
+                    artifacts_to_create.append(("RASTER_TIFF", "rasters", bp, "image/tiff"))
+
             for art_type, bucket, file_p, mime in artifacts_to_create:
                 if file_p.exists():
-                    rel_storage_path = str(file_p.relative_to(BASE_DIR)).replace("\\", "/")
-                    artifact = AnalysisArtifact(
-                        analysis_run_id=run.id,
-                        artifact_type=art_type,
-                        storage_bucket=bucket,
-                        storage_path=rel_storage_path,
-                        file_name=file_p.name,
-                        file_size_bytes=file_p.stat().st_size,
-                        mime_type=mime,
-                    )
-                    session.add(artifact)
+                    dest_obj_path = f"{user.id}/{run.id}/{file_p.name}"
+                    try:
+                        stored_path = storage.upload_file(
+                            local_path=file_p,
+                            bucket=bucket,
+                            destination_path=dest_obj_path,
+                            content_type=mime,
+                        )
+                        artifact = AnalysisArtifact(
+                            analysis_run_id=run.id,
+                            artifact_type=art_type,
+                            storage_bucket=bucket,
+                            storage_path=stored_path,
+                            file_name=file_p.name,
+                            file_size_bytes=file_p.stat().st_size,
+                            mime_type=mime,
+                        )
+                        session.add(artifact)
+                    except Exception as upload_err:
+                        logger.warning(
+                            "Failed to upload artifact %s (%s) to %s: %s",
+                            file_p.name,
+                            art_type,
+                            bucket,
+                            upload_err,
+                        )
+                        # Do NOT register artifact in database if upload failed
 
             # 9. Mark Status SUCCESS
             duration = round(time.time() - start_time, 2)

@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.2] - 2026-11-10
+### Added
+- **Supabase Auth Admin Synchronization (`src/auth.py`, `src/api/routers/auth.py`):**
+  - Integrated `sync_user_role_to_supabase()` calling Supabase GoTrue Admin API (`PUT /auth/v1/admin/users/{user_id}`) to synchronize promoted or revoked user roles directly into authoritative `app_metadata.role`.
+  - Atomic failure safety: if Supabase synchronization fails, the database transaction is aborted and PostgreSQL `profiles.role` remains unchanged.
+  - Secure service-role key management: `SUPABASE_SERVICE_ROLE_KEY` is loaded strictly on the backend, guarded with production fail-closed checks, and never exposed in API serialization schemas or logs.
+  - Documented stale JWT lifecycle and maximum revocation delay (token TTL = 3600 seconds).
+  - Added 10 automated tests in `tests/test_admin_role_sync.py` covering promotion, revocation, network/server failure rollbacks, unauthorized rejections, and quota-only bypasses.
+- **Storage Subsystem Abstraction (`src/storage.py`):**
+  - Implemented `BaseStorageBackend` with `LocalStorageBackend` (default) and `SupabaseStorageBackend` (cloud deployments).
+  - Integrated storage backend into pipeline worker (`src/services/analysis_service.py`), uploading generated comparison panels, water-change maps, single-date NDWI maps, reports (CSV, PDF), and band rasters to logical buckets (`maps`, `reports`, `rasters`).
+  - Upload failure safety: artifacts failing upload are logged and excluded from `analysis_artifacts`, preventing misleading phantom records.
+  - Updated `src/services/artifact_service.py` to resolve files through `storage.get_local_path()` and `storage.download_file()`, maintaining strict ownership verification and multi-tenant RLS isolation.
+  - Added 16 automated tests in `tests/test_storage.py` testing local and Supabase storage lifecycle, mocked upload/download/signing endpoints, and pipeline upload failure handling. Full test suite expanded to 151 passing tests.
+
+---
+
 ## [0.7.1] - 2026-11-10
 ### Fixed
 - **RFC 9110 Deprecation Remediation:** Updated `src/api/app.py` exception handlers from deprecated `status.HTTP_422_UNPROCESSABLE_ENTITY` to `status.HTTP_422_UNPROCESSABLE_CONTENT`. Actionable test deprecation warnings eliminated.

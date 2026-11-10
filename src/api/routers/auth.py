@@ -12,7 +12,13 @@ from src.api.schemas.auth import (
     UserProfileResponse,
     UserProfileUpdateRequest,
 )
-from src.auth import AuthenticatedUser, get_current_user, get_or_create_profile, update_user_profile
+from src.auth import (
+    AuthenticatedUser,
+    get_current_user,
+    get_or_create_profile,
+    sync_user_role_to_supabase,
+    update_user_profile,
+)
 from src.database.models.profile import Profile
 
 router = APIRouter(prefix="/api/v1", tags=["Authentication & User Profiles"])
@@ -87,7 +93,9 @@ def admin_update_user(
             detail=f"User with ID '{user_id}' not found",
         )
 
-    if payload.role is not None:
+    if payload.role is not None and payload.role != target_profile.role:
+        # Synchronize with authoritative Supabase Auth GoTrue Admin API first
+        sync_user_role_to_supabase(user_id=user_id, new_role=payload.role)
         target_profile.role = payload.role
     if payload.quota_monthly_runs is not None:
         target_profile.quota_monthly_runs = payload.quota_monthly_runs

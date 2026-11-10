@@ -140,7 +140,8 @@ Updates any user's role or monthly quota.
   }
   ```
 - **Response `200 OK`:** Updated `UserProfileResponse`.
-- **Audit Note & Known Behavior:** Modifying `role` updates the PostgreSQL `profiles.role` record. It does not mutate Supabase's `app_metadata.role` identity provider record (which requires service-role Admin API access). Because application authorization derives strictly from the cryptographic JWT `app_metadata.role`, changing a role in the database does not elevate an active session or immediately revoke an unexpired admin JWT until the token expires (up to 3600s TTL).
+- **Identity Provider Synchronization (Phase 2.2D):** Modifying `role` synchronizes directly with Supabase Auth GoTrue Admin API (`PUT /auth/v1/admin/users/{user_id}`), setting trusted `app_metadata.role`. If Supabase synchronization fails (network timeout, 404, or 500), the request fails with HTTP 502/404 and the PostgreSQL database role update is rolled back.
+- **Stale JWT Lifecycle & Maximum Revocation Delay:** While `app_metadata.role` is updated immediately in Supabase, active JWTs already in circulation retain their claims until expiration. The maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens immediately reflect the updated role.
 
 ---
 
@@ -341,4 +342,4 @@ Downloads any individual generated artifact (PNG comparison panel, transition ma
 
 - **Auth Required:** Yes
 - **Response `200 OK`:** File stream with appropriate MIME type.
-- **Storage Subsystem Note:** Artifacts are retrieved from local filesystem storage (`outputs/<user_id>/<run_id>/`). Cloud object storage streaming (Supabase Storage / S3) is scheduled for Phase 2.3. Downloads strictly enforce parent run ownership and RLS checks before serving file bytes.
+- **Storage Subsystem (Phase 2.2D):** Handled via `src/storage.py` abstraction. In local mode (`SUPABASE_STORAGE_ENABLED=false`), artifacts are streamed directly from `outputs/`. In cloud mode (`SUPABASE_STORAGE_ENABLED=true`), artifacts are downloaded from Supabase Storage buckets (`maps`, `reports`, `rasters`) via authenticated requests using the backend service-role key, cached, and streamed securely to the verified owner. Cross-user access is strictly blocked via parent `AnalysisRun` ownership verification.

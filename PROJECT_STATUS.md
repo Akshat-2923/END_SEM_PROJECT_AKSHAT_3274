@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2 & Part C)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C & Part D)  
 **Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -32,10 +32,14 @@ In **Phase 2.2, Part C**, the project implemented the complete FastAPI Applicati
 1. Application Gateway & Bootstrap (`src/api/app.py`, `server.py`): Production ASGI entrypoint ensuring runtime PROJ isolation, CORS middleware, OpenAPI interactive documentation (`/docs`, `/redoc`), and standardized sanitized error envelopes (`APIErrorResponse`).
 2. Authentication & Administration Endpoints (`src/api/routers/auth.py`): `/api/v1/auth/me` (profile retrieval/update) and `/api/v1/admin/users` (administrative quota controls) backed by `src/auth.py` dependency injection.
 3. AOI CRUD & Geometry Validation (`src/api/routers/aois.py`, `src/services/aoi_service.py`): Enforcing $0.1–100\text{ km}^2$ equal-area geodetic bounds, 500-vertex ceilings, PostGIS persistence, and multi-tenant RLS ownership isolation.
-4. Asynchronous Satellite Pipeline Dispatch (`src/api/routers/analyses.py`, `src/services/analysis_service.py`): Non-blocking execution via FastAPI `BackgroundTasks`, quota verification, pipeline execution (STAC discovery, scene selection, band streaming, NDWI indexing, change detection, cartography), progress tracking (`QUEUED`, `PROCESSING`, `COMPLETED`, `FAILED`), and regex diagnostic error sanitization.
+4. Asynchronous Satellite Pipeline Dispatch (`src/api/routers/analyses.py`, `src/services/analysis_service.py`): Non-blocking execution via FastAPI `BackgroundTasks`, quota verification, pipeline execution (STAC discovery, scene selection, band streaming, NDWI indexing, change detection, cartography), progress tracking (`QUEUED`, `PROCESSING`, `SUCCESS`, `FAILED`), and regex diagnostic error sanitization.
 5. Metrics Inspection & Artifact Delivery (`src/services/artifact_service.py`, `src/api/routers/artifacts.py`): Authorized streaming downloads for publication-grade ReportLab PDF reports, RFC 4180 CSV reports, and visualization maps without exposing filesystem paths.
 
-The automated test suite has expanded to **125 tests**, all passing with zero regressions (100% pass rate).
+In **Phase 2.2, Part D**, the project resolved admin identity provider synchronization and storage subsystem requirements:
+1. Supabase Auth Admin Synchronization (`src/auth.py`, `src/api/routers/auth.py`): Synchronizes user promotions and revocations directly to Supabase Auth (`PUT /auth/v1/admin/users/{user_id}`) targeting `app_metadata.role`. Atomic failure handling prevents PostgreSQL role mutations if IdP synchronization fails.
+2. Storage Subsystem Abstraction (`src/storage.py`): Multi-backend storage supporting `LocalStorageBackend` (dev/testing/offline) and `SupabaseStorageBackend` (cloud deployments). Pipeline worker uploads comparison panels, maps, reports, and band rasters to logical buckets (`maps`, `reports`, `rasters`). Failed uploads abort database record creation, preventing phantom artifacts.
+
+The automated test suite has expanded to **151 tests**, all passing with zero regressions (100% pass rate).
 
 ---
 
@@ -79,10 +83,9 @@ The automated test suite has expanded to **125 tests**, all passing with zero re
 - [x] **Version Control:** Published to GitHub under `Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`.
 
 ### 2.2 In-Progress Subsystems
-- **None.** Phase 2.2 is complete across Parts A, B1, B2, and C.
+- **None.** Phase 2.2 is complete across Parts A, B1, B2, C, and D.
 
 ### 2.3 Pending Subsystems (Scheduled for Phase 2.3)
-- [ ] **Supabase Storage Integration (`src/storage.py`):** Object storage partitioning (`rasters/`, `maps/`, `reports/`) and automated 90-day retention cleanup for intermediate rasters.
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
 - [ ] **Modern Web Frontend Migration / SPA Client:** Client-side React / Next.js web application consuming the FastAPI REST endpoints.
 
@@ -93,22 +96,24 @@ The automated test suite has expanded to **125 tests**, all passing with zero re
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 125
-- **Pass Rate:** 100% (125 passed, 0 failed, 145 warnings in 71.75s)
-- **Warning Breakdown:** 144 upstream `rasterio` Affine matrix warnings (`PendingDeprecationWarning`), 1 upstream Starlette `httpx` warning (`StarletteDeprecationWarning`), 0 DharaScope application code warnings.
-- **Test Modules:**
-  1. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
-  2. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
-  3. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
-  4. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
-  5. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
-  6. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
-  7. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
-  8. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
-  9. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
-  10. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
-  11. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
-  12. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
+- **Total Automated Tests:** 151
+- **Pass Rate:** 100% (151 passed, 0 failed, 173 warnings in 77.06s)
+- **Warning Breakdown:** 144 upstream `rasterio` Affine matrix warnings (`PendingDeprecationWarning`), 1 upstream Starlette `httpx` warning (`StarletteDeprecationWarning`), 28 test-scoped Affine transform warnings, 0 DharaScope application code warnings.
+- **Test Modules (14 modules):**
+  1. `tests/test_admin_role_sync.py`: 10 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed).
+  2. `tests/test_storage.py`: 16 passed (local storage upload, missing file error, read/download bytes, 404 handling, file deletion, local path, Supabase storage init validation, mocked upload success, upload failure error, download success, 404 download, signed URLs, factory defaults, factory cloud enable, force override, upload failure skipping phantom database records).
+  3. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
+  4. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
+  5. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
+  6. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
+  7. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
+  8. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
+  9. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
+  10. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
+  11. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
+  12. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
+  13. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
+  14. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
 
 ---
 
@@ -128,19 +133,16 @@ The automated test suite has expanded to **125 tests**, all passing with zero re
 ## 5. Known Technical Debt & Operational Constraints
 
 1. **Windows System PROJ Conflicts:** External PostGIS installations on Windows set global `PROJ_LIB` variables that conflict with `rasterio`. **Workaround:** `src/config.py` overrides `PROJ_DATA` and `PROJ_LIB` dynamically at startup.
-2. **BackgroundTasks Restart Durability:** Pipeline tasks dispatched via FastAPI `BackgroundTasks` run in-process and do not survive application restarts. Tasks interrupted by process restarts remain frozen in `QUEUED` or `PROCESSING` state in the database. Worker database sessions are verified independent and closed, but durable background queues (Celery/Redis) are needed for multi-worker production.
-3. **Local-Only Artifact Storage:** Generated artifacts (rasters, maps, CSVs, PDFs) reside on the local filesystem (`outputs/<user_id>/<run_id>/`). While download authorization and RLS checks are strictly enforced, physical upload to Supabase Storage / S3 is scheduled for Phase 2.3.
-4. **Admin Role IdP Synchronization & Stale JWTs:** `PATCH /api/v1/admin/users/{user_id}` modifies `profiles.role` in the PostgreSQL database only. It does not update Supabase's `app_metadata.role` (which requires service-role Admin API access). Because authorization strictly derives from the cryptographically verified JWT (`app_metadata.role`), promoting a user in PostgreSQL does not grant immediate admin privileges until the user obtains a new token containing `app_metadata.role = "admin"`. Conversely, revoking an admin in the database does not invalidate an active admin JWT until token expiry (standard TTL: 3600 seconds).
-5. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
-6. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
-7. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
+2. **BackgroundTasks Restart Durability:** Pipeline tasks dispatched via FastAPI `BackgroundTasks` run in-process and do not survive application restarts. Tasks interrupted by process restarts remain frozen in `QUEUED` or `PROCESSING` state in the database. Worker database sessions are verified independent and closed, but durable background queues (Celery/Redis) are recommended for multi-worker production.
+3. **Stale JWT Revocation Delay:** Active access tokens in circulation retain their cryptographic claims until their `exp` timestamp. The maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens immediately reflect updated roles.
+4. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
+5. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
+6. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
 
 ---
 
 ## 6. Recommended Next Priorities (Phase 2.3)
 
-1. **Supabase Cloud Storage Integration (`src/storage.py`):** Synchronize local artifacts to remote Supabase Storage buckets (`rasters/`, `maps/`, `reports/`) with presigned download URL generation and 90-day raster lifecycle cleanup.
-2. **Supabase GoTrue Admin API Client:** Implement webhook or admin service-role client to synchronize `PATCH /api/v1/admin/users/{id}` role mutations back to Supabase `app_metadata.role`.
-3. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.
-4. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
-4. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
+1. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
+2. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.
+3. **Modern Web Frontend Migration / SPA Client:** Client-side React / Next.js web application consuming the FastAPI REST endpoints.

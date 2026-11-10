@@ -2,10 +2,12 @@
 
 import os
 import uuid
+import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Generator, Optional
 
+import httpx
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -14,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from src.database.models.profile import Profile
 from src.database.session import get_db
+
+logger = logging.getLogger("dhara_scope.auth")
 
 # Security scheme for FastAPI documentation and Bearer token extraction
 security = HTTPBearer(auto_error=False)
@@ -115,6 +119,104 @@ def get_jwt_issuer() -> Optional[str]:
             detail="Security misconfiguration: SUPABASE_ISSUER or SUPABASE_URL must be configured in production",
         )
     return issuer
+
+
+def get_supabase_service_role_key() -> str:
+    """Retrieve Supabase service-role key from environment.
+
+    Must NEVER be returned in API responses, logs, or client configurations.
+    """
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    env = (os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "").lower()
+    if not key and env in ("production", "prod"):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Security misconfiguration: SUPABASE_SERVICE_ROLE_KEY must be configured in production",
+        )
+    return key
+
+
+def sync_user_role_to_supabase(
+    user_id: uuid.UUID,
+    new_role: str,
+    timeout: float = 10.0,
+    service_role_key: Optional[str] = None,
+    supabase_url: Optional[str] = None,
+) -> dict:
+    """Synchronize user authorization role to authoritative Supabase Auth GoTrue Admin API.
+
+    Updates trusted 'app_metadata.role' via PUT /auth/v1/admin/users/{user_id}.
+    The service role key is kept strictly on the backend.
+
+    Raises:
+        HTTPException(400): If new_role is invalid.
+        HTTPException(404): If user does not exist in Supabase Auth.
+        HTTPException(500): If missing service role key in production.
+        HTTPException(502): If Supabase Admin API communication or synchronization fails.
+    """
+    if new_role not in ("admin", "user"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid application role '{new_role}'. Allowed roles: 'admin', 'user'.",
+        )
+
+    key = service_role_key if service_role_key is not None else get_supabase_service_role_key()
+    url_base = (supabase_url or os.getenv("SUPABASE_URL", "")).strip().rstrip("/")
+
+    # If in development/test and neither key nor URL is configured, support safe mock bypass
+    if not key or not url_base:
+        env = (os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "").lower()
+        if env in ("production", "prod"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Security misconfiguration: Supabase Admin API credentials missing in production",
+            )
+        logger.warning(
+            "Supabase Admin API credentials not configured; skipping remote IdP sync for user %s in dev/test",
+            user_id,
+        )
+        return {"id": str(user_id), "app_metadata": {"role": new_role}}
+
+    admin_url = f"{url_base}/auth/v1/admin/users/{user_id}"
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "apikey": key,
+        "Content-Type": "application/json",
+    }
+    payload = {"app_metadata": {"role": new_role}}
+
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            res = client.put(admin_url, headers=headers, json=payload)
+    except Exception as exc:
+        logger.error("Supabase Admin API network failure updating user %s: %s", user_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to communicate with Supabase Auth Admin API: {str(exc)}",
+        ) from exc
+
+    if res.status_code in (200, 204):
+        logger.info("Successfully updated Supabase app_metadata.role to '%s' for user %s", new_role, user_id)
+        return res.json() if res.content else {"id": str(user_id), "app_metadata": {"role": new_role}}
+
+    if res.status_code == 404:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' not found in Supabase Auth",
+        )
+
+    if res.status_code in (401, 403):
+        logger.error("Supabase Admin API authorization failed with status %d", res.status_code)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Supabase Admin API credentials rejected by identity provider",
+        )
+
+    logger.error("Supabase Admin API failed with status %d: %s", res.status_code, res.text[:200])
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"Supabase Auth synchronization failed with status code {res.status_code}",
+    )
 
 
 def verify_supabase_jwt(

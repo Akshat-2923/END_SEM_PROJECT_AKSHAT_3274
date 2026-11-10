@@ -453,6 +453,66 @@
   - Modified: `src/api/app.py`, `docs/API_CONTRACTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** 125/125 automated pytest tests passing in 71.75s; audited background job lifecycle (in-memory, restart loss, independent worker sessions confirmed); audited artifact storage (local-only `outputs/<user_id>/<run_id>/`, ownership authorization confirmed); audited admin role update (PostgreSQL projection update vs Supabase `app_metadata.role` split-brain, stale JWT behavior confirmed); resolved actionable deprecation warnings (`HTTP_422_UNPROCESSABLE_CONTENT`), dropping total warnings from 147 to 145 (144 upstream `rasterio` Affine matrix warnings, 1 upstream Starlette `httpx` warning).
 
+---
+
+### Task 16: Phase 2.2D — Admin Role Synchronization and Supabase Storage
+- **Date:** 2026-11-10
+- **Development Stage:** Phase 2.2 Part D (IdP Role Sync & Storage Abstraction)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.2D: Admin Role Synchronization and Supabase Storage
+
+  Work from the verified commit b3995f4.
+
+  Implement two targeted corrections.
+
+  ### A. Admin role synchronization
+  - Integrate the Supabase Auth Admin API on the backend.
+  - Promote and revoke users through trusted app_metadata.role.
+  - Keep the service-role key exclusively in backend environment configuration.
+  - Never expose it through API responses, logs or frontend configuration.
+  - Define safe handling for failures between Supabase Auth and PostgreSQL updates.
+  - Address stale JWT behavior and document the maximum revocation delay.
+  - Add tests for promotion, revocation, failed synchronization and unauthorized requests.
+
+  ### B. Supabase Storage
+  - Implement a storage abstraction in src/storage.py.
+  - Support local filesystem storage for development and Supabase Storage for configured deployments.
+  - Upload generated PDFs, CSVs, maps and raster artifacts.
+  - Persist correct bucket and object paths in analysis_artifacts.
+  - Preserve authenticated download authorization and prevent cross-user access.
+  - Handle upload failures without creating misleading artifact records.
+  - Add tests using mocked storage responses; do not require production credentials.
+
+  ### Constraints
+  - Preserve the existing scientific pipeline.
+  - Do not expose service-role credentials.
+  - Do not introduce Redis/Celery in this milestone.
+  - Keep existing API contracts compatible wherever possible.
+  - Do not claim remote storage works without an actual successful integration test or clearly identified mock test.
+
+  ### Documentation and Git
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - docs/API_CONTRACTS.md
+  - Relevant technical decisions and system constraints.
+
+  Run targeted tests and the complete test suite. Review security implications, staged changes and secrets. Commit with:
+  Phase 2.2D: Synchronize admin roles and implement cloud artifact storage
+
+  Verify the commit hash and clean working tree.
+  Final report must distinguish implemented, tested, and externally verified functionality. Do not begin Phase 2.3 during this task.
+  ```
+- **Files Created/Modified:**
+  - Created: `src/storage.py`, `tests/test_admin_role_sync.py`, `tests/test_storage.py`
+  - Modified: `src/config.py`, `src/auth.py`, `src/api/routers/auth.py`, `src/services/analysis_service.py`, `src/services/artifact_service.py`, `tests/conftest.py`, `docs/API_CONTRACTS.md`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 151/151 automated pytest tests passing with zero regressions (26 new tests covering Supabase Auth Admin promotion/revocation, failure rollbacks, unauthorized requests, storage backend abstraction, upload failure skipping, and download ownership).
+
+
 
 
 

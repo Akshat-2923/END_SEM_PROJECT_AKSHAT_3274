@@ -13,5 +13,7 @@ if rasterio_proj.exists():
 # Test environment configuration defaults
 os.environ.setdefault("SUPABASE_JWT_SECRET", "super_secret_test_key_for_dharascope_verification_32_bytes")
 os.environ.setdefault("SUPABASE_ISSUER", "https://testproject.supabase.co/auth/v1")
+os.environ.setdefault("SUPABASE_URL", "https://testproject.supabase.co")
 os.environ.setdefault("SUPABASE_AUDIENCE", "authenticated")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test_supabase_service_role_key_for_dharascope_verification_32_bytes")
 

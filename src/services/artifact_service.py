@@ -1,5 +1,6 @@
 """Artifact service layer for retrieving and downloading generated files and reports."""
 
+import logging
 import uuid
 from pathlib import Path
 from typing import Tuple
@@ -13,6 +14,9 @@ from src.config import BASE_DIR, OUTPUTS_DIR
 from src.database.models.analysis import AnalysisRun
 from src.database.models.artifact import AnalysisArtifact
 from src.services.analysis_service import get_analysis_run
+from src.storage import get_storage_backend
+
+logger = logging.getLogger("dhara_scope.artifact_service")
 
 
 def get_artifact_by_id(
@@ -36,18 +40,30 @@ def get_artifact_by_id(
     # Verify user ownership of the parent analysis run
     _ = get_analysis_run(session, user, artifact.analysis_run_id)
 
-    # Resolve storage path securely relative to BASE_DIR
-    target_path = BASE_DIR / artifact.storage_path
-    if not target_path.exists():
-        # Check fallback under outputs
-        fallback_path = OUTPUTS_DIR / artifact.storage_path
-        if fallback_path.exists():
-            target_path = fallback_path
+    # Resolve storage path via storage abstraction
+    storage = get_storage_backend()
+    target_path = storage.get_local_path(artifact.storage_bucket, artifact.storage_path)
+    if target_path is None or not target_path.exists():
+        try:
+            target_path = storage.download_file(artifact.storage_bucket, artifact.storage_path)
+        except Exception as exc:
+            logger.warning("Failed to retrieve artifact payload from storage: %s", exc)
+            target_path = None
+
+    if target_path is None or not target_path.exists():
+        # Fallback to direct path resolution under BASE_DIR / OUTPUTS_DIR
+        candidate = BASE_DIR / artifact.storage_path
+        if candidate.exists():
+            target_path = candidate
         else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Artifact file payload does not exist on storage",
-            )
+            fallback = OUTPUTS_DIR / artifact.storage_path
+            if fallback.exists():
+                target_path = fallback
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Artifact file payload does not exist on storage",
+                )
 
     return artifact, target_path
 
@@ -86,9 +102,22 @@ def get_report_file(
     )
 
     if artifact:
-        target_path = BASE_DIR / artifact.storage_path
-        if target_path.exists():
+        storage = get_storage_backend()
+        target_path = storage.get_local_path(artifact.storage_bucket, artifact.storage_path)
+        if target_path is None or not target_path.exists():
+            try:
+                target_path = storage.download_file(artifact.storage_bucket, artifact.storage_path)
+            except Exception as exc:
+                logger.warning("Failed to retrieve report payload from storage: %s", exc)
+                target_path = None
+
+        if target_path and target_path.exists():
             return target_path, expected_mime, artifact.file_name
+
+        # Direct disk fallback
+        candidate = BASE_DIR / artifact.storage_path
+        if candidate.exists():
+            return candidate, expected_mime, artifact.file_name
 
     # Check run directory for matching file
     run_dir = OUTPUTS_DIR / str(run.user_id) / str(run.id)
