@@ -1,7 +1,7 @@
 # Architectural & Technical Decision Records (ADR)
 ## DharaScope: Satellite-Based River Surface Water Dynamics Platform
 
-**Document Version:** 2.1.0  
+**Document Version:** 2.2.0  
 **Status:** Approved Architectural Baseline  
 **Scope:** Phase 2 Platform Evolution  
 
@@ -18,6 +18,9 @@
 - [ADR-007: Object Storage Partitioning and 90-Day Output Retention Policy](#adr-007-object-storage-partitioning-and-90-day-output-retention-policy)
 - [ADR-008: Publication-Grade PDF & CSV Reporting Grounded in Immutable Run Manifests](#adr-008-publication-grade-pdf--csv-reporting-grounded-in-immutable-run-manifests)
 - [ADR-009: FastAPI Application Service Layer and Asynchronous Pipeline Dispatch](#adr-009-fastapi-application-service-layer-and-asynchronous-pipeline-dispatch)
+- [ADR-010: Supabase Auth Admin Role Synchronization and Cloud Storage Abstraction](#adr-010-supabase-auth-admin-role-synchronization-and-cloud-storage-abstraction)
+- [ADR-011: Distributed Role Consistency, Compensating Updates, and Immediate Admin Revocation](#adr-011-distributed-role-consistency-compensating-updates-and-immediate-admin-revocation)
+- [ADR-012: PostgreSQL Commit Recovery Lifecycle and Role Journal Durability Audit](#adr-012-postgresql-commit-recovery-lifecycle-and-role-journal-durability-audit)
 
 ---
 
@@ -273,3 +276,48 @@ Implement a modular FastAPI service layer in `src/api/` and `src/services/` with
 3. **Decoupled Live Storage Integration:**
    - Dedicated `TestLiveSupabaseStorageIntegration` in `tests/test_storage.py` guarded by `@pytest.mark.skipif(os.getenv("DHARASCOPE_LIVE_SUPABASE_STORAGE") != "1")`.
    - Mock-based unit and integration tests verify contract behavior offline, while live testing is strictly opt-in with verified external credentials.
+
+---
+
+### ADR-012: PostgreSQL Commit Recovery Lifecycle and Role Journal Durability Audit
+
+#### Status
+**IMPLEMENTED AND VERIFIED (Phase 2.2 Part D.2)**
+
+#### Context
+1. **Explicit Commit Boundary in Distributed Updates:** In Phase 2.2D.1, the distributed role update sequence in `execute_reliable_role_update` relied on `session.flush()` before Supabase Auth synchronization, deferring `session.commit()` to the outer FastAPI dependency teardown (`get_db()`). If the PostgreSQL commit failed *after* the request handler completed (due to connection loss, deferred constraint violations, or disk exhaustion), the outer session rollback occurred without triggering the compensating update on Supabase Auth.
+2. **Durability & Multi-Process Audit of RoleSyncJournal:** The journal implementation was backed by an append-only JSONL file (`outputs/metadata/role_sync_audit.jsonl`) and an in-memory dictionary. A formal audit was required to evaluate thread safety, process isolation in multi-worker ASGI environments (e.g. Gunicorn/Uvicorn workers), behavior on corrupted or missing files, disk write failures, and restart recovery.
+3. **Reconciliation Security & Idempotency:** The administrative reconciliation mechanism needed rigorous verification to ensure anti-privilege escalation (untrusted metadata cannot grant admin rights) and idempotency across repeated executions.
+
+#### Decision
+1. **Guarded Commit Boundary & Compensating Rollback:**
+   - Explicitly moved `session.commit()` inside the guarded `try/except` block of `execute_reliable_role_update()` in `src/services/role_sync_service.py`.
+   - The transaction lifecycle is strictly ordered:
+     1. Transaction starts when `get_admin_db_session()` opens an administrative session and queries the target profile.
+     2. Update intent recorded as `PENDING` in `RoleSyncJournal`.
+     3. Supabase Auth Admin API is called (`PUT /auth/v1/admin/users/{user_id}`). On success, journal transitions to `IDP_UPDATED`.
+     4. PostgreSQL profile model is updated (`target_profile.role = new_role`), followed by `session.flush()`.
+     5. `session.commit()` is explicitly executed within the guarded block. If the commit fails:
+        - The `except Exception` handler catches the commit failure immediately.
+        - Journal transitions to `COMPENSATING`.
+        - A compensating call to Supabase Auth Admin API restores `old_role`.
+        - On compensation success, journal records `COMPENSATED`, PostgreSQL transaction is rolled back (`session.rollback()`), and HTTP 500 is raised.
+        - On compensation failure, journal records `DESYNCHRONIZED`, critical alert is logged, and HTTP 502 is raised.
+     6. Only if `session.commit()` succeeds does the journal transition to `COMMITTED`.
+   - In `src/api/routers/auth.py`, other profile attributes (`quota_monthly_runs`, `full_name`) are staged *prior* to `execute_reliable_role_update()`, ensuring the entire profile change commits atomically within the verified boundary.
+
+2. **RoleSyncJournal Durability Audit Findings & Enhancements:**
+   - **Thread Safety:** Verified. Single-process concurrency is safely managed via `threading.Lock()`.
+   - **Disk Flushing:** Enhanced `_persist_entry_unlocked()` with explicit `f.flush()` and `os.fsync(f.fileno())` inside safe OS exception handling to guarantee OS buffer writes survive crashes.
+   - **Missing File / Directory:** Handled gracefully. Parent directories and the JSONL file are auto-created on first write.
+   - **Corrupted / Truncated Lines:** Handled gracefully. During reload on startup (`_load_from_disk()`), malformed or truncated JSON lines are logged as warnings and skipped, while valid records are fully recovered.
+   - **Storage I/O Failure Resilience:** Handled gracefully. If disk writes fail (e.g. read-only filesystem or disk full), the journal logs an error without crashing the transaction and preserves state in memory.
+   - **Process Isolation Limitation (Multi-Process ASGI):** Documented architectural constraint: In multi-worker ASGI deployments (e.g. Gunicorn with multiple Uvicorn workers), each worker process maintains its own in-memory dictionary. While the append-only JSONL file captures writes from all processes, workers do not reload other workers' entries in real-time until process restart.
+   - **Production Recommendation:** For horizontally scaled production environments, migrate `RoleSyncJournal` from a local JSONL file to a dedicated PostgreSQL audit table (`role_sync_audit_log`) accessed via an independent session, or employ an Outbox/CDC pattern.
+
+3. **Reconciliation Verification & Anti-Privilege Escalation:**
+   - Verified that `reconcile_user_role()` correctly identifies and resolves desynchronized states.
+   - Verified graceful handling when Supabase is unreachable (returns HTTP 502 without corrupting local state).
+   - Verified repeated reconciliation calls are completely idempotent.
+   - Verified unauthorized calls are rejected (HTTP 401 unauthenticated, HTTP 403 non-admin).
+   - Verified strict anti-privilege escalation: reconciliation never derives roles from user-writable `user_metadata` or top-level `role` claims, enforcing provenance exclusively from trusted `app_metadata.role`.

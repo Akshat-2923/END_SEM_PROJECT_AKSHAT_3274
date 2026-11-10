@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.4] - 2026-11-10
+### Added
+- **Explicit Commit Boundary & Commit-Failure Recovery (`src/services/role_sync_service.py`):**
+  - Moved `session.commit()` inside the guarded `try/except` execution block of `execute_reliable_role_update()`.
+  - Guarantees that if a PostgreSQL commit fails after Supabase Auth was updated, a compensating update (`sync_user_role_to_supabase(old_role)`) is immediately executed, session is rolled back, the journal marks `COMPENSATED`, and HTTP 500 is raised.
+  - Updated `admin_update_user` in `src/api/routers/auth.py` to stage other profile fields (`quota_monthly_runs`, `full_name`) before executing the reliable role update, committing the entire profile update atomically.
+  - Added regression test `test_cross_system_sync_postgres_commit_failure_compensating_rollback_succeeds` in `tests/test_admin_role_sync.py` simulating flush success followed by commit failure.
+- **Reconciliation & Anti-Privilege Escalation Test Suite (`tests/test_admin_role_sync.py`):**
+  - Added tests for desynchronized state reconciliation, unreachable Supabase failure handling (HTTP 502), idempotency of repeated reconciliations, and unauthorized request rejections (HTTP 401, HTTP 403).
+  - Added `test_reconciliation_never_elevates_from_user_metadata` verifying that client-supplied `user_metadata` and generic `role: "authenticated"` can never elevate application roles during reconciliation.
+- **RoleSyncJournal Durability & Concurrency Suite (`tests/test_role_journal_durability.py`):**
+  - Added 6 comprehensive durability audit tests: missing file/directory creation, 20-thread concurrent write safety, process restart state recovery from disk, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, and unreconciled entry lifecycle filtering.
+- **Journal Disk Flushing & Durability Hardening (`src/services/role_sync_service.py`):**
+  - Added explicit `f.flush()` and `os.fsync(f.fileno())` inside safe OS exception handling in `_persist_entry_unlocked()` to ensure write durability across OS crashes.
+  - Documented multi-process ASGI limitation (in-memory state process-isolated across Gunicorn workers) and recommended database-backed journal (`role_sync_audit_log`) for horizontally scaled production environments.
+
+---
+
 ## [0.7.3] - 2026-11-10
 ### Added
 - **Distributed Role Consistency & Compensating Recovery (`src/services/role_sync_service.py`):**

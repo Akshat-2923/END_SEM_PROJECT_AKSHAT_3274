@@ -589,3 +589,84 @@
   - Created: `src/services/role_sync_service.py`
   - Modified: `.gitignore`, `src/auth.py`, `src/api/routers/auth.py`, `tests/test_admin_role_sync.py`, `tests/test_auth_jwt.py`, `tests/test_storage.py`, `docs/API_CONTRACTS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** 160 passed, 1 skipped (live external storage), 0 failed across 14 test modules in 79.08s. Includes exact tests proving immediate admin revocation with stale JWT and compensating rollback upon PostgreSQL commit failure.
+
+---
+
+### Task 18: Phase 2.2D.2 — Commit-Failure and Role Journal Audit
+- **Date:** 2026-11-10T23:36:00+05:30
+- **Development Stage:** Phase 2.2 Part D.2
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.2D.2: Commit-Failure and Role Journal Audit
+
+  Work from commit 2175396.
+
+  Do not redesign the authentication or storage subsystems.
+
+  ### 1. Verify the complete transaction lifecycle
+
+  Trace the exact lifecycle of `PATCH /api/v1/admin/users/{user_id}`:
+
+  - Where is the SQLAlchemy transaction started?
+  - Where does `session.flush()` occur?
+  - Where does `session.commit()` occur?
+  - Can the commit fail after the Supabase Auth update succeeds?
+  - Does the compensating update execute if the actual commit fails?
+
+  Add a regression test that simulates:
+
+  1. Supabase role update succeeds.
+  2. PostgreSQL flush succeeds.
+  3. PostgreSQL commit fails.
+  4. The system attempts to restore the original Supabase `app_metadata.role`.
+  5. The database retains its original role.
+  6. The synchronization journal records the final state accurately.
+
+  If the current implementation already handles this, demonstrate it with an explicit test and code trace.
+
+  ### 2. Audit RoleSyncJournal durability
+
+  Inspect `outputs/metadata/role_sync_audit.jsonl`:
+
+  - What happens if two admin updates run concurrently?
+  - What happens if the application process crashes or restarts?
+  - Is the journal thread-safe and process-safe?
+  - What happens if the journal file is deleted or corrupted?
+  - What happens if disk writes fail?
+  - Can desynchronized states be reliably recovered after restart?
+
+  Document the limitations of the local filesystem-based journal and recommend a database-backed journal if appropriate for production.
+
+  ### 3. Verify reconciliation
+
+  Test:
+  - Reconciling a desynchronized state.
+  - Reconciling when Supabase is unreachable.
+  - Repeated reconciliation (idempotency).
+  - Unauthorized reconciliation attempts.
+  - Anti-privilege escalation (ensure reconciliation cannot grant admin privileges from user-controlled metadata).
+
+  ### 4. Regression and documentation
+
+  Run targeted tests and the full test suite.
+
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - Relevant architecture and constraint documents.
+
+  Commit relevant changes with:
+
+  Phase 2.2D.2: Verify role commit recovery and journal durability
+
+  Verify the commit hash, staged diff and clean working tree.
+
+  Do not start Phase 2.3 during this task.
+  ```
+- **Files Created/Modified:**
+  - Created: `tests/test_role_journal_durability.py`
+  - Modified: `src/api/routers/auth.py`, `src/services/role_sync_service.py`, `tests/test_admin_role_sync.py`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 172 passed, 1 skipped (live external storage), 0 failed across 15 test modules in 81.99s. Includes exact tests proving commit-failure compensating rollback, role reconciliation, anti-privilege escalation, and journal concurrency/corruption/restart recovery.

@@ -5,7 +5,7 @@
 **Academic Affiliation:** Registered College Engineering Capstone Project  
 **Core Study Area Baseline:** Gomti River Corridor, Lucknow, Uttar Pradesh, India (`[80.88, 26.80, 81.00, 26.90]`)  
 **Repository:** `END_SEM_PROJECT_AKSHAT_3274`  
-**Current Architecture Phase:** Phase 2.2 (Part A Complete: Geospatial Validation & Reporting)  
+**Current Architecture Phase:** Phase 2.2 Complete (Parts A, B1, B2, C, D, D.1, D.2)  
 
 ---
 
@@ -399,3 +399,57 @@
   - `tests/test_auth_jwt.py`: 24 passed (+2 new tests covering stale token revocation and fail-closed DB errors).
   - `tests/test_storage.py`: 16 passed, 1 skipped.
 - Full test suite execution: **160 passed, 1 skipped, 173 warnings in 79.08s**.
+
+---
+
+## 14. Milestone 14: Phase 2.2D.2 — Commit-Failure and Role Journal Audit
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part D.2  
+**Scope:** Complete Transaction Lifecycle Tracing, Guarded Commit Boundary & Compensating Rollback Verification, RoleSyncJournal Durability & Concurrency Audit, Reconciliation Anti-Privilege Escalation Verification  
+
+### 14.1 Transaction Lifecycle Tracing & Guarded Commit Boundary
+- **Transaction Lifecycle Mapping:**
+  1. *Start:* The SQLAlchemy transaction begins lazily upon executing the first query (`target_profile = session.scalar(...)`) within the administrative database session provided by `get_admin_db_session()`.
+  2. *Flush:* Occurs inside `execute_reliable_role_update()` in `src/services/role_sync_service.py` to stage the role change on the session.
+  3. *Commit:* Explicitly placed inside `execute_reliable_role_update()` within the guarded `try/except` block, ensuring verification before returning `COMMITTED`.
+  4. *Commit Failure Window:* Can occur after Supabase Auth GoTrue Admin API returns HTTP 200 due to database constraint violations, connection drops, transaction timeout, or disk exhaustion.
+  5. *Compensating Execution:* The exception handler catches any commit or flush failure, immediately transitions the journal entry to `COMPENSATING`, executes `sync_user_role_to_supabase(old_role)` to restore the original role in Supabase Auth, rolls back the PostgreSQL session, transitions journal state to `COMPENSATED`, and raises HTTP 500.
+- **Atomic Profile Updates:** In `src/api/routers/auth.py`, other profile attributes (`quota_monthly_runs`, `full_name`) are staged *before* invoking `execute_reliable_role_update()`, guaranteeing that all profile changes are committed atomically within the verified commit boundary.
+- **Regression Test (`tests/test_admin_role_sync.py`):**
+  - Added `test_cross_system_sync_postgres_commit_failure_compensating_rollback_succeeds` explicitly proving the full 6-step lifecycle:
+    1. Supabase role update succeeds (`admin`).
+    2. PostgreSQL flush succeeds.
+    3. PostgreSQL commit fails (simulated via mock).
+    4. Compensating update restores Supabase `app_metadata.role` to `user`.
+    5. PostgreSQL session rolls back to `user`.
+    6. Journal records `COMPENSATED` state and API returns HTTP 500.
+
+### 14.2 RoleSyncJournal Durability & Multi-Process Audit
+- **Concurrency & Thread-Safety:** Verified. Thread-safe within a single process via `threading.Lock()`.
+- **Durability Enhancements:** Enhanced `_persist_entry_unlocked()` with explicit `f.flush()` and `os.fsync(f.fileno())` inside safe OS exception handling to guarantee OS buffer writes survive crashes.
+- **File System Resilience Tests (`tests/test_role_journal_durability.py`):**
+  - Missing file / directory: Auto-creates path and initializes properly (`test_journal_initialization_creates_missing_file_and_directory`).
+  - Concurrent writes: 20 concurrent threads writing entries verified without corruption or record loss (`test_concurrent_writes_thread_safety`).
+  - Process restart recovery: Verified full state and unreconciled entry reconstruction from disk (`test_journal_restart_recovery_from_disk`).
+  - Corrupted/truncated lines: Gracefully skips malformed JSON lines during disk reload while recovering all valid lines (`test_corrupted_file_recovery`).
+  - Disk write failure: Verified fallback to in-memory state without crashing or raising unhandled exceptions (`test_disk_write_failure_fallback_to_memory`).
+  - Lifecycle state tracking: Verified accurate filtering of unreconciled entries across all states (`test_journal_entry_lifecycle_and_unreconciled_filtering`).
+- **Architectural Findings & Production Recommendation:**
+  - *Multi-Process ASGI Limitation:* In multi-worker ASGI environments (e.g. Gunicorn with multiple Uvicorn worker processes), workers write to the shared JSONL file, but in-memory dictionaries are process-isolated. Real-time updates by one worker are not observable by peer workers until restart or file reload.
+  - *Recommendation:* For horizontal scaling, migrate the journal to a dedicated PostgreSQL table (`role_sync_audit_log`) accessed via an independent non-rolled-back database connection or transactional outbox pattern.
+
+### 14.3 Reconciliation Verification & Anti-Privilege Escalation
+- **Reconciliation Tests Added (`tests/test_admin_role_sync.py`):**
+  - `test_reconciliation_of_desynchronized_state`: Proves desynchronized user roles are detected and restored to match Supabase Auth.
+  - `test_reconciliation_failure_when_supabase_unreachable`: Proves unreachable Supabase returns HTTP 502 without corrupting local state.
+  - `test_reconciliation_repeated_idempotency`: Proves repeated reconciliation calls are completely idempotent.
+  - `test_unauthorized_reconciliation_rejected`: Proves unauthenticated (HTTP 401) and non-admin (HTTP 403) callers are rejected.
+  - `test_reconciliation_never_elevates_from_user_metadata`: Proves that a user cannot elevate their privileges during reconciliation via client-writable `user_metadata` or generic `role: "authenticated"`, strictly preserving the `app_metadata.role` trust boundary.
+
+### 14.4 Verification Summary
+- **Test Suite Expansion:** Expanded from 160 to **172 tests** (plus 1 skipped live integration test):
+  - `tests/test_admin_role_sync.py`: 23 passed (+6 new tests for commit failure recovery and reconciliation).
+  - `tests/test_role_journal_durability.py`: 6 passed (new test module for file durability, concurrency, corruption recovery, and memory fallback).
+- **Full Test Suite Execution:** **172 passed, 1 skipped, 173 warnings in 81.99s** (100% pass rate). Zero regressions.
+- **Phase 2.3 Boundary:** Phase 2.3 has not been started. Phase 2.2 is completely closed and verified.

@@ -1,7 +1,7 @@
 # System Constraints, Scientific Boundaries & Performance Targets
 ## DharaScope: Satellite-Based River Surface Water Dynamics Platform
 
-**Document Version:** 2.1.0  
+**Document Version:** 2.2.0  
 **Status:** Approved Reference  
 **Scope:** Phase 2 Architecture & Operational Limits  
 
@@ -143,17 +143,24 @@ The table below documents all operational performance targets for DharaScope. Ea
 - **Error Sanitization:** Diagnostic error strings captured in `analysis_runs.error_message` undergo regex scrubbing to strip server absolute paths, internal IPs, and credential patterns before persistence.
 - **Authorized Artifact Delivery:** Report and artifact download endpoints (`/reports/pdf`, `/reports/csv`, `/artifacts/{id}/download`) enforce database ownership validation and Row-Level Security before streaming file bytes via `FileResponse`.
 
-### 7.4 Identity Provider Role Synchronization & Consistency Hardening (Phase 2.2D & 2.2D.1)
+### 7.4 Identity Provider Role Synchronization, Consistency Hardening & Durability (Phase 2.2D, 2.2D.1, 2.2D.2)
 - **Supabase Auth Admin Synchronization:** Administrative role promotions and revocations are committed to Supabase Auth (`PUT /auth/v1/admin/users/{user_id}`) targeting `app_metadata.role`.
-- **Distributed Consistency & Compensating Rollback (Phase 2.2D.1):** Distributed role updates follow a two-phase consistency pattern managed by `src/services/role_sync_service.py` with `RoleSyncJournal`:
+- **Distributed Consistency & Compensating Rollback (Phase 2.2D.1 & 2.2D.2):** Distributed role updates follow a two-phase consistency pattern managed by `src/services/role_sync_service.py` with `RoleSyncJournal`:
   1. Record intent (`PENDING`) in durable journal.
   2. Call Supabase Auth Admin API (`IDP_UPDATED`). If Supabase fails, mark `FAILED` and abort without touching PostgreSQL.
-  3. Update PostgreSQL `profiles.role` and flush.
-  4. If PostgreSQL commit fails, immediately trigger a compensating update to Supabase Auth restoring `old_role`.
+  3. Update PostgreSQL `profiles.role`, flush, and commit within the guarded execution boundary.
+  4. If PostgreSQL flush or commit fails, immediately trigger a compensating update to Supabase Auth restoring `old_role`.
   5. If compensation succeeds, mark `COMPENSATED`, rollback DB, and return HTTP 500.
   6. If compensation fails, mark `DESYNCHRONIZED`, log critical alert, and return HTTP 502.
   7. Retries are idempotent. Never silently report success while systems disagree.
 - **Immediate Admin Revocation (Phase 2.2D.1):** Administrative endpoints do not rely solely on stateless JWT claims. Every administrative request executes an authoritative database role check on `profiles.role` using the caller's UUID within a restricted RLS-aware session. A revoked administrator is immediately blocked with HTTP 403 Forbidden on their very next request, reducing the effective revocation delay to 0 seconds. Database failures fail closed with HTTP 500.
+- **RoleSyncJournal File-System Durability & Limitations (Phase 2.2D.2):**
+  - **Thread-Safety & Disk Sync:** Single-process operations are synchronized via `threading.Lock()`. Entries are flushed and synced to disk with `os.fsync()` to ensure durability against OS-level crashes.
+  - **Corrupted/Missing Files:** Missing files/directories are auto-created. Corrupted or partially written lines are gracefully skipped during startup reload.
+  - **I/O Failure Resilience:** Disk write failures are logged without crashing the active transaction; the in-memory state is retained.
+  - **Multi-Process ASGI Limitation:** In multi-worker ASGI environments (e.g. Gunicorn with multiple workers), the append-only JSONL file is shared on disk, but each worker's in-memory dictionary is process-isolated and does not automatically observe peer workers' updates until restart.
+  - **Database-Backed Recommendation:** For horizontally scaled production environments, migrate `RoleSyncJournal` from local filesystem JSONL to a dedicated PostgreSQL table (`role_sync_audit_log`) accessed via an independent non-rolled-back database session or transactional outbox pattern.
+- **Reconciliation Anti-Privilege Escalation (Phase 2.2D.2):** The reconciliation endpoint (`POST /api/v1/admin/users/{user_id}/reconcile`) derives authoritative user identity strictly from trusted `app_metadata.role`. It rejects untrusted client-supplied `user_metadata` and generic session `role` claims, preventing privilege escalation during reconciliation.
 - **Service-Role Key Security Boundary:** `SUPABASE_SERVICE_ROLE_KEY` is strictly confined to server-side backend environment configuration. It is never included in client bundles, public configurations, Pydantic response models, or application logs. In production, missing service keys fail closed with HTTP 500.
 - **Storage Upload Integrity:** If an artifact upload fails in `src/storage.py`, the system logs a warning and aborts database record creation for that artifact, preventing phantom rows in `analysis_artifacts`.
 - **Multi-Tenant Storage Isolation:** Regardless of whether storage is local or cloud-backed, artifacts are partitioned by `{user_id}/{run_id}/{filename}` and access is strictly gated by parent run ownership checks before streaming bytes.

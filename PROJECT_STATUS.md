@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C, Part D & Part D.1)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C, Part D, Part D.1 & Part D.2)  
 **Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -41,7 +41,12 @@ In **Phase 2.2, Part D & Part D.1**, the project hardened admin role consistency
 3. Immediate Admin Revocation (`src/auth.py`): Every administrative endpoint performs an authoritative database lookup on `profiles.role` using the caller's UUID within a restricted RLS-aware session. A revoked administrator is immediately blocked with HTTP 403 Forbidden on their very next request (0 delay), even when holding an unexpired JWT. Database errors fail closed with HTTP 500.
 4. Storage Subsystem & Decoupled Verification Boundaries (`src/storage.py`, `tests/test_storage.py`): Local storage for offline/dev environments and Supabase Storage for cloud deployments. Mock-based test suite covers all unit/integration contracts offline; live testing is strictly decoupled into `TestLiveSupabaseStorageIntegration` guarded by `DHARASCOPE_LIVE_SUPABASE_STORAGE=1`.
 
-The automated test suite has expanded to **160 passed tests** (plus 1 skipped live integration test), all passing with zero regressions (100% pass rate).
+In **Phase 2.2, Part D.2**, the project audited commit-failure recovery, journal durability, and reconciliation integrity:
+1. Guarded Commit Boundary (`src/services/role_sync_service.py`): Explicitly placed `session.commit()` inside the guarded `try/except` block of `execute_reliable_role_update()`. If commit fails after Supabase update succeeds, compensating rollback immediately executes, restoring the role on Supabase Auth, rolling back PostgreSQL, and returning HTTP 500. Staging other profile fields (`quota_monthly_runs`, `full_name`) prior to execution ensures atomic all-or-nothing profile commits.
+2. RoleSyncJournal Durability Audit (`tests/test_role_journal_durability.py`): Proved 20-thread concurrency safety, disk sync with `os.fsync()`, missing file auto-creation, recovery after process restart, graceful handling of corrupted/truncated JSONL lines, and disk failure fallback to in-memory state. Documented multi-process ASGI limitation and recommended database-backed audit table for horizontally scaled deployments.
+3. Reconciliation Anti-Privilege Escalation (`tests/test_admin_role_sync.py`): Proved that reconciliation derives roles strictly from `app_metadata.role`, rejecting client-writable `user_metadata` or generic `role: "authenticated"` claims. Reconciliations are fully idempotent and reject unauthorized callers.
+
+The automated test suite has expanded to **172 passed tests** (plus 1 skipped live integration test), all passing with zero regressions (100% pass rate).
 
 ---
 
@@ -81,11 +86,17 @@ The automated test suite has expanded to **160 passed tests** (plus 1 skipped li
   - Asynchronous analysis lifecycle (`/api/v1/analyses`, `/api/v1/analyses/{id}`, `/metrics`, `/artifacts`).
   - Authorized report download endpoints (`/reports/csv`, `/reports/pdf`, `/api/v1/artifacts/{id}/download`).
   - Interactive OpenAPI documentation (`/docs`, `/redoc`, `/openapi.json`).
+- [x] **Identity Provider Role Synchronization & Two-Phase Consistency (`src/auth.py`, `src/services/role_sync_service.py`):**
+  - Supabase Auth Admin API synchronization via `PUT /auth/v1/admin/users/{user_id}` targeting `app_metadata.role`.
+  - Guarded commit boundary: `session.commit()` inside try/except block with automatic compensating rollback restoring Supabase `old_role` on PostgreSQL commit failure.
+  - Immediate admin revocation via authoritative database check on `profiles.role` (0 delay).
+  - Durable `RoleSyncJournal` with thread safety, `os.fsync()` disk synchronization, corrupted line resilience, and restart recovery.
+  - Reconciliation endpoint (`POST /api/v1/admin/users/{user_id}/reconcile`) with strict anti-privilege escalation rejecting client-writable `user_metadata`.
 - [x] **Requirements & Architectural Documentation (`docs/`):** Full SRS (`docs/SRS.md`), Traceability Matrix (`docs/REQUIREMENTS_TRACEABILITY.md`), Technical Decisions (`docs/TECHNICAL_DECISIONS.md`), API Contracts (`docs/API_CONTRACTS.md`), and System Constraints (`docs/SYSTEM_CONSTRAINTS.md`).
 - [x] **Version Control:** Published to GitHub under `Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`.
 
 ### 2.2 In-Progress Subsystems
-- **None.** Phase 2.2 is complete across Parts A, B1, B2, C, and D.
+- **None.** Phase 2.2 is complete across Parts A, B1, B2, C, D, D.1, and D.2.
 
 ### 2.3 Pending Subsystems (Scheduled for Phase 2.3)
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
@@ -98,24 +109,25 @@ The automated test suite has expanded to **160 passed tests** (plus 1 skipped li
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 151
-- **Pass Rate:** 100% (151 passed, 0 failed, 173 warnings in 77.06s)
+- **Total Automated Tests:** 172 passed, 1 skipped (173 total test definitions)
+- **Pass Rate:** 100% (172 passed, 1 skipped, 173 warnings in 81.99s)
 - **Warning Breakdown:** 144 upstream `rasterio` Affine matrix warnings (`PendingDeprecationWarning`), 1 upstream Starlette `httpx` warning (`StarletteDeprecationWarning`), 28 test-scoped Affine transform warnings, 0 DharaScope application code warnings.
-- **Test Modules (14 modules):**
-  1. `tests/test_admin_role_sync.py`: 10 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed).
-  2. `tests/test_storage.py`: 16 passed (local storage upload, missing file error, read/download bytes, 404 handling, file deletion, local path, Supabase storage init validation, mocked upload success, upload failure error, download success, 404 download, signed URLs, factory defaults, factory cloud enable, force override, upload failure skipping phantom database records).
-  3. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
-  4. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
-  5. `tests/test_auth_jwt.py`: 22 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards).
-  6. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
-  7. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
-  8. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
-  9. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
-  10. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
-  11. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
-  12. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
-  13. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
-  14. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
+- **Test Modules (15 modules):**
+  1. `tests/test_admin_role_sync.py`: 23 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation).
+  2. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
+  3. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
+  4. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
+  5. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
+  6. `tests/test_auth_jwt.py`: 24 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards, immediate admin revocation with stale JWT, fail-closed DB errors).
+  7. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
+  8. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
+  9. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
+  10. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
+  11. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
+  12. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
+  13. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
+  14. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
+  15. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
 
 ---
 
@@ -136,7 +148,11 @@ The automated test suite has expanded to **160 passed tests** (plus 1 skipped li
 
 1. **Windows System PROJ Conflicts:** External PostGIS installations on Windows set global `PROJ_LIB` variables that conflict with `rasterio`. **Workaround:** `src/config.py` overrides `PROJ_DATA` and `PROJ_LIB` dynamically at startup.
 2. **BackgroundTasks Restart Durability:** Pipeline tasks dispatched via FastAPI `BackgroundTasks` run in-process and do not survive application restarts. Tasks interrupted by process restarts remain frozen in `QUEUED` or `PROCESSING` state in the database. Worker database sessions are verified independent and closed, but durable background queues (Celery/Redis) are recommended for multi-worker production.
-3. **Stale JWT Revocation Delay:** Active access tokens in circulation retain their cryptographic claims until their `exp` timestamp. The maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens immediately reflect updated roles.
+3. **Stale JWT Revocation Elimination (Resolved):** In Phase 2.2D.1, immediate admin revocation was implemented via authoritative database checks on `profiles.role` for all administrative requests. Even if a revoked admin presents an unexpired JWT, they are rejected with HTTP 403 immediately (0 delay). Ordinary user tokens continue to reflect normal permissions.
+4. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
+5. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
+6. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
+7. **RoleSyncJournal Multi-Process Isolation (Phase 2.2D.2 Audit):** `RoleSyncJournal` persists to an append-only JSONL file with `os.fsync()` durability. In multi-process ASGI configurations (e.g. multiple Gunicorn workers), in-memory states are process-isolated and do not observe peer workers' updates in real time until reload. **Recommendation for production:** Migrate the journal to a dedicated PostgreSQL audit table (`role_sync_audit_log`) accessed via an independent non-rolled-back connection.
 4. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
 5. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
 6. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.

@@ -91,11 +91,16 @@ class RoleSyncJournal:
             logger.warning("Could not read role sync journal from %s: %s", self.log_path, exc)
 
     def _persist_entry_unlocked(self, entry: RoleSyncJournalEntry) -> None:
-        """Append an entry to the disk log."""
+        """Append an entry to the disk log with explicit physical sync."""
         try:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry.to_dict()) + "\n")
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except OSError:
+                    pass
         except Exception as exc:
             logger.error("Failed to append role sync journal entry %s to disk: %s", entry.sync_id, exc)
 
@@ -258,17 +263,18 @@ def execute_reliable_role_update(
             detail=f"Failed to communicate with identity provider: {str(exc)}",
         ) from exc
 
-    # Step 2: Apply and flush database changes
+    # Step 2: Apply, flush, and commit database changes
     try:
         target_profile.role = new_role
         session.flush()
+        session.commit()
     except Exception as db_exc:
         logger.error(
-            "PostgreSQL flush failed after Supabase update for user %s: %s. Initiating compensating update.",
+            "PostgreSQL commit/flush failed after Supabase update for user %s: %s. Initiating compensating update.",
             target_profile.id,
             db_exc,
         )
-        j.update_state(entry.sync_id, SyncState.COMPENSATING, error=f"DB flush failed: {str(db_exc)}")
+        j.update_state(entry.sync_id, SyncState.COMPENSATING, error=f"DB commit/flush failed: {str(db_exc)}")
 
         # Step 3: Compensating update — revert Supabase Auth back to old_role
         compensation_success = False

@@ -95,19 +95,21 @@ def admin_update_user(
             detail=f"User with ID '{user_id}' not found",
         )
 
-    if payload.role is not None and payload.role != target_profile.role:
-        # Distributed two-phase role update with compensating recovery
-        execute_reliable_role_update(
-            session=session,
-            target_profile=target_profile,
-            new_role=payload.role,
-        )
     if payload.quota_monthly_runs is not None:
         target_profile.quota_monthly_runs = payload.quota_monthly_runs
     if payload.full_name is not None:
         target_profile.full_name = payload.full_name.strip()
 
-    session.flush()
+    if payload.role is not None and payload.role != target_profile.role:
+        # Distributed two-phase role update with compensating recovery and commit verification
+        execute_reliable_role_update(
+            session=session,
+            target_profile=target_profile,
+            new_role=payload.role,
+        )
+    else:
+        session.flush()
+
     return target_profile
 
 

@@ -459,3 +459,164 @@ class TestAdminRoleSynchronization:
         assert res.status_code == 500
         assert "database error" in res.json()["detail"].lower()
 
+    def test_cross_system_sync_postgres_commit_failure_compensating_rollback_succeeds(
+        self, client, admin_headers, target_user, monkeypatch
+    ):
+        """Simulation Test: Supabase succeeds, flush succeeds, commit fails -> compensating rollback executed."""
+        mock_supabase_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_supabase_calls.append({"url": url, "payload": kwargs.get("json", {})})
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {"id": str(target_user), "app_metadata": kwargs.get("json", {}).get("app_metadata", {})}
+            return mock_res
+
+        from sqlalchemy.orm import Session
+        original_commit = Session.commit
+        commit_called = False
+
+        def failing_commit(self):
+            nonlocal commit_called
+            if len(mock_supabase_calls) == 1 and not commit_called:
+                commit_called = True
+                raise SQLAlchemyError("Simulated database failure during commit (e.g. disk full / deferred constraint)")
+            return original_commit(self)
+
+        monkeypatch.setattr("httpx.Client.put", fake_put)
+        monkeypatch.setattr(Session, "commit", failing_commit)
+
+        res = client.patch(
+            f"/api/v1/admin/users/{target_user}",
+            headers=admin_headers,
+            json={"role": "admin"},
+        )
+        assert res.status_code == 500
+        assert "Compensating rollback" in res.json()["detail"]
+
+        # Verify Supabase was called for forward update then compensating update
+        assert len(mock_supabase_calls) == 2
+        assert mock_supabase_calls[0]["payload"]["app_metadata"]["role"] == "admin"
+        assert mock_supabase_calls[1]["payload"]["app_metadata"]["role"] == "user"
+
+        # Verify database retained original role
+        with get_db() as session:
+            profile = session.get(Profile, target_user)
+            assert profile.role == "user"
+
+        # Verify journal recorded COMPENSATED
+        from src.services.role_sync_service import get_role_sync_journal
+        j = get_role_sync_journal()
+        entries = j.get_user_entries(target_user)
+        assert len(entries) > 0
+        assert entries[-1].state == "COMPENSATED"
+
+    def test_reconciliation_of_desynchronized_state(self, client, admin_headers, target_user):
+        """Verify reconciling a desynchronized state re-applies authoritative PostgreSQL role to Supabase."""
+        mock_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_calls.append(kwargs.get("json", {}))
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {"id": str(target_user), "app_metadata": {"role": "user"}}
+            return mock_res
+
+        with patch("httpx.Client.put", fake_put):
+            res = client.post(
+                f"/api/v1/admin/users/{target_user}/reconcile",
+                headers=admin_headers,
+            )
+            assert res.status_code == 200
+            assert res.json()["status"] == "reconciled"
+            assert res.json()["authoritative_role"] == "user"
+            assert len(mock_calls) == 1
+            assert mock_calls[0]["app_metadata"]["role"] == "user"
+
+    def test_reconciliation_failure_when_supabase_unreachable(self, client, admin_headers, target_user):
+        """Verify reconciliation returns 502 and does not claim success when Supabase is unreachable."""
+        with patch("httpx.Client.put", side_effect=RuntimeError("Supabase API gateway timeout")):
+            res = client.post(
+                f"/api/v1/admin/users/{target_user}/reconcile",
+                headers=admin_headers,
+            )
+            assert res.status_code == 502
+            assert "Failed to communicate with Supabase Auth" in res.json()["detail"]
+
+    def test_reconciliation_repeated_idempotency(self, client, admin_headers, target_user):
+        """Verify calling reconciliation multiple times produces identical consistent results."""
+        mock_res = MagicMock()
+        mock_res.status_code = 200
+        mock_res.content = b'{"status": "ok"}'
+        mock_res.json.return_value = {"id": str(target_user), "app_metadata": {"role": "user"}}
+
+        with patch("httpx.Client.put", return_value=mock_res):
+            res1 = client.post(f"/api/v1/admin/users/{target_user}/reconcile", headers=admin_headers)
+            res2 = client.post(f"/api/v1/admin/users/{target_user}/reconcile", headers=admin_headers)
+            assert res1.status_code == 200
+            assert res2.status_code == 200
+            assert res1.json()["authoritative_role"] == res2.json()["authoritative_role"] == "user"
+
+    def test_unauthorized_reconciliation_rejected(self, client, regular_user_headers, target_user):
+        """Verify unauthenticated or regular users cannot trigger reconciliation."""
+        # Unauthenticated
+        res_unauth = client.post(f"/api/v1/admin/users/{target_user}/reconcile")
+        assert res_unauth.status_code == 401
+
+        # Regular user
+        res_forbidden = client.post(
+            f"/api/v1/admin/users/{target_user}/reconcile",
+            headers=regular_user_headers,
+        )
+        assert res_forbidden.status_code == 403
+
+    def test_reconciliation_never_elevates_from_user_metadata(self, client, admin_headers):
+        """Security Proof: Reconciling a user with user_metadata.role='admin' sets Supabase to 'user', never admin."""
+        import jwt
+
+        rogue_uid = uuid.uuid4()
+        secret = "super_secret_test_key_for_dharascope_verification_32_bytes"
+        rogue_token = jwt.encode(
+            {
+                "sub": str(rogue_uid),
+                "email": f"rogue_{rogue_uid.hex[:6]}@dharascope.org",
+                "aud": "authenticated",
+                "iss": "https://testproject.supabase.co/auth/v1",
+                "app_metadata": {"role": "user"},
+                "user_metadata": {"role": "admin", "full_name": "Rogue Attacker"},
+                "exp": 9999999999,
+            },
+            secret,
+            algorithm="HS256",
+        )
+        # Rogue user logs in, provisioning profile
+        client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {rogue_token}"})
+
+        # Ensure database profile has role='user'
+        with get_db() as session:
+            p = session.get(Profile, rogue_uid)
+            assert p.role == "user"
+
+        mock_payloads = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_payloads.append(kwargs.get("json", {}))
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {"id": str(rogue_uid), "app_metadata": {"role": "user"}}
+            return mock_res
+
+        with patch("httpx.Client.put", fake_put):
+            res = client.post(
+                f"/api/v1/admin/users/{rogue_uid}/reconcile",
+                headers=admin_headers,
+            )
+            assert res.status_code == 200
+            assert res.json()["authoritative_role"] == "user"
+            assert mock_payloads[0]["app_metadata"]["role"] == "user"
+            assert mock_payloads[0]["app_metadata"]["role"] != "admin"
+
+
