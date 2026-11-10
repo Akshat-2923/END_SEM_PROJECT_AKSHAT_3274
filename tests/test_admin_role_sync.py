@@ -619,4 +619,251 @@ class TestAdminRoleSynchronization:
             assert mock_payloads[0]["app_metadata"]["role"] == "user"
             assert mock_payloads[0]["app_metadata"]["role"] != "admin"
 
+    def test_ambiguous_commit_outcome_commit_succeeded_reconciles_supabase(
+        self, client, admin_headers, target_user, monkeypatch
+    ):
+        """Ambiguous Commit Scenario: PostgreSQL commit actually succeeded, but client
+        received an exception (e.g. connection reset right as ACK was sent).
+        Verify system queries fresh session, discovers new_role in DB, reconciles
+        Supabase to new_role, does NOT blindly compensate to old_role, sets journal
+        to RECONCILED, and returns HTTP 200 with the new role.
+        """
+        mock_supabase_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_supabase_calls.append({"url": url, "payload": kwargs.get("json", {})})
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {
+                "id": str(target_user),
+                "app_metadata": kwargs.get("json", {}).get("app_metadata", {}),
+            }
+            return mock_res
+
+        from sqlalchemy.orm import Session
+        original_commit = Session.commit
+        lost_ack_triggered = False
+
+        def commit_with_lost_ack(self):
+            nonlocal lost_ack_triggered
+            # Execute the real commit first (data is persisted to DB!)
+            original_commit(self)
+            # If this is the update commit during our PATCH call, simulate lost connection ACK
+            if len(mock_supabase_calls) == 1 and not lost_ack_triggered:
+                lost_ack_triggered = True
+                raise SQLAlchemyError("Connection reset by peer after COMMIT")
+
+        monkeypatch.setattr("httpx.Client.put", fake_put)
+        monkeypatch.setattr(Session, "commit", commit_with_lost_ack)
+
+        res = client.patch(
+            f"/api/v1/admin/users/{target_user}",
+            headers=admin_headers,
+            json={"role": "admin"},
+        )
+        assert res.status_code == 200
+        assert res.json()["role"] == "admin"
+
+        # Verify Supabase was called for forward update (admin) and reconciliation (admin)
+        # It must NEVER have been called with "user" (no blind compensation!)
+        assert len(mock_supabase_calls) == 2
+        assert mock_supabase_calls[0]["payload"]["app_metadata"]["role"] == "admin"
+        assert mock_supabase_calls[1]["payload"]["app_metadata"]["role"] == "admin"
+
+        # Verify database has "admin"
+        with get_db() as session:
+            profile = session.get(Profile, target_user)
+            assert profile.role == "admin"
+
+        # Verify journal recorded RECONCILED
+        from src.services.role_sync_service import get_role_sync_journal
+        j = get_role_sync_journal()
+        entries = j.get_user_entries(target_user)
+        assert len(entries) > 0
+        assert entries[-1].state == "RECONCILED"
+
+    def test_ambiguous_commit_outcome_commit_definitely_fails_compensates_supabase(
+        self, client, admin_headers, target_user, monkeypatch
+    ):
+        """Ambiguous Commit Scenario: PostgreSQL commit definitely fails (e.g. disk full / constraint error).
+        Verify fresh session discovers old_role in DB, restores Supabase to old_role,
+        confirms both systems have old_role, sets journal to COMPENSATED, and returns HTTP 500.
+        """
+        mock_supabase_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_supabase_calls.append({"url": url, "payload": kwargs.get("json", {})})
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {
+                "id": str(target_user),
+                "app_metadata": kwargs.get("json", {}).get("app_metadata", {}),
+            }
+            return mock_res
+
+        from sqlalchemy.orm import Session
+        original_commit = Session.commit
+        failure_triggered = False
+
+        def failing_commit(self):
+            nonlocal failure_triggered
+            # Fail BEFORE commit executes
+            if len(mock_supabase_calls) == 1 and not failure_triggered:
+                failure_triggered = True
+                raise SQLAlchemyError("Simulated database failure during commit (e.g. disk full)")
+            return original_commit(self)
+
+        monkeypatch.setattr("httpx.Client.put", fake_put)
+        monkeypatch.setattr(Session, "commit", failing_commit)
+
+        res = client.patch(
+            f"/api/v1/admin/users/{target_user}",
+            headers=admin_headers,
+            json={"role": "admin"},
+        )
+        assert res.status_code == 500
+        assert "Compensating rollback" in res.json()["detail"]
+
+        # Verify Supabase was called for forward update (admin) then compensating rollback (user)
+        assert len(mock_supabase_calls) == 2
+        assert mock_supabase_calls[0]["payload"]["app_metadata"]["role"] == "admin"
+        assert mock_supabase_calls[1]["payload"]["app_metadata"]["role"] == "user"
+
+        # Verify database retained "user"
+        with get_db() as session:
+            profile = session.get(Profile, target_user)
+            assert profile.role == "user"
+
+        # Verify journal recorded COMPENSATED
+        from src.services.role_sync_service import get_role_sync_journal
+        j = get_role_sync_journal()
+        entries = j.get_user_entries(target_user)
+        assert len(entries) > 0
+        assert entries[-1].state == "COMPENSATED"
+
+    def test_ambiguous_commit_outcome_database_unavailable_during_verification(
+        self, client, admin_headers, target_user, monkeypatch
+    ):
+        """Ambiguous Commit Scenario: PostgreSQL commit fails, and database is unavailable
+        during authoritative outcome verification.
+        Verify system records DESYNCHRONIZED, does NOT claim compensation succeeded (does NOT call Supabase to revert),
+        and returns HTTP 502 Bad Gateway.
+        """
+        mock_supabase_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_supabase_calls.append({"url": url, "payload": kwargs.get("json", {})})
+            mock_res = MagicMock()
+            mock_res.status_code = 200
+            mock_res.content = b'{"status": "ok"}'
+            mock_res.json.return_value = {
+                "id": str(target_user),
+                "app_metadata": kwargs.get("json", {}).get("app_metadata", {}),
+            }
+            return mock_res
+
+        from sqlalchemy.orm import Session
+        original_commit = Session.commit
+        original_scalar = Session.scalar
+
+        def failing_commit(self):
+            if len(mock_supabase_calls) == 1:
+                raise SQLAlchemyError("Connection reset during commit")
+            return original_commit(self)
+
+        def failing_scalar(self, *args, **kwargs):
+            # If commit already failed and we are verifying in fresh session:
+            if len(mock_supabase_calls) == 1:
+                raise SQLAlchemyError("Database server unreachable during outcome verification")
+            return original_scalar(self, *args, **kwargs)
+
+        monkeypatch.setattr("httpx.Client.put", fake_put)
+        monkeypatch.setattr(Session, "commit", failing_commit)
+        monkeypatch.setattr(Session, "scalar", failing_scalar)
+
+        res = client.patch(
+            f"/api/v1/admin/users/{target_user}",
+            headers=admin_headers,
+            json={"role": "admin"},
+        )
+        assert res.status_code == 502
+        assert "database is unavailable for verification" in res.json()["detail"].lower()
+
+        # Critical: Only the initial forward call occurred!
+        # System did NOT blindly call Supabase to compensate!
+        assert len(mock_supabase_calls) == 1
+        assert mock_supabase_calls[0]["payload"]["app_metadata"]["role"] == "admin"
+
+        # Verify journal recorded DESYNCHRONIZED
+        from src.services.role_sync_service import get_role_sync_journal
+        j = get_role_sync_journal()
+        entries = j.get_user_entries(target_user)
+        assert len(entries) > 0
+        assert entries[-1].state == "DESYNCHRONIZED"
+
+    def test_ambiguous_commit_outcome_supabase_unavailable_during_reconciliation(
+        self, client, admin_headers, target_user, monkeypatch
+    ):
+        """Ambiguous Commit Scenario: PostgreSQL committed new_role, but Supabase is unavailable
+        during the subsequent reconciliation step.
+        Verify system records DESYNCHRONIZED and returns HTTP 502 Bad Gateway.
+        """
+        mock_supabase_calls = []
+
+        def fake_put(self, url, *args, **kwargs):
+            mock_supabase_calls.append({"url": url, "payload": kwargs.get("json", {})})
+            if len(mock_supabase_calls) == 1:
+                # Forward update succeeds
+                mock_res = MagicMock()
+                mock_res.status_code = 200
+                mock_res.content = b'{"status": "ok"}'
+                mock_res.json.return_value = {
+                    "id": str(target_user),
+                    "app_metadata": {"role": "admin"},
+                }
+                return mock_res
+            else:
+                # Reconciliation call to Supabase fails!
+                raise RuntimeError("Supabase gateway unreachable during reconciliation")
+
+        from sqlalchemy.orm import Session
+        original_commit = Session.commit
+        lost_ack = False
+
+        def commit_with_lost_ack(self):
+            nonlocal lost_ack
+            original_commit(self)
+            if len(mock_supabase_calls) == 1 and not lost_ack:
+                lost_ack = True
+                raise SQLAlchemyError("Connection reset after COMMIT")
+
+        monkeypatch.setattr("httpx.Client.put", fake_put)
+        monkeypatch.setattr(Session, "commit", commit_with_lost_ack)
+
+        res = client.patch(
+            f"/api/v1/admin/users/{target_user}",
+            headers=admin_headers,
+            json={"role": "admin"},
+        )
+        assert res.status_code == 502
+        assert "identity provider reconciliation failed" in res.json()["detail"].lower()
+
+        # Two calls were attempted: forward update and reconciliation
+        assert len(mock_supabase_calls) == 2
+
+        # Verify database actually contains "admin"
+        with get_db() as session:
+            profile = session.get(Profile, target_user)
+            assert profile.role == "admin"
+
+        # Verify journal recorded DESYNCHRONIZED
+        from src.services.role_sync_service import get_role_sync_journal
+        j = get_role_sync_journal()
+        entries = j.get_user_entries(target_user)
+        assert len(entries) > 0
+        assert entries[-1].state == "DESYNCHRONIZED"
+
+
 

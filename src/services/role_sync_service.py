@@ -269,70 +269,198 @@ def execute_reliable_role_update(
         session.flush()
         session.commit()
     except Exception as db_exc:
-        logger.error(
-            "PostgreSQL commit/flush failed after Supabase update for user %s: %s. Initiating compensating update.",
+        logger.warning(
+            "PostgreSQL commit/flush raised an exception for user %s: %s. "
+            "Outcome is ambiguous; establishing authoritative database role via fresh session.",
             target_profile.id,
             db_exc,
         )
-        j.update_state(entry.sync_id, SyncState.COMPENSATING, error=f"DB commit/flush failed: {str(db_exc)}")
 
-        # Step 3: Compensating update — revert Supabase Auth back to old_role
-        compensation_success = False
-        try:
-            sync_user_role_to_supabase(
-                user_id=target_profile.id,
-                new_role=old_role,
-                timeout=timeout,
-            )
-            compensation_success = True
-            logger.info(
-                "Compensating update succeeded: Restored Supabase role to '%s' for user %s",
-                old_role,
-                target_profile.id,
-            )
-        except Exception as comp_exc:
-            logger.critical(
-                "CRITICAL: Compensating update to Supabase failed for user %s! "
-                "Supabase has '%s', PostgreSQL has '%s'. Error: %s",
-                target_profile.id,
-                new_role,
-                old_role,
-                comp_exc,
-            )
-
-        # Roll back the PostgreSQL transaction
+        # Roll back the failed/broken session to clean up connection state
         try:
             session.rollback()
         except Exception:
             pass
 
-        if compensation_success:
-            j.update_state(
-                entry.sync_id,
-                SyncState.COMPENSATED,
-                error=f"DB failed ({str(db_exc)}); compensated IdP back to {old_role}",
+        # Step 3: Establish authoritative PostgreSQL role using a fresh database session
+        authoritative_role: Optional[str] = None
+        db_verification_failed = False
+        verify_error: Optional[Exception] = None
+        try:
+            from src.database.session import get_session_factory
+            bind = session.get_bind()
+            factory = get_session_factory(bind) if bind is not None else get_session_factory()
+            fresh_session = factory()
+            try:
+                fresh_profile = fresh_session.scalar(
+                    select(Profile).where(Profile.id == target_profile.id)
+                )
+                if fresh_profile is not None:
+                    authoritative_role = fresh_profile.role
+            finally:
+                fresh_session.close()
+        except Exception as verify_exc:
+            verify_error = verify_exc
+            db_verification_failed = True
+            logger.error(
+                "Failed to query database for authoritative role verification for user %s: %s",
+                target_profile.id,
+                verify_exc,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=(
-                    "Database failure occurred while updating user profile. "
-                    "Compensating rollback restored identity provider to previous role."
-                ),
-            ) from db_exc
-        else:
+
+        # Case 1: PostgreSQL cannot be queried
+        if db_verification_failed or authoritative_role is None:
+            logger.critical(
+                "CRITICAL: PostgreSQL cannot be queried after ambiguous commit for user %s. "
+                "Recording DESYNCHRONIZED; not compensating blindly.",
+                target_profile.id,
+            )
             j.update_state(
                 entry.sync_id,
                 SyncState.DESYNCHRONIZED,
-                error=f"DB failed ({str(db_exc)}); compensating rollback also failed",
+                error=(
+                    f"PostgreSQL commit ambiguous ({str(db_exc)}); "
+                    f"authoritative verification failed ({str(verify_error) if db_verification_failed else 'profile not found'})"
+                ),
             )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=(
-                    "CRITICAL: Cross-system role desynchronization detected. "
-                    "Identity provider was updated but database commit and compensating rollback failed. "
-                    "Manual administrator reconciliation required."
+                    "CRITICAL: PostgreSQL commit outcome is ambiguous and database is unavailable for verification. "
+                    "Cannot verify whether role was committed. Manual administrator reconciliation required."
                 ),
             ) from db_exc
+
+        # Case 2: PostgreSQL contains new_role (Commit succeeded, but acknowledgement was lost)
+        if authoritative_role == new_role:
+            logger.info(
+                "Authoritative role check confirmed PostgreSQL committed '%s' for user %s despite commit exception. "
+                "Reconciling Supabase to '%s'.",
+                new_role,
+                target_profile.id,
+                new_role,
+            )
+            try:
+                sync_user_role_to_supabase(
+                    user_id=target_profile.id,
+                    new_role=new_role,
+                    timeout=timeout,
+                )
+            except Exception as idp_exc:
+                logger.critical(
+                    "CRITICAL: PostgreSQL has '%s', but Supabase reconciliation to '%s' failed for user %s: %s",
+                    new_role,
+                    new_role,
+                    target_profile.id,
+                    idp_exc,
+                )
+                j.update_state(
+                    entry.sync_id,
+                    SyncState.DESYNCHRONIZED,
+                    error=f"PostgreSQL committed {new_role}, but Supabase reconciliation failed: {str(idp_exc)}",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=(
+                        "CRITICAL: PostgreSQL successfully committed new role, but identity provider reconciliation failed. "
+                        "Manual administrator reconciliation required."
+                    ),
+                ) from idp_exc
+
+            # Both PostgreSQL and Supabase confirmed to have new_role
+            target_profile.role = new_role
+            j.update_state(
+                entry.sync_id,
+                SyncState.RECONCILED,
+                error=f"Commit acknowledged via fresh session query ({str(db_exc)}); reconciled IdP to {new_role}",
+            )
+            return target_profile
+
+        # Case 3: PostgreSQL contains old_role (Commit definitely failed/rolled back)
+        if authoritative_role == old_role:
+            logger.info(
+                "Authoritative role check confirmed PostgreSQL retained '%s' for user %s. "
+                "Initiating compensating update to restore Supabase to '%s'.",
+                old_role,
+                target_profile.id,
+                old_role,
+            )
+            j.update_state(
+                entry.sync_id,
+                SyncState.COMPENSATING,
+                error=f"DB retained {old_role} ({str(db_exc)}); restoring IdP",
+            )
+            compensation_success = False
+            comp_error: Optional[Exception] = None
+            try:
+                sync_user_role_to_supabase(
+                    user_id=target_profile.id,
+                    new_role=old_role,
+                    timeout=timeout,
+                )
+                compensation_success = True
+                logger.info(
+                    "Compensating update succeeded: Restored Supabase role to '%s' for user %s",
+                    old_role,
+                    target_profile.id,
+                )
+            except Exception as comp_exc:
+                comp_error = comp_exc
+                logger.critical(
+                    "CRITICAL: Compensating update to Supabase failed for user %s! "
+                    "Supabase has '%s', PostgreSQL has '%s'. Error: %s",
+                    target_profile.id,
+                    new_role,
+                    old_role,
+                    comp_exc,
+                )
+
+            if compensation_success:
+                target_profile.role = old_role
+                j.update_state(
+                    entry.sync_id,
+                    SyncState.COMPENSATED,
+                    error=f"DB failed ({str(db_exc)}); verified DB has {old_role} and compensated IdP back to {old_role}",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=(
+                        "Database failure occurred while updating user profile. "
+                        "Compensating rollback restored identity provider to previous role."
+                    ),
+                ) from db_exc
+            else:
+                j.update_state(
+                    entry.sync_id,
+                    SyncState.DESYNCHRONIZED,
+                    error=f"DB retained {old_role} ({str(db_exc)}); compensating rollback to IdP failed: {str(comp_error)}",
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=(
+                        "CRITICAL: Cross-system role desynchronization detected. "
+                        "Identity provider was updated but database commit and compensating rollback failed. "
+                        "Manual administrator reconciliation required."
+                    ),
+                ) from db_exc
+
+        # Case 4: PostgreSQL contains an unexpected role
+        logger.critical(
+            "CRITICAL: PostgreSQL contains unexpected role '%s' for user %s (expected '%s' or '%s').",
+            authoritative_role,
+            target_profile.id,
+            old_role,
+            new_role,
+        )
+        j.update_state(
+            entry.sync_id,
+            SyncState.DESYNCHRONIZED,
+            error=f"PostgreSQL has unexpected role '{authoritative_role}'; expected '{old_role}' or '{new_role}'",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="CRITICAL: Unexpected database role state detected. Manual reconciliation required.",
+        ) from db_exc
 
     # Step 4: Both systems successfully updated
     j.update_state(entry.sync_id, SyncState.COMMITTED)
@@ -378,6 +506,17 @@ def reconcile_user_role(
         updated_at=now,
     )
     with j._lock:
+        for prev_entry in j._entries.values():
+            if prev_entry.user_id == str(user_id) and prev_entry.state in {
+                SyncState.DESYNCHRONIZED.value,
+                SyncState.COMPENSATING.value,
+                SyncState.FAILED.value,
+                SyncState.PENDING.value,
+                SyncState.IDP_UPDATED.value,
+            }:
+                prev_entry.state = SyncState.RECONCILED.value
+                prev_entry.updated_at = now
+                j._persist_entry_unlocked(prev_entry)
         j._entries[sync_id] = entry
         j._persist_entry_unlocked(entry)
 

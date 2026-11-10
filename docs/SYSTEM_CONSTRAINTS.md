@@ -1,7 +1,7 @@
 # System Constraints, Scientific Boundaries & Performance Targets
 ## DharaScope: Satellite-Based River Surface Water Dynamics Platform
 
-**Document Version:** 2.2.0  
+**Document Version:** 2.3.0  
 **Status:** Approved Reference  
 **Scope:** Phase 2 Architecture & Operational Limits  
 
@@ -143,16 +143,20 @@ The table below documents all operational performance targets for DharaScope. Ea
 - **Error Sanitization:** Diagnostic error strings captured in `analysis_runs.error_message` undergo regex scrubbing to strip server absolute paths, internal IPs, and credential patterns before persistence.
 - **Authorized Artifact Delivery:** Report and artifact download endpoints (`/reports/pdf`, `/reports/csv`, `/artifacts/{id}/download`) enforce database ownership validation and Row-Level Security before streaming file bytes via `FileResponse`.
 
-### 7.4 Identity Provider Role Synchronization, Consistency Hardening & Durability (Phase 2.2D, 2.2D.1, 2.2D.2)
+### 7.4 Identity Provider Role Synchronization, Consistency Hardening & Ambiguous Commit Recovery (Phase 2.2D, 2.2D.1, 2.2D.2, 2.2D.3)
 - **Supabase Auth Admin Synchronization:** Administrative role promotions and revocations are committed to Supabase Auth (`PUT /auth/v1/admin/users/{user_id}`) targeting `app_metadata.role`.
 - **Distributed Consistency & Compensating Rollback (Phase 2.2D.1 & 2.2D.2):** Distributed role updates follow a two-phase consistency pattern managed by `src/services/role_sync_service.py` with `RoleSyncJournal`:
   1. Record intent (`PENDING`) in durable journal.
   2. Call Supabase Auth Admin API (`IDP_UPDATED`). If Supabase fails, mark `FAILED` and abort without touching PostgreSQL.
   3. Update PostgreSQL `profiles.role`, flush, and commit within the guarded execution boundary.
-  4. If PostgreSQL flush or commit fails, immediately trigger a compensating update to Supabase Auth restoring `old_role`.
-  5. If compensation succeeds, mark `COMPENSATED`, rollback DB, and return HTTP 500.
-  6. If compensation fails, mark `DESYNCHRONIZED`, log critical alert, and return HTTP 502.
-  7. Retries are idempotent. Never silently report success while systems disagree.
+  4. If PostgreSQL flush or commit fails, enter ambiguous commit recovery.
+- **Ambiguous Commit Outcome Resolution & Anti-Split-Brain Invariant (Phase 2.2D.3):**
+  - When `session.commit()` raises an exception, the commit outcome is ambiguous: PostgreSQL may have written the transaction before acknowledgement was lost, or aborted it.
+  - The system rolls back the dirty session and queries the user profile using an independent fresh database session to determine the authoritative on-disk role:
+    1. If PostgreSQL contains `new_role` (commit succeeded, acknowledgement was lost): Reconcile Supabase Auth to `new_role`. Upon success, mark `RECONCILED` and return HTTP 200. Never blindly revert Supabase to `old_role`!
+    2. If PostgreSQL contains `old_role` (commit definitely failed / rolled back): Compensate Supabase Auth to restore `old_role`. Only if Supabase succeeds is the journal marked `COMPENSATED` and HTTP 500 returned.
+    3. If PostgreSQL cannot be queried (database unavailable during verification): Immediately record `DESYNCHRONIZED` and return HTTP 502. Do not touch Supabase or claim compensation succeeded.
+    4. Anti-split-brain rule: A synchronization is NEVER marked `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain the `old_role`.
 - **Immediate Admin Revocation (Phase 2.2D.1):** Administrative endpoints do not rely solely on stateless JWT claims. Every administrative request executes an authoritative database role check on `profiles.role` using the caller's UUID within a restricted RLS-aware session. A revoked administrator is immediately blocked with HTTP 403 Forbidden on their very next request, reducing the effective revocation delay to 0 seconds. Database failures fail closed with HTTP 500.
 - **RoleSyncJournal File-System Durability & Limitations (Phase 2.2D.2):**
   - **Thread-Safety & Disk Sync:** Single-process operations are synchronized via `threading.Lock()`. Entries are flushed and synced to disk with `os.fsync()` to ensure durability against OS-level crashes.

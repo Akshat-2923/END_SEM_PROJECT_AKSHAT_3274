@@ -5,7 +5,7 @@
 **Academic Affiliation:** Registered College Engineering Capstone Project  
 **Core Study Area Baseline:** Gomti River Corridor, Lucknow, Uttar Pradesh, India (`[80.88, 26.80, 81.00, 26.90]`)  
 **Repository:** `END_SEM_PROJECT_AKSHAT_3274`  
-**Current Architecture Phase:** Phase 2.2 Complete (Parts A, B1, B2, C, D, D.1, D.2)  
+**Current Architecture Phase:** Phase 2.2 Complete (Parts A, B1, B2, C, D, D.1, D.2, D.3)  
 
 ---
 
@@ -453,3 +453,36 @@
   - `tests/test_role_journal_durability.py`: 6 passed (new test module for file durability, concurrency, corruption recovery, and memory fallback).
 - **Full Test Suite Execution:** **172 passed, 1 skipped, 173 warnings in 81.99s** (100% pass rate). Zero regressions.
 - **Phase 2.3 Boundary:** Phase 2.3 has not been started. Phase 2.2 is completely closed and verified.
+
+---
+
+## 15. Milestone 15: Phase 2.2D.3 — Ambiguous Commit Outcome Verification
+
+**Date:** 2026-11-10  
+**Phase:** 2.2 Part D.3  
+**Scope:** Distributed Transaction Edge-Case Hardening, Ambiguous PostgreSQL Commit Resolution, Anti-Split-Brain Invariant, and Reconciliation Idempotency  
+
+### 15.1 Ambiguous Commit Resolution Architecture (`src/services/role_sync_service.py`)
+- **Problem Statement:** In distributed transactions between Supabase Auth and PostgreSQL, `session.commit()` can experience socket disconnects, pool timeouts, or connection drops after the transaction was committed to PostgreSQL's WAL on disk. Blindly compensating Supabase Auth back to `old_role` creates a severe split-brain state (PostgreSQL contains `new_role`, Supabase contains `old_role`, and journal falsely marks `COMPENSATED`).
+- **Resolution Strategy:**
+  1. *Ambiguous Exception Handling:* When `session.commit()` raises an exception, the session is rolled back to clean connection state.
+  2. *Authoritative Fresh Session Query:* System creates a fresh, isolated database session (`get_session_factory(session.get_bind())`) and queries `profiles.role` for the target user.
+  3. *Case A — PostgreSQL Committed New Role:* Acknowledgement was lost, but data was persisted. System reconciles Supabase Auth to `new_role`. Upon success, records `RECONCILED` in the journal and returns the updated profile (HTTP 200). If Supabase reconciliation fails, records `DESYNCHRONIZED` (HTTP 502).
+  4. *Case B — PostgreSQL Retained Old Role:* Commit definitely failed or rolled back. System initiates compensating update to restore Supabase Auth to `old_role`. Only if Supabase succeeds is the journal marked `COMPENSATED` (HTTP 500). If Supabase compensation fails, records `DESYNCHRONIZED` (HTTP 502).
+  5. *Case C — Database Unavailable During Verification:* If the fresh database query fails, system records `DESYNCHRONIZED` immediately and raises HTTP 502. System does not blindly touch Supabase Auth and does not claim compensation succeeded.
+- **Anti-Split-Brain Invariant:** A synchronization is NEVER marked `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain the `old_role`.
+- **Idempotent Reconciliation:** Updated `reconcile_user_role()` to transition any prior unreconciled records for the target user (`DESYNCHRONIZED`, `COMPENSATING`, `FAILED`, `PENDING`, `IDP_UPDATED`) to `RECONCILED`.
+
+### 15.2 Regression Verification Suite (`tests/test_admin_role_sync.py`)
+- Added 4 comprehensive regression tests:
+  1. `test_ambiguous_commit_outcome_commit_succeeded_reconciles_supabase`: Proves that when commit succeeds but ACK is lost, fresh session detects `new_role`, reconciles Supabase to `new_role`, does NOT blindly compensate, marks `RECONCILED`, and returns HTTP 200.
+  2. `test_ambiguous_commit_outcome_commit_definitely_fails_compensates_supabase`: Proves that when commit definitely fails, fresh session detects `old_role`, restores Supabase to `old_role`, marks `COMPENSATED`, and returns HTTP 500.
+  3. `test_ambiguous_commit_outcome_database_unavailable_during_verification`: Proves that when DB is unavailable during verification, system records `DESYNCHRONIZED`, does NOT call Supabase to revert, and returns HTTP 502.
+  4. `test_ambiguous_commit_outcome_supabase_unavailable_during_reconciliation`: Proves that when commit succeeds on DB but Supabase is unavailable during reconciliation, system records `DESYNCHRONIZED` and returns HTTP 502.
+
+### 15.3 Verification Summary
+- **Test Suite Expansion:** Expanded from 172 to **176 tests** (plus 1 skipped live integration test):
+  - `tests/test_admin_role_sync.py`: 27 passed (+4 new tests for ambiguous commit outcome resolution).
+  - `tests/test_role_journal_durability.py`: 6 passed.
+- **Full Test Suite Execution:** **176 passed, 1 skipped, 173 warnings in 89.16s** (100% pass rate). Zero regressions.
+- **Phase 2.3 Boundary:** Phase 2.3 has not been started. Phase 2.2 is completely closed, hardened, and verified.

@@ -2,7 +2,7 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C, Part D, Part D.1 & Part D.2)  
+**Current Phase:** Phase 2.2 — Platform Evolution (Complete: Part A, Part B1, Part B2, Part C, Part D, Part D.1, Part D.2 & Part D.3)  
 **Last Updated:** 2026-11-10  
 **Overall System Health:** `HEALTHY / OPERATIONAL`  
 
@@ -41,12 +41,13 @@ In **Phase 2.2, Part D & Part D.1**, the project hardened admin role consistency
 3. Immediate Admin Revocation (`src/auth.py`): Every administrative endpoint performs an authoritative database lookup on `profiles.role` using the caller's UUID within a restricted RLS-aware session. A revoked administrator is immediately blocked with HTTP 403 Forbidden on their very next request (0 delay), even when holding an unexpired JWT. Database errors fail closed with HTTP 500.
 4. Storage Subsystem & Decoupled Verification Boundaries (`src/storage.py`, `tests/test_storage.py`): Local storage for offline/dev environments and Supabase Storage for cloud deployments. Mock-based test suite covers all unit/integration contracts offline; live testing is strictly decoupled into `TestLiveSupabaseStorageIntegration` guarded by `DHARASCOPE_LIVE_SUPABASE_STORAGE=1`.
 
-In **Phase 2.2, Part D.2**, the project audited commit-failure recovery, journal durability, and reconciliation integrity:
-1. Guarded Commit Boundary (`src/services/role_sync_service.py`): Explicitly placed `session.commit()` inside the guarded `try/except` block of `execute_reliable_role_update()`. If commit fails after Supabase update succeeds, compensating rollback immediately executes, restoring the role on Supabase Auth, rolling back PostgreSQL, and returning HTTP 500. Staging other profile fields (`quota_monthly_runs`, `full_name`) prior to execution ensures atomic all-or-nothing profile commits.
-2. RoleSyncJournal Durability Audit (`tests/test_role_journal_durability.py`): Proved 20-thread concurrency safety, disk sync with `os.fsync()`, missing file auto-creation, recovery after process restart, graceful handling of corrupted/truncated JSONL lines, and disk failure fallback to in-memory state. Documented multi-process ASGI limitation and recommended database-backed audit table for horizontally scaled deployments.
-3. Reconciliation Anti-Privilege Escalation (`tests/test_admin_role_sync.py`): Proved that reconciliation derives roles strictly from `app_metadata.role`, rejecting client-writable `user_metadata` or generic `role: "authenticated"` claims. Reconciliations are fully idempotent and reject unauthorized callers.
+In **Phase 2.2, Part D.2 & Part D.3**, the project hardened commit-failure recovery, journal durability, and ambiguous commit outcomes:
+1. Guarded Commit Boundary & Commit-Failure Recovery (`src/services/role_sync_service.py`): Explicitly placed `session.commit()` inside the guarded `try/except` block of `execute_reliable_role_update()`. If commit definitely fails, compensating rollback restores the original role on Supabase Auth, rolling back PostgreSQL, and returning HTTP 500. Staging other profile fields (`quota_monthly_runs`, `full_name`) prior to execution ensures atomic all-or-nothing profile commits.
+2. Ambiguous Commit Outcome Resolution (`src/services/role_sync_service.py`): If `session.commit()` raises an exception after PostgreSQL wrote to disk (lost ACK), system establishes authoritative role via an isolated fresh database session. If PostgreSQL contains `new_role`, system reconciles Supabase Auth to `new_role`, records `RECONCILED`, and returns HTTP 200 without blindly compensating to `old_role`. If database is unavailable, records `DESYNCHRONIZED` (HTTP 502). A synchronization is never marked `COMPENSATED` without proving both systems have `old_role`.
+3. RoleSyncJournal Durability Audit (`tests/test_role_journal_durability.py`): Proved 20-thread concurrency safety, disk sync with `os.fsync()`, missing file auto-creation, recovery after process restart, graceful handling of corrupted/truncated JSONL lines, and disk failure fallback to in-memory state. Documented multi-process ASGI limitation and recommended database-backed audit table for horizontally scaled deployments.
+4. Reconciliation Anti-Privilege Escalation (`tests/test_admin_role_sync.py`): Proved that reconciliation derives roles strictly from `app_metadata.role`, rejecting client-writable `user_metadata` or generic `role: "authenticated"` claims. Reconciliations are fully idempotent and reject unauthorized callers.
 
-The automated test suite has expanded to **172 passed tests** (plus 1 skipped live integration test), all passing with zero regressions (100% pass rate).
+The automated test suite has expanded to **176 passed tests** (plus 1 skipped live integration test), all passing with zero regressions (100% pass rate).
 
 ---
 
@@ -89,6 +90,8 @@ The automated test suite has expanded to **172 passed tests** (plus 1 skipped li
 - [x] **Identity Provider Role Synchronization & Two-Phase Consistency (`src/auth.py`, `src/services/role_sync_service.py`):**
   - Supabase Auth Admin API synchronization via `PUT /auth/v1/admin/users/{user_id}` targeting `app_metadata.role`.
   - Guarded commit boundary: `session.commit()` inside try/except block with automatic compensating rollback restoring Supabase `old_role` on PostgreSQL commit failure.
+  - Ambiguous commit recovery: verifies authoritative role via fresh database session (`get_session_factory()`). Reconciles Supabase to `new_role` on lost ACK; never blindly compensates.
+  - Anti-split-brain invariant: never marks a synchronization `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain `old_role`.
   - Immediate admin revocation via authoritative database check on `profiles.role` (0 delay).
   - Durable `RoleSyncJournal` with thread safety, `os.fsync()` disk synchronization, corrupted line resilience, and restart recovery.
   - Reconciliation endpoint (`POST /api/v1/admin/users/{user_id}/reconcile`) with strict anti-privilege escalation rejecting client-writable `user_metadata`.
@@ -96,7 +99,7 @@ The automated test suite has expanded to **172 passed tests** (plus 1 skipped li
 - [x] **Version Control:** Published to GitHub under `Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`.
 
 ### 2.2 In-Progress Subsystems
-- **None.** Phase 2.2 is complete across Parts A, B1, B2, C, D, D.1, and D.2.
+- **None.** Phase 2.2 is complete across Parts A, B1, B2, C, D, D.1, D.2, and D.3.
 
 ### 2.3 Pending Subsystems (Scheduled for Phase 2.3)
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
@@ -109,11 +112,25 @@ The automated test suite has expanded to **172 passed tests** (plus 1 skipped li
 
 ## 3. Automated Test Suite Metrics
 
-- **Total Automated Tests:** 172 passed, 1 skipped (173 total test definitions)
-- **Pass Rate:** 100% (172 passed, 1 skipped, 173 warnings in 81.99s)
+- **Total Automated Tests:** 176 passed, 1 skipped (177 total test definitions)
+- **Pass Rate:** 100% (176 passed, 1 skipped, 173 warnings in 89.16s)
 - **Warning Breakdown:** 144 upstream `rasterio` Affine matrix warnings (`PendingDeprecationWarning`), 1 upstream Starlette `httpx` warning (`StarletteDeprecationWarning`), 28 test-scoped Affine transform warnings, 0 DharaScope application code warnings.
 - **Test Modules (15 modules):**
-  1. `tests/test_admin_role_sync.py`: 23 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation).
+  1. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).
+  2. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
+  3. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
+  4. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
+  5. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
+  6. `tests/test_auth_jwt.py`: 24 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards, immediate admin revocation with stale JWT, fail-closed DB errors).
+  7. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
+  8. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
+  9. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
+  10. `tests/test_database_security_rls.py`: 6 passed (live PostgreSQL RLS tests verifying private AOI cross-user isolation, public AOI modification protection, analysis run cross-user isolation, child metric/artifact inheritance, and database-level RLS role escalation rejection).
+  11. `tests/test_downloader.py`: 11 passed (auth errors, credential detection, Bearer token masking, redirect auth preservation, HTML error rejection, corrupted binary rejection, raster verification, synthetic generation, band retrieval modes).
+  12. `tests/test_end_to_end_raster_pipeline.py`: 1 passed (full pipeline execution from bands to NDWI to change detection).
+  13. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
+  14. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
+  15. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
   2. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
   3. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
   4. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).

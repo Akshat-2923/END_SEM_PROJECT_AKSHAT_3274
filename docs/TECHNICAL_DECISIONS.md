@@ -1,7 +1,7 @@
 # Architectural & Technical Decision Records (ADR)
 ## DharaScope: Satellite-Based River Surface Water Dynamics Platform
 
-**Document Version:** 2.2.0  
+**Document Version:** 2.3.0  
 **Status:** Approved Architectural Baseline  
 **Scope:** Phase 2 Platform Evolution  
 
@@ -21,6 +21,7 @@
 - [ADR-010: Supabase Auth Admin Role Synchronization and Cloud Storage Abstraction](#adr-010-supabase-auth-admin-role-synchronization-and-cloud-storage-abstraction)
 - [ADR-011: Distributed Role Consistency, Compensating Updates, and Immediate Admin Revocation](#adr-011-distributed-role-consistency-compensating-updates-and-immediate-admin-revocation)
 - [ADR-012: PostgreSQL Commit Recovery Lifecycle and Role Journal Durability Audit](#adr-012-postgresql-commit-recovery-lifecycle-and-role-journal-durability-audit)
+- [ADR-013: Handling Ambiguous PostgreSQL Commit Outcomes in Distributed Role Synchronization](#adr-013-handling-ambiguous-postgresql-commit-outcomes-in-distributed-role-synchronization)
 
 ---
 
@@ -321,3 +322,37 @@ Implement a modular FastAPI service layer in `src/api/` and `src/services/` with
    - Verified repeated reconciliation calls are completely idempotent.
    - Verified unauthorized calls are rejected (HTTP 401 unauthenticated, HTTP 403 non-admin).
    - Verified strict anti-privilege escalation: reconciliation never derives roles from user-writable `user_metadata` or top-level `role` claims, enforcing provenance exclusively from trusted `app_metadata.role`.
+
+---
+
+### ADR-013: Handling Ambiguous PostgreSQL Commit Outcomes in Distributed Role Synchronization
+
+#### Status
+**IMPLEMENTED AND VERIFIED (Phase 2.2 Part D.3)**
+
+#### Context
+In a distributed transaction spanning Supabase Auth (external IdP) and PostgreSQL, `session.commit()` can experience client-side disconnections, timeouts, or TCP socket resets after PostgreSQL has already successfully written the transaction to its Write-Ahead Log (WAL) on disk.
+If the application catches an exception during commit and blindly executes a compensating rollback against Supabase Auth (reverting `app_metadata.role` to `old_role`), it introduces a severe split-brain inconsistency:
+1. PostgreSQL contains `new_role`.
+2. Supabase Auth is compensated back to `old_role`.
+3. The journal falsely records `COMPENSATED` claiming both systems contain `old_role`.
+
+#### Decision
+Implement rigorous ambiguous commit resolution in `execute_reliable_role_update()` ([`src/services/role_sync_service.py`](file:///d:/Coding/Projects/DharaScope/src/services/role_sync_service.py)):
+1. **Ambiguous Outcome Assumption:** Treat all exceptions during `session.flush()` or `session.commit()` as ambiguous commit outcomes. Roll back the dirty session to release locks and clean connection state.
+2. **Fresh Session Verification:** Open an independent fresh database session (`get_session_factory(session.get_bind())`) and query `Profile` by `user_id` to establish the authoritative on-disk role.
+3. **Outcome Branches:**
+   - **Case A: PostgreSQL contains `new_role` (Commit Succeeded, Acknowledgement Lost):**
+     - Do not blindly compensate. Reconcile Supabase Auth to `new_role` via `sync_user_role_to_supabase(user_id, new_role)`.
+     - If Supabase reconciliation succeeds: Record `SyncState.RECONCILED` in the journal and return the updated profile (HTTP 200).
+     - If Supabase reconciliation fails: Record `SyncState.DESYNCHRONIZED` and raise HTTP 502 Bad Gateway.
+   - **Case B: PostgreSQL contains `old_role` (Commit Definitely Failed / Aborted):**
+     - Initiate compensating rollback to restore Supabase Auth to `old_role`.
+     - If Supabase compensation succeeds: Record `SyncState.COMPENSATED` and raise HTTP 500 Internal Server Error.
+     - If Supabase compensation fails: Record `SyncState.DESYNCHRONIZED` and raise HTTP 502 Bad Gateway.
+   - **Case C: PostgreSQL Cannot Be Queried (Database Unavailable During Verification):**
+     - Record `SyncState.DESYNCHRONIZED` immediately.
+     - Do not call Supabase Auth or claim compensation succeeded.
+     - Raise HTTP 502 Bad Gateway with diagnostic notification.
+4. **Anti-Split-Brain Invariant:** Never mark a synchronization `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain the `old_role`.
+5. **Idempotent Reconciliation:** Ensure reconciliation calls (`reconcile_user_role()`) update prior desynchronized journal records and re-apply authoritative PostgreSQL roles idempotently.

@@ -670,3 +670,59 @@
   - Created: `tests/test_role_journal_durability.py`
   - Modified: `src/api/routers/auth.py`, `src/services/role_sync_service.py`, `tests/test_admin_role_sync.py`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** 172 passed, 1 skipped (live external storage), 0 failed across 15 test modules in 81.99s. Includes exact tests proving commit-failure compensating rollback, role reconciliation, anti-privilege escalation, and journal concurrency/corruption/restart recovery.
+
+---
+
+### Task 19: Phase 2.2D.3 — Ambiguous Commit Outcome Verification
+- **Date:** 2026-11-10T23:58:25+05:30
+- **Development Stage:** Phase 2.2 Part D.3
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.2D.3: Ambiguous Commit Outcome Verification
+
+  Work from commit `f3f000c`.
+
+  Investigate one remaining distributed-transaction edge case in `execute_reliable_role_update()`.
+
+  ### Required scenario
+
+  Simulate:
+  1. Supabase successfully updates `app_metadata.role`.
+  2. PostgreSQL successfully commits the new profile role.
+  3. The application loses the commit acknowledgement and receives an exception.
+  4. The exception handler must not blindly compensate Supabase to the old role.
+
+  ### Required behavior
+
+  - Establish the authoritative PostgreSQL role using a fresh database session after an ambiguous commit outcome.
+  - If PostgreSQL contains the new role, reconcile Supabase to the new role.
+  - If PostgreSQL contains the old role, restore Supabase to the old role.
+  - If PostgreSQL cannot be queried, record `DESYNCHRONIZED`; do not claim compensation succeeded.
+  - Never mark a synchronization `COMPENSATED` without confirming that both systems contain the old role.
+  - Keep reconciliation idempotent.
+
+  ### Tests
+
+  Add regression tests for:
+  - Commit succeeds but acknowledgement is lost.
+  - Commit definitely fails.
+  - Database unavailable during outcome verification.
+  - Supabase unavailable during reconciliation.
+  - Journal state correctly reflects each outcome.
+
+  Run targeted tests and the complete suite.
+
+  Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md, PROJECT_STATUS.md and relevant technical decisions.
+
+  Commit with:
+
+  `Phase 2.2D.3: Handle ambiguous PostgreSQL commit outcomes`
+
+  Verify commit hash and clean working tree.
+
+  Do not start Phase 2.3 during this task. Avoid unrelated refactoring.
+  ```
+- **Files Created/Modified:**
+  - Modified: `src/services/role_sync_service.py`, `tests/test_admin_role_sync.py`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:** 176 passed, 1 skipped (live external storage), 0 failed across 15 test modules in 89.16s. Includes exact tests proving commit success with lost ACK reconciliation, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation, and journal state accuracy.

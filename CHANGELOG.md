@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.5] - 2026-11-10
+### Added
+- **Ambiguous PostgreSQL Commit Resolution (`src/services/role_sync_service.py`):**
+  - Resolved distributed-transaction edge case where `session.commit()` raises an exception after PostgreSQL successfully writes to WAL (lost acknowledgement).
+  - Implemented authoritative state recovery: rolls back the failed session and queries `profiles.role` using an isolated fresh database session (`get_session_factory(session.get_bind())`).
+  - Added smart branch resolution:
+    - *Commit Succeeded (Ack Lost):* If fresh session confirms `new_role`, system reconciles Supabase Auth to `new_role`, marks `RECONCILED` in the journal, and returns HTTP 200 with the updated profile. Never blindly compensates to `old_role`!
+    - *Commit Definitely Failed:* If fresh session confirms `old_role`, system compensates Supabase Auth to `old_role`, marks `COMPENSATED`, and returns HTTP 500.
+    - *Database Unavailable:* If database cannot be queried during verification, system marks `DESYNCHRONIZED`, refrains from mutating Supabase Auth, and returns HTTP 502.
+  - Enforced anti-split-brain invariant: A synchronization is NEVER marked `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain `old_role`.
+  - Hardened `reconcile_user_role()` to transition any prior unreconciled records for the user (`DESYNCHRONIZED`, `COMPENSATING`, `FAILED`, `PENDING`, `IDP_UPDATED`) to `RECONCILED`.
+- **Ambiguous Commit Regression Test Suite (`tests/test_admin_role_sync.py`):**
+  - Added `test_ambiguous_commit_outcome_commit_succeeded_reconciles_supabase`: Verifies lost ACK detection, Supabase reconciliation to `new_role`, `RECONCILED` journal state, and HTTP 200 response.
+  - Added `test_ambiguous_commit_outcome_commit_definitely_fails_compensates_supabase`: Verifies definitive commit failure detection, Supabase compensation to `old_role`, `COMPENSATED` journal state, and HTTP 500 response.
+  - Added `test_ambiguous_commit_outcome_database_unavailable_during_verification`: Verifies unavailable DB during verification records `DESYNCHRONIZED` and returns HTTP 502 without blind compensation.
+  - Added `test_ambiguous_commit_outcome_supabase_unavailable_during_reconciliation`: Verifies unavailable Supabase during reconciliation records `DESYNCHRONIZED` and returns HTTP 502.
+
+---
+
 ## [0.7.4] - 2026-11-10
 ### Added
 - **Explicit Commit Boundary & Commit-Failure Recovery (`src/services/role_sync_service.py`):**
