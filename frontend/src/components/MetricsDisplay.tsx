@@ -10,18 +10,34 @@ import {
   Droplets,
   Layers,
   Info,
+  AlertTriangle,
 } from 'lucide-react';
 import type { WaterMetricsResponse } from '../types/api';
 
 interface MetricsDisplayProps {
   metrics: WaterMetricsResponse;
+  isRealData?: boolean;
 }
 
-export const MetricsDisplay: React.FC<MetricsDisplayProps> = ({ metrics }) => {
+export const MetricsDisplay: React.FC<MetricsDisplayProps> = ({ metrics, isRealData = true }) => {
   const isLoss = metrics.absolute_change_ha < 0;
 
   return (
     <div className="metrics-display-card card p-4 mb-4">
+      {/* Synthetic Benchmark Warning Banner */}
+      {!isRealData && (
+        <div className="alert alert-warning text-xs mb-3 flex-start gap-2 border border-amber bg-amber-light">
+          <AlertTriangle size={16} className="text-amber flex-shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-amber block font-semibold">SYNTHETIC BENCHMARK DATASET</strong>
+            <span className="text-muted">
+              These surface water metrics were computed from an offline synthetic calibration sample.
+              They do NOT represent genuine orbital Sentinel-2 acquisitions.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="card-header mb-3 flex-between">
         <div className="flex-center gap-2">
           <Droplets size={18} className="text-forest" />

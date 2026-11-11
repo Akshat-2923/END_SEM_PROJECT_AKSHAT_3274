@@ -64,4 +64,15 @@ describe('MetricsDisplay Component', () => {
       screen.getByText(/Surface area changes indicate inundation variations and do not measure water volume/i)
     ).toBeInTheDocument();
   });
+
+  it('visibly labels synthetic benchmark data and prevents silent spoofing', () => {
+    const { rerender } = render(<MetricsDisplay metrics={mockMetrics} isRealData={false} />);
+    expect(screen.getByText('SYNTHETIC BENCHMARK DATASET')).toBeInTheDocument();
+    expect(
+      screen.getByText(/computed from an offline synthetic calibration sample/i)
+    ).toBeInTheDocument();
+
+    rerender(<MetricsDisplay metrics={mockMetrics} isRealData={true} />);
+    expect(screen.queryByText('SYNTHETIC BENCHMARK DATASET')).not.toBeInTheDocument();
+  });
 });

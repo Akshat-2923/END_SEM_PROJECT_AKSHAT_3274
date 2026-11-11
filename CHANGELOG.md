@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-11-11
+### Security
+- **Frontend JWT Secret Isolation & Tree-Shaking:**
+  - Guarded client-side `DEV_JWT_SECRET` in `frontend/src/services/supabase.ts` with `import.meta.env.DEV`, ensuring the development fallback key is excluded from production bundles.
+  - Hardened `createDevSignedJwt()` to throw if executed in `import.meta.env.PROD` or when `DEV_JWT_SECRET` is empty.
+  - Guarded `signInDevAccount()` in `frontend/src/context/AuthContext.tsx` to prevent accidental dev account activation in production.
+  - Hid "Developer Presets" tab in `frontend/src/components/AuthModal.tsx` when `!import.meta.env.DEV`.
+  - Added regression test `test_production_rejects_development_fallback_secret_tokens` in `tests/test_auth_jwt.py` proving backend in production mode rejects tokens signed with the development fallback secret with HTTP 401 Unauthorized.
+  - Added unit tests in `frontend/src/__tests__/jwt_security.test.ts` verifying DEV signing allowance and PROD rejection.
+
+### Added
+- **Synthetic Benchmark Provenance Labelling:**
+  - Added prominent amber warning banner to `frontend/src/components/MetricsDisplay.tsx` explaining synthetic benchmark provenance when `isRealData={false}`.
+  - Added `SYNTHETIC BENCHMARK` status badge in `frontend/src/components/AnalysisStatus.tsx`.
+  - Added cartographic provenance banner overlay in `frontend/src/components/ArtifactsViewer.tsx` for synthetic map figures.
+  - Added backend regression test in `tests/test_frontend_integration.py` ensuring synthetic runs persist `is_real_data: false`, `data_provider: "SYNTHETIC_BENCHMARK_SAMPLE"`, and explicit CSV provenance headers.
+- **Session Expiry & Unauthorized Handling:**
+  - Added backend test in `tests/test_frontend_integration.py` proving expired tokens (`exp_delta < 0`) and malformed Authorization headers return HTTP 401 Unauthorized for client-side session cleanup.
+- **Pytest Warnings Audit:**
+  - Audited all 257 test warnings: confirmed 0 application-originated warnings (1 upstream Starlette deprecation, 256 upstream rasterio matrix multiplication deprecations).
+
+---
+
 ## [0.8.0] - 2026-11-11
 ### Added
 - **Phase 2.3: Frontend–Backend Integration:**

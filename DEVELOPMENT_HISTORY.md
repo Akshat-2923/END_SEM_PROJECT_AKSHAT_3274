@@ -538,3 +538,72 @@
   - **Result:** **6 passed, 0 failed** in pytest.
 - **Full Test Suite Execution:** **182 backend tests passed + 15 frontend tests passed = 197 total passing tests** (1 skipped live external cloud test). Zero regressions across all prior milestones.
 
+---
+
+## 17. Milestone 17: Phase 2.3.1 — Frontend Security & Integration Audit
+
+**Date:** 2026-11-11  
+**Phase:** 2.3.1  
+**Scope:** Frontend Security Hardening, JWT Development Signer Isolation & Bundle Audit, Supabase Auth Lifecycle Verification, Test Categorization & Provenance Matrix, Synthetic Data Labelling Enforcement, Pytest Warnings Audit, and Background Job Durability Constraints  
+
+### 17.1 JWT Security Hardening & Secret Tree-Shaking Isolation
+- **Vulnerability Investigated:** In commit `7d74423`, `const DEV_JWT_SECRET` was declared statically in `frontend/src/services/supabase.ts` for browser-side Web Crypto HS256 development JWT signing. When bundled via `npm run build`, the 32-byte development secret key was compiled directly into `dist/assets/index-*.js`.
+- **Root Cause & Attack Surface:** Although the secret was only a development fallback, bundling any cryptographic key into client-side production assets creates a severe architectural liability, false security assumptions, and risks secret exposure if production configurations inadvertently use the fallback key.
+- **Architectural Resolution:**
+  1. *Development Signer Isolation (`frontend/src/services/supabase.ts`):* Conditioned `DEV_JWT_SECRET` strictly on `import.meta.env.DEV ? "..." : ""`.
+  2. *Production Build Guard:* In `createDevSignedJwt()`, added an explicit check: `if (import.meta.env.PROD || !DEV_JWT_SECRET) throw new Error("Development token signing is disabled in production builds.")`.
+  3. *Context & UI Safeguards (`frontend/src/context/AuthContext.tsx`, `frontend/src/components/AuthModal.tsx`):* `signInDevAccount()` aborts with an error in production environments, and the "Developer Presets" UI tab in `AuthModal.tsx` is completely omitted when `!import.meta.env.DEV`.
+  4. *Vite Bundle Tree-Shaking Verification:* Ran `npm run build` and searched client assets via PowerShell: `Get-ChildItem -Path frontend/dist/assets/*.js | Select-String -Pattern "dharascope_test"`. Returned zero matches, proving the development secret and signing logic are entirely eliminated from production bundles.
+  5. *Backend Production Fail-Closed Guards (`src/auth.py`, `tests/test_auth_jwt.py`):* In production (`ENVIRONMENT=production`), `get_jwt_secret()` mandates `SUPABASE_JWT_SECRET`, failing closed (HTTP 500) if unset. Added regression test `test_production_rejects_development_fallback_secret_tokens` in `tests/test_auth_jwt.py`, proving that even if an attacker acquires the development key, tokens signed with it are rejected with HTTP 401 Unauthorized by production backends.
+  6. *Frontend Unit Tests (`frontend/src/__tests__/jwt_security.test.ts`):* Added 2 unit tests proving token generation succeeds in DEV mode and strictly throws in PROD mode.
+
+### 17.2 Supabase Authentication & Session Lifecycle Verification
+- **Real Supabase Token Validation:** Backend JWT verification (`src/auth.py`) supports both HS256 symmetric signature verification and RS256/ES256 asymmetric JWKS public key verification using Supabase's `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`.
+- **Session Expiry & Unauthorized Handling:**
+  - Added `test_step_8_session_expiry_and_unauthorized_handling` in `tests/test_frontend_integration.py`.
+  - Proves that expired tokens (`exp_delta < 0`) are rejected with `HTTP 401 Unauthorized` (`"Signature has expired"`), enabling frontend `api.ts` to clear local session state and redirect to login.
+  - Proves that malformed tokens or invalid Bearer headers immediately yield `HTTP 401 Unauthorized`.
+- **Client Session Management:** `frontend/src/context/AuthContext.tsx` subscribes to Supabase's `supabase.auth.onAuthStateChange()`, handling `SIGNED_IN`, `SIGNED_OUT`, and `TOKEN_REFRESHED` events, clearing local profile cache upon logout.
+
+### 17.3 Test Categorization & Provenance Matrix
+To prevent false claims of live cloud verification, the DharaScope verification test suite is explicitly categorized into four distinct methodological tiers:
+1. **Mocked Unit Tests (Tier A):** Fast, isolated tests mocking network I/O, external IdPs, and cloud storage (e.g., `tests/test_admin_role_sync.py`, `tests/test_storage.py` mock suites, `tests/test_downloader.py`).
+2. **FastAPI TestClient Subsystem Tests (Tier B):** In-memory ASGI requests through the full middleware, authentication, dependency injection, and Pydantic validation layers (e.g., `tests/test_api_service_layer.py`, `tests/test_frontend_integration.py`).
+3. **Local PostgreSQL 16 + PostGIS 3.6 Hardware Tests (Tier C):** Live relational and spatial database transactions executing real GiST index scans, PostGIS `ST_Area` ellipsoidal calculations, foreign key cascades, and real PostgreSQL Row-Level Security (RLS) policy enforcement (e.g., `tests/test_database_models.py`, `tests/test_database_security_rls.py`, `tests/test_database_migrations.py`).
+4. **Live External Cloud Services (Tier D):** Authenticated live queries to external public/cloud infrastructure:
+   - *CDSE STAC Discovery:* Live CDSE STAC API queried during integration workflows (e.g. `tests/test_frontend_integration.py` retrieved 23 real Sentinel-2 features for Lucknow Gomti reach).
+   - *AWS Open Data Archive:* Live windowed `/vsicurl/` byte-range reads tested in `tests/test_downloader.py`.
+   - *SentinelHub / Commercial APIs:* Formally skipped when credentials are not present in `.env` (`test_live_sentinelhub_direct_request` marked `SKIPPED`).
+   - *Supabase Remote Storage:* Unit tested with mock client; live remote bucket uploads tested conditionally when live Supabase URL and service key are provisioned.
+
+### 17.4 Synthetic Benchmark Provenance Labelling
+- **Problem Statement:** In offline demonstrations or test runs where `data_source="synthetic"` is selected, surface water metrics and cartography could be misinterpreted as real orbital observations.
+- **Enforcement & Guardrails:**
+  1. *Backend Schema & Metadata:* Every analysis run persists `is_real_data: bool` and `data_provider: str`. For synthetic runs, `is_real_data = False` and `data_provider = "SYNTHETIC_BENCHMARK_SAMPLE"`.
+  2. *Frontend Banner in MetricsDisplay (`frontend/src/components/MetricsDisplay.tsx`):* Displays a prominent amber warning banner:
+     `"SYNTHETIC BENCHMARK DATASET: These surface water metrics were computed from an offline synthetic calibration sample. They do NOT represent genuine orbital Sentinel-2 acquisitions."`
+  3. *Frontend Status Badge in AnalysisStatus (`frontend/src/components/AnalysisStatus.tsx`):* Displays `SYNTHETIC BENCHMARK` badge in amber instead of `REAL ORBITAL S2`.
+  4. *Frontend Cartography Banner in ArtifactsViewer (`frontend/src/components/ArtifactsViewer.tsx`):* Overlays an explicit cartographic warning banner above comparison and categorical transition maps.
+  5. *Report Manifest Headers (`src/reporting.py`):* CSV report headers explicitly output `# Real Satellite Data: FALSE (SYNTHETIC BENCHMARK SAMPLE)`, and PDF reports print the synthetic calibration watermark.
+  6. *Regression Tests:* Added assertions in `tests/test_frontend_integration.py` (`test_step_7_synthetic_provenance_labels_strictly_enforced`) and frontend `MetricsDisplay.test.tsx` verifying provenance indicators.
+
+### 17.5 Pytest Warnings Audit
+- **Full Suite Warnings Audit:** Executed `.venv\Scripts\python -m pytest -q` capturing all 257 warnings:
+  1. *Starlette TestClient Deprecation (1 warning):* `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated; install httpx2 instead.` (Upstream Starlette/FastAPI internal deprecation notice).
+  2. *Rasterio Matrix Multiplication Deprecations (256 warnings):* `PendingDeprecationWarning: Use @ matmul instead of * mul operator for matrix multiplication` originating from `rasterio/features.py:420`, `rasterio/windows.py:360-361`, and `rasterio/transform.py:178` inside the installed virtual environment package.
+  3. *Application Code Warnings:* **0 warnings**. Zero warnings originate from DharaScope's application modules (`src/`, `server.py`).
+
+### 17.6 Background Processing & Task Durability Audit
+- **In-Process Limitation:** Satellite pipeline background tasks dispatched via FastAPI `BackgroundTasks` execute within the ASGI server process.
+- **Crash/Restart Vulnerability:** If the server crashes or restarts while a pipeline task is executing, the task is abruptly terminated and the database record remains permanently in `QUEUED` or `PROCESSING` state.
+- **Worker Database Session Safety:** Verified in `src/services/analysis_service.py` (`process_analysis_run_task`): the worker creates an independent database session from the session factory and closes it within a `finally:` block, preventing connection pool exhaustion.
+- **Production Architecture Path:** Documented in `PROJECT_STATUS.md` and `docs/SYSTEM_CONSTRAINTS.md`: For distributed production scaling, background tasks should be offloaded to a persistent queue (Celery, ARQ, or Redis Queue) with heartbeat monitoring, automatic retries, and task tombstoning.
+
+### 17.7 Verification Summary
+- **Test Suite Expansion:** Expanded to **203 total passing tests**:
+  - **Backend (pytest):** **185 passed, 1 skipped, 257 warnings** (+3 tests: 1 in `test_auth_jwt.py`, 2 in `test_frontend_integration.py`).
+  - **Frontend (Vitest):** **18 passed, 0 failed** (+3 tests: 2 in `jwt_security.test.ts`, 1 in `MetricsDisplay.test.tsx`).
+- **Production Build:** `npm run build` completed in 706ms. No secrets in bundle chunks.
+- **Pass Rate:** **100%** across both backend and frontend suites. Zero regressions.
+
+

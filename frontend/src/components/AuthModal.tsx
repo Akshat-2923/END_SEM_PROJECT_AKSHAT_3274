@@ -24,7 +24,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     clearError,
   } = useAuth();
 
-  const [mode, setMode] = useState<'dev' | 'supabase' | 'token'>('dev');
+  const isDevEnvironment = import.meta.env.DEV;
+  const [mode, setMode] = useState<'dev' | 'supabase' | 'token'>(
+    isDevEnvironment ? 'dev' : isSupabaseLive ? 'supabase' : 'token'
+  );
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -110,16 +113,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {/* Mode Selector Tabs */}
         <div className="tab-bar">
-          <button
-            onClick={() => {
-              setMode('dev');
-              clearError();
-            }}
-            className={`tab-btn ${mode === 'dev' ? 'tab-btn-active' : ''}`}
-          >
-            <UserCheck size={14} />
-            <span>Developer / Hydrologist</span>
-          </button>
+          {isDevEnvironment && (
+            <button
+              onClick={() => {
+                setMode('dev');
+                clearError();
+              }}
+              className={`tab-btn ${mode === 'dev' ? 'tab-btn-active' : ''}`}
+            >
+              <UserCheck size={14} />
+              <span>Developer / Hydrologist</span>
+            </button>
+          )}
           <button
             onClick={() => {
               setMode('token');
@@ -158,8 +163,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Dev Preset Mode */}
-          {mode === 'dev' && (
+          {/* Dev Preset Mode - Only in Development */}
+          {isDevEnvironment && mode === 'dev' && (
             <div className="dev-mode-pane">
               <p className="text-sm text-muted mb-4">
                 Instantly generate a cryptographically valid HS256 JWT authenticated against the

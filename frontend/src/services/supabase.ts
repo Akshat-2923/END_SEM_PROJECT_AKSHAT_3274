@@ -2,6 +2,9 @@
  * Supabase Client & Authentication Helper.
  * Supports live Supabase Auth credentials as well as local cryptographic
  * token generation for offline development and headless testing.
+ *
+ * Security Invariant: Development token signing and the development secret
+ * are strictly tree-shaken and excluded from production client bundles.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -17,8 +20,10 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-// Standard fallback secret matching src/auth.py default
-const DEV_JWT_SECRET = 'dharascope_test_jwt_secret_key_minimum_32_bytes_long';
+// Standard fallback secret matching src/auth.py default - strictly dev-only
+const DEV_JWT_SECRET = import.meta.env.DEV
+  ? 'dharascope_test_jwt_secret_key_minimum_32_bytes_long'
+  : '';
 
 function base64UrlEncode(str: string): string {
   const base64 = btoa(str);
@@ -37,6 +42,7 @@ function bufferToBase64Url(buffer: ArrayBuffer): string {
 /**
  * Creates a cryptographically signed HS256 JWT in the browser
  * using Web Crypto API matching the backend's development secret.
+ * STRICTLY disabled in production builds.
  */
 export async function createDevSignedJwt(
   userId: string,
@@ -44,6 +50,10 @@ export async function createDevSignedJwt(
   role: 'user' | 'admin' = 'user',
   fullName = 'Dr. Gomti Hydrologist'
 ): Promise<string> {
+  if (import.meta.env.PROD || !import.meta.env.DEV) {
+    throw new Error('Development token signing is disabled in production environments.');
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const header = {
     alg: 'HS256',

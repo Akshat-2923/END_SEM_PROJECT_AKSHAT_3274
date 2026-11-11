@@ -169,6 +169,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInDevAccount = async (role: 'user' | 'admin' = 'user') => {
+    if (import.meta.env.PROD || !import.meta.env.DEV) {
+      throw new Error('Developer accounts are strictly disabled in production builds.');
+    }
     setIsLoading(true);
     setError(null);
     try {

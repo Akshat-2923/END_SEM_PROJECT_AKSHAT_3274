@@ -160,10 +160,19 @@ const DashboardContent: React.FC = () => {
                 </div>
               )}
 
-              {metrics && <MetricsDisplay metrics={metrics} />}
+              {metrics && (
+                <MetricsDisplay
+                  metrics={metrics}
+                  isRealData={activeAnalysis.is_real_data}
+                />
+              )}
 
               {artifacts.length > 0 && (
-                <ArtifactsViewer artifacts={artifacts} analysisId={activeAnalysis.id} />
+                <ArtifactsViewer
+                  artifacts={artifacts}
+                  analysisId={activeAnalysis.id}
+                  isRealData={activeAnalysis.is_real_data}
+                />
               )}
 
               {activeAnalysis.status === 'SUCCESS' && (

@@ -459,3 +459,21 @@ class TestProductionConfigurationGuards:
             verify_supabase_jwt(token)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "SUPABASE_ISSUER or SUPABASE_URL must be configured" in exc_info.value.detail
+
+    def test_production_rejects_development_fallback_secret_tokens(self, monkeypatch):
+        """Security Proof: In production, tokens signed with development secret are rejected."""
+        prod_secret = "genuine_production_supabase_jwt_secret_9999999999999999"
+        dev_secret = "dharascope_test_jwt_secret_key_minimum_32_bytes_long"
+
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("SUPABASE_JWT_SECRET", prod_secret)
+        monkeypatch.setenv("SUPABASE_ISSUER", TEST_ISSUER)
+        monkeypatch.setenv("SUPABASE_AUDIENCE", TEST_AUDIENCE)
+
+        # Token signed with development secret
+        dev_token = create_test_jwt(secret=dev_secret)
+
+        with pytest.raises(HTTPException) as exc_info:
+            verify_supabase_jwt(dev_token)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "Invalid token signature" in exc_info.value.detail

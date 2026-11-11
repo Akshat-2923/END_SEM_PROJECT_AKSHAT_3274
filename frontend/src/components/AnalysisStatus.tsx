@@ -9,6 +9,7 @@ import {
   Activity,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
   Clock,
   Calendar,
   Cloud,
@@ -93,6 +94,17 @@ export const AnalysisStatus: React.FC<AnalysisStatusProps> = ({
             <span className="badge badge-failed flex-center gap-1">
               <AlertCircle size={12} />
               <span>FAILED</span>
+            </span>
+          )}
+
+          {analysis.is_real_data ? (
+            <span className="badge badge-success flex-center gap-1 mono text-3xs">
+              <span>REAL ORBITAL S2</span>
+            </span>
+          ) : (
+            <span className="badge badge-admin flex-center gap-1 mono text-3xs">
+              <AlertTriangle size={10} />
+              <span>SYNTHETIC BENCHMARK</span>
             </span>
           )}
 

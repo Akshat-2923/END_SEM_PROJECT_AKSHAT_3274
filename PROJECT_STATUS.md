@@ -2,9 +2,9 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.3 — Frontend–Backend Integration (Complete)  
+**Current Phase:** Phase 2.3.1 — Frontend Security & Integration Audit (Complete)  
 **Last Updated:** 2026-11-11  
-**Overall System Health:** `HEALTHY / OPERATIONAL`  
+**Overall System Health:** `HEALTHY / AUDITED / SECURE`  
 
 ---
 
@@ -12,15 +12,16 @@
 
 DharaScope has successfully validated the core Phase 1 scientific satellite-processing pipeline (detecting a 24.51% post-monsoon surface water recession along the Gomti River in Lucknow between October and December 2023 using Sentinel-2 MSI Level-2A imagery). Phase 2.1 (SRS, Technical Decision Records, Traceability Matrix, and System Constraints) and Phase 2.2 (Parts A, B1, B2, C, D, D.1, D.2, D.3) are fully verified and approved.
 
-In **Phase 2.3**, the project built and verified the complete Modern React 19 + TypeScript GIS Workstation (`frontend/`), fully integrating with the FastAPI application service layer and PostgreSQL 16 + PostGIS 3.6 database without modifying or inventing any API endpoints:
-1. **Supabase Auth & Session Management (`frontend/src/context/`):** Bearer token extraction, session persistence, authoritative profile synchronization via `GET /api/v1/auth/me`, role badge extraction (`admin` vs `user`), and browser Web Crypto HS256 development JWT generator matching the backend development fallback secret for offline testing.
+In **Phase 2.3 & 2.3.1**, the project built, integrated, and security-hardened the Modern React 19 + TypeScript GIS Workstation (`frontend/`), fully integrating with the FastAPI application service layer and PostgreSQL 16 + PostGIS 3.6 database without modifying or inventing any API endpoints:
+1. **Supabase Auth & Session Management (`frontend/src/context/`):** Bearer token extraction, session persistence, authoritative profile synchronization via `GET /api/v1/auth/me`, role badge extraction (`admin` vs `user`), and browser Web Crypto HS256 development JWT generator strictly isolated to development mode (`import.meta.env.DEV`). Tree-shaking verification confirms zero secrets in production assets.
 2. **Interactive Cartography & Real-Time PostGIS Validation (`frontend/src/components/MapPicker.tsx`):** Leaflet map integrating CartoDB Dark Matter tiles, Gomti reach preset, and real-time backend validation (`POST /api/v1/aois/validate`) verifying topology, geodetic area ($0.10–100.00\text{ km}^2$), vertex ceilings ($\le 500$), centroid, and bounding box coordinates.
 3. **AOI Catalog & Persistence (`frontend/src/components/AOIManager.tsx`):** Saving polygons to PostGIS (`POST /api/v1/aois`), catalog selection (`GET /api/v1/aois`), and deletion with tenant ownership checks.
 4. **Satellite Analysis Pipeline Control & Lifecycle Tracking (`frontend/src/components/AnalysisForm.tsx`, `AnalysisStatus.tsx`):** Parameter controls for NDWI threshold ($\tau \in [-0.30, 0.30]$), max scene cloud cover ($\le 10\%$), ISO-8601 temporal search intervals, retrieval tier, and synchronous/asynchronous execution modes. Real-time polling loop (`GET /api/v1/analyses/{id}`) tracking `QUEUED` $\to$ `PROCESSING` $\to$ `SUCCESS` / `FAILED` with execution timers and Sentinel-2 $T_1/T_2$ scene discovery metadata.
-5. **Quantitative Metrics & 4-Class Categorical Cartography (`frontend/src/components/MetricsDisplay.tsx`, `ArtifactsViewer.tsx`):** Quantitative KPI cards ($T_1$ area, $T_2$ area, $\Delta$ ha and $\Delta \%$), 4-class categorical dynamics (Persistent Water, Apparent Loss, Apparent Gain, Persistent Non-Water), prominent mandatory hydrological limitation statement, and authenticated map artifact streaming (`AuthenticatedImage`).
-6. **Publication Report Downloads (`frontend/src/components/ReportActions.tsx`):** One-click streaming downloads for ReportLab publication PDF reports and structured CSV data manifests.
+5. **Synthetic Benchmark Provenance Guardrails (`frontend/src/components/MetricsDisplay.tsx`, `ArtifactsViewer.tsx`):** Prominent amber warning banners and status badges whenever synthetic benchmark datasets are viewed, preventing synthetic test data from silently posing as real orbital observations.
+6. **Quantitative Metrics & 4-Class Categorical Cartography (`frontend/src/components/MetricsDisplay.tsx`, `ArtifactsViewer.tsx`):** Quantitative KPI cards ($T_1$ area, $T_2$ area, $\Delta$ ha and $\Delta \%$), 4-class categorical dynamics (Persistent Water, Apparent Loss, Apparent Gain, Persistent Non-Water), prominent mandatory hydrological limitation statement, and authenticated map artifact streaming (`AuthenticatedImage`).
+7. **Publication Report Downloads (`frontend/src/components/ReportActions.tsx`):** One-click streaming downloads for ReportLab publication PDF reports and structured CSV data manifests with explicit provenance headers.
 
-The automated test suite has expanded to **197 total passing tests** (182 backend pytest tests + 15 frontend Vitest tests, plus 1 skipped live external storage test) with zero regressions (100% pass rate).
+The automated test suite has expanded to **203 total passing tests** (185 backend pytest tests + 18 frontend Vitest tests, plus 1 skipped live external storage test) with zero regressions (100% pass rate).
 
 ---
 
@@ -97,18 +98,18 @@ The automated test suite has expanded to **197 total passing tests** (182 backen
 
 ---
 
-## 3. Automated Test Suite Metrics
+## 3. Automated Test Suite Metrics & Audit Categorization
 
-- **Total Automated Tests:** 197 passing tests (182 backend pytest tests + 15 frontend Vitest tests, 1 skipped live integration test)
-- **Pass Rate:** 100% (197 passing tests, zero regressions)
-- **Backend Test Modules (16 modules, 182 passed, 1 skipped):**
-  1. `tests/test_frontend_integration.py`: 6 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation).
+- **Total Automated Tests:** 203 passing tests (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
+- **Pass Rate:** 100% (203 passing tests, zero regressions)
+- **Backend Test Modules (16 modules, 185 passed, 1 skipped):**
+  1. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).
   2. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).
   3. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
   4. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
   5. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
   6. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
-  7. `tests/test_auth_jwt.py`: 24 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards, immediate admin revocation with stale JWT, fail-closed DB errors).
+  7. `tests/test_auth_jwt.py`: 25 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards, development fallback secret rejection in production, immediate admin revocation with stale JWT, fail-closed DB errors).
   8. `tests/test_change_detection.py`: 3 passed (change matrix, area metrics, zero-baseline percentage handling, spatial dimension mismatch).
   9. `tests/test_database_migrations.py`: 3 passed (Alembic configuration loading, migration script discovery across all revisions, live PostgreSQL upgrade/downgrade cycle).
   10. `tests/test_database_models.py`: 17 passed (model metadata, profile role/quota constraints, AOI PostGIS insertion, geodetic spatial calculations, AOI area/vertex constraints, analysis run constraints, 1:1 water metrics uniqueness, artifact type/bucket constraints, cascading deletions).
@@ -118,12 +119,22 @@ The automated test suite has expanded to **197 total passing tests** (182 backen
   14. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
   15. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
   16. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
-- **Frontend Test Suites (5 suites, 15 passed in Vitest):**
-  1. `src/__tests__/api.test.ts`: 5 passed (Bearer injection, 400 error, 401 error, blob download).
-  2. `src/__tests__/MetricsDisplay.test.tsx`: 3 passed (KPI cards, 4-class transitions, limitation statement).
-  3. `src/__tests__/ReportActions.test.tsx`: 3 passed (PDF/CSV download dispatch and notifications).
-  4. `src/__tests__/AuthModal.test.tsx`: 2 passed (Dev session options, token mode tab switching).
-  5. `src/__tests__/MapPicker.test.tsx`: 2 passed (Gomti preset, Leaflet initialization, backend validation feedback).
+- **Frontend Test Suites (6 suites, 18 passed in Vitest):**
+  1. `src/__tests__/jwt_security.test.ts`: 2 passed (Web Crypto dev token generation in DEV mode, strict rejection in PROD mode).
+  2. `src/__tests__/api.test.ts`: 5 passed (Bearer injection, 400 error, 401 error, blob download).
+  3. `src/__tests__/MetricsDisplay.test.tsx`: 4 passed (KPI cards, 4-class transitions, limitation statement, synthetic benchmark alert banner).
+  4. `src/__tests__/ReportActions.test.tsx`: 3 passed (PDF/CSV download dispatch and notifications).
+  5. `src/__tests__/AuthModal.test.tsx`: 2 passed (Dev session options, token mode tab switching).
+  6. `src/__tests__/MapPicker.test.tsx`: 2 passed (Gomti preset, Leaflet initialization, backend validation feedback).
+- **Audit Categorization Matrix:**
+  - *Tier A (Mocked Unit Tests):* Fast, isolated verification mocking external APIs and cloud storage (`test_admin_role_sync.py`, `test_storage.py` mock suites).
+  - *Tier B (FastAPI TestClient Subsystem Tests):* In-memory ASGI requests through full FastAPI middleware, dependencies, schemas, and services (`test_api_service_layer.py`, `test_frontend_integration.py`).
+  - *Tier C (Local PostgreSQL 16 + PostGIS 3.6 Hardware Tests):* Real database execution validating spatial indexes, geometry constraints, foreign key cascades, and real PostgreSQL Row-Level Security policies (`test_database_models.py`, `test_database_security_rls.py`).
+  - *Tier D (Live External Cloud Services):* Real external network queries: CDSE STAC search (23 features retrieved), public AWS COG byte-range reads (`/vsicurl/`). Commercial APIs (SentinelHub) skipped when unconfigured.
+- **Pytest Warnings Audit (Phase 2.3.1):**
+  - Total warnings: 257 (0 application warnings).
+  - Upstream Starlette: 1 warning (`StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated`).
+  - Upstream rasterio: 256 warnings (`PendingDeprecationWarning: Use @ matmul instead of * mul operator for matrix multiplication` inside `rasterio/features.py`, `windows.py`, `transform.py`).
 
 ---
 

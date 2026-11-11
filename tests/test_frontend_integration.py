@@ -290,3 +290,47 @@ class TestFrontendBackendIntegrationWorkflow:
             headers=other_user["headers"],
         )
         assert pdf_b_res.status_code == 404
+
+    def test_step_7_synthetic_provenance_labels_strictly_enforced(self, hydrologist_user):
+        """Security Proof: Synthetic benchmark analyses are unmistakably labelled across all endpoints."""
+        aoi_res = client.post(
+            "/api/v1/aois",
+            json={"name": "Provenance Test Reach", "geometry": LUCKNOW_GOMTI_GEOMETRY},
+            headers=hydrologist_user["headers"],
+        )
+        aoi_id = aoi_res.json()["id"]
+
+        analysis_res = client.post(
+            "/api/v1/analyses?sync=true",
+            json={"aoi_id": aoi_id, "data_source": "synthetic"},
+            headers=hydrologist_user["headers"],
+        )
+        run_data = analysis_res.json()
+        assert run_data["is_real_data"] is False
+        assert "SYNTHETIC" in run_data["data_provider"]
+
+        # CSV report must explicitly label synthetic provenance
+        csv_res = client.get(
+            f"/api/v1/analyses/{run_data['id']}/reports/csv",
+            headers=hydrologist_user["headers"],
+        )
+        assert csv_res.status_code == 200
+        assert b"SYNTHETIC BENCHMARK SAMPLE" in csv_res.content
+
+    def test_step_8_session_expiry_and_unauthorized_handling(self):
+        """Security Proof: Expired or malformed tokens return 401 Unauthorized for frontend error handling."""
+        uid = str(uuid.uuid4())
+        # Token expired 1 hour ago
+        expired_token = create_test_jwt(
+            sub=uid,
+            email=f"expired_{uid[:8]}@dharascope.org",
+            exp_delta=-3600,
+        )
+
+        res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+        assert res.status_code == 401
+        assert "expired" in res.json()["detail"].lower()
+
+        # Malformed Bearer header returns 401
+        malformed_res = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer not_a_jwt"})
+        assert malformed_res.status_code == 401

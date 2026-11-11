@@ -501,6 +501,16 @@ body {
   border: 1px solid rgba(14, 116, 144, 0.3);
 }
 
+.alert-warning {
+  background-color: rgba(194, 65, 12, 0.15);
+  color: #fdba74;
+  border: 1px solid rgba(194, 65, 12, 0.4);
+}
+
+.bg-amber-light {
+  background-color: rgba(194, 65, 12, 0.08);
+}
+
 /* Progress bar */
 .progress-bar-track {
   width: 100%;

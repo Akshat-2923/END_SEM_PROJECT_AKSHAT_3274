@@ -791,3 +791,55 @@
   - 197 total passing tests across the repository.
   - 0 regressions, clean build, zero client secrets exposed.
 
+---
+
+### Task 21: Phase 2.3.1 — Frontend Security & Integration Audit
+- **Date:** 2026-11-11T12:45:00+05:30
+- **Development Stage:** Phase 2.3.1
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.3.1: Frontend Security & Integration Audit
+
+  Audit commit 7d74423. Do not add features or redesign the UI.
+
+  Investigate these areas:
+
+  1. JWT security: Trace the frontend HS256 development signer and backend fallback authentication. Prove development signing is impossible in production and no signing secret enters production bundles.
+  2. Supabase authentication: Verify real Supabase-issued token validation, session expiry, logout and unauthorized request handling.
+  3. End-to-end verification: Distinguish mocked tests, TestClient tests, local PostgreSQL/PostGIS tests and genuinely live external-service tests. Identify what is actually proven.
+  4. Synthetic data: Ensure synthetic benchmark results are visibly labelled and cannot silently appear as genuine satellite observations.
+  5. Warnings: Categorize all 229 warnings and fix application-originated warnings.
+  6. Background processing: Document existing restart and job-loss limitations; do not introduce a new job system unless necessary.
+
+  Add regression tests for every security issue found. Preserve working functionality.
+  ```
+- **Files Created/Modified:**
+  - Created Frontend Test:
+    - `frontend/src/__tests__/jwt_security.test.ts`: Proves Web Crypto development signer is enabled in DEV mode and strictly throws in PROD mode.
+  - Modified Frontend:
+    - `frontend/src/services/supabase.ts`: Guarded `DEV_JWT_SECRET` with `import.meta.env.DEV ? ... : ""` and added hard production check in `createDevSignedJwt()`.
+    - `frontend/src/context/AuthContext.tsx`: Guarded `signInDevAccount()` against execution in production.
+    - `frontend/src/components/AuthModal.tsx`: Omitted "Developer Presets" tab in production environments.
+    - `frontend/src/components/AnalysisStatus.tsx`: Added amber `SYNTHETIC BENCHMARK` status badge vs green `REAL ORBITAL S2`.
+    - `frontend/src/components/MetricsDisplay.tsx`: Added prominent amber alert banner explaining synthetic benchmark datasets.
+    - `frontend/src/components/ArtifactsViewer.tsx`: Added warning banner over synthetic benchmark cartographic maps.
+    - `frontend/src/App.tsx`: Wired `isRealData` flag into `MetricsDisplay` and `ArtifactsViewer`.
+    - `frontend/src/index.css`: Added styling classes for synthetic alert badges and banners.
+    - `frontend/src/__tests__/MetricsDisplay.test.tsx`: Added test verifying synthetic banner rendering when `isRealData={false}`.
+  - Modified Backend:
+    - `tests/test_auth_jwt.py`: Added `test_production_rejects_development_fallback_secret_tokens` proving production fail-closed verification rejects dev fallback secrets.
+    - `tests/test_frontend_integration.py`: Added `test_step_7_synthetic_provenance_labels_strictly_enforced` and `test_step_8_session_expiry_and_unauthorized_handling`.
+  - Documentation:
+    - `DEVELOPMENT_HISTORY.md`: Milestone 17.
+    - `PROMPT_LOG.md`: Task 21.
+    - `CHANGELOG.md`: Version 0.8.1.
+    - `PROJECT_STATUS.md`: Subsystem status, test counts (203 passing), warnings categorization, and durability constraints.
+- **Verification:**
+  - 18/18 frontend Vitest tests passing.
+  - 185/185 automated backend pytest tests passing (1 skipped live external test).
+  - 203 total passing tests across the repository (100% pass rate).
+  - Vite production bundle verified via PowerShell `Select-String`: zero occurrences of test signing secrets in `dist/assets/*.js`.
+  - Full warnings audit completed: 1 Starlette deprecation, 256 rasterio matrix operator deprecations, 0 application warnings.
+
+

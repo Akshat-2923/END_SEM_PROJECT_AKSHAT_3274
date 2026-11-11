@@ -11,6 +11,7 @@ import {
   Eye,
   Layers,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import type { ArtifactResponse } from '../types/api';
 import { api, getAuthToken, API_BASE_URL } from '../services/api';
@@ -18,6 +19,7 @@ import { api, getAuthToken, API_BASE_URL } from '../services/api';
 interface ArtifactsViewerProps {
   artifacts: ArtifactResponse[];
   analysisId?: string;
+  isRealData?: boolean;
 }
 
 /**
@@ -92,6 +94,7 @@ const AuthenticatedImage: React.FC<{
 
 export const ArtifactsViewer: React.FC<ArtifactsViewerProps> = ({
   artifacts,
+  isRealData = true,
 }) => {
   // Filter for visual image artifacts (excluding PDF/CSV reports)
   const visualArtifacts = artifacts.filter(
@@ -119,6 +122,20 @@ export const ArtifactsViewer: React.FC<ArtifactsViewerProps> = ({
 
   return (
     <div className="artifacts-viewer-card card p-4 mb-4">
+      {/* Synthetic Benchmark Warning Banner */}
+      {!isRealData && (
+        <div className="alert alert-warning text-xs mb-3 flex-start gap-2 border border-amber bg-amber-light">
+          <AlertTriangle size={16} className="text-amber flex-shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-amber block font-semibold">SYNTHETIC BENCHMARK CARTOGRAPHY</strong>
+            <span className="text-muted">
+              These cartographic layers and thumbnails are rendered from synthetic benchmark raster data.
+              They are for offline calibration testing only and do NOT depict real satellite observations.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="card-header mb-3 flex-between">
         <div className="flex-center gap-2">
           <Layers size={18} className="text-forest" />
