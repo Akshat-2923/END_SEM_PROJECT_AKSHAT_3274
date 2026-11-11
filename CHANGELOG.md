@@ -6,6 +6,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-11-11
+### Added
+- **Phase 2.3: Frontend–Backend Integration:**
+  - Modern React 19 + TypeScript + Vite GIS Workstation (`frontend/`).
+  - Decoupled, responsive GIS interface styled with Charcoal canvas (`#0e1115`), Forest Green accent (`#2d6a4f`), Muted Slate (`#1c2128`) cards, and monospace telemetry typography.
+  - Interactive Leaflet cartographic map integrating CartoDB Dark Matter tiles and EPSG:4326 WGS84 coordinates.
+  - Pre-configured baseline study reach for the Gomti River in Lucknow, Uttar Pradesh, India.
+  - Real-time PostGIS geometry validation calling `POST /api/v1/aois/validate`: validates topology, computes ellipsoidal area (enforcing $0.10 \le \text{area} \le 100.00\text{ km}^2$), vertex limits ($\le 500$), centroid, and bounding box coordinates.
+  - Persistent AOI catalog management (`POST /api/v1/aois`, `GET /api/v1/aois`, `DELETE /api/v1/aois/{id}`).
+  - Supabase Auth integration supporting password sign-in/up, session recovery, and Web Crypto client-side HS256 JWT generation for offline developer testing.
+  - Bearer JWT injection into all outbound REST API requests with standardized error parsing (`APIErrorResponse`).
+  - Sentinel-2 multi-temporal analysis parameters: NDWI cutoff threshold ($\tau \in [-0.30, 0.30]$), max scene cloud cover filter ($\le 10\%$), ISO-8601 interval, retrieval tier (`auto`, `cdse`, `public`, `synthetic`), and sync/async mode.
+  - Real-time analysis status polling (`GET /api/v1/analyses/{id}`) through `QUEUED` $\to$ `PROCESSING` $\to$ `SUCCESS` / `FAILED` with execution timers and Sentinel-2 scene discovery metadata.
+  - Quantitative Surface Water Area KPIs: $T_1$ baseline area, $T_2$ later area, net surface delta ($\Delta$ ha and $\Delta \%$).
+  - 4-Class Categorical Water Dynamics Transitions: Persistent Water (Perennial), Apparent Water Loss (Recession), Apparent Water Gain (Inundation), and Persistent Non-Water.
+  - Prominent scientific limitation statement prominently displayed from verified database metadata.
+  - Authenticated map artifact streaming (`AuthenticatedImage`) for dual-panel comparison, categorical change map, and single-observation NDWI maps.
+  - One-click authenticated report downloads: publication-ready ReportLab PDF (`/reports/pdf`) and structured CSV manifest (`/reports/csv`).
+  - Analysis runs archive drawer with historical run selection and cleanup.
+- **Frontend & Integration Test Suites:**
+  - Added 15 unit and component tests in `frontend/src/__tests__/` (Vitest) verifying API client, MetricsDisplay, ReportActions, AuthModal, and MapPicker.
+  - Added 6 end-to-end integration tests in `tests/test_frontend_integration.py` (pytest) validating complete user journeys from health discovery to report downloads and cross-user isolation.
+
+---
+
 ## [0.7.5] - 2026-11-10
 ### Added
 - **Ambiguous PostgreSQL Commit Resolution (`src/services/role_sync_service.py`):**

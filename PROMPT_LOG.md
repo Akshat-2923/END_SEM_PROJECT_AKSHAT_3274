@@ -726,3 +726,68 @@
 - **Files Created/Modified:**
   - Modified: `src/services/role_sync_service.py`, `tests/test_admin_role_sync.py`, `docs/TECHNICAL_DECISIONS.md`, `docs/SYSTEM_CONSTRAINTS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
 - **Verification:** 176 passed, 1 skipped (live external storage), 0 failed across 15 test modules in 89.16s. Includes exact tests proving commit success with lost ACK reconciliation, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation, and journal state accuracy.
+
+---
+
+### Task 20: Phase 2.3 — Frontend–Backend Integration
+- **Date:** 2026-11-11T12:06:10+05:30
+- **Development Stage:** Phase 2.3
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.3: Frontend–Backend Integration
+
+  Begin Phase 2.3. First inspect the existing React frontend, FastAPI endpoints, API schemas, authentication flow and project documentation. Do not redesign the architecture or replace working components.
+
+  Integrate the frontend with the actual backend, in this order:
+
+  1. Supabase authentication and session handling.
+  2. AOI selection using Leaflet and real backend validation.
+  3. Satellite scene retrieval and metadata display.
+  4. Analysis submission, status and progress.
+  5. NDWI results, temporal comparison and change visualization.
+  6. PDF and CSV report downloads.
+
+  Requirements:
+  - Use existing API contracts; do not invent endpoints.
+  - Remove mock data from production user flows.
+  - Handle loading, empty, error and unauthorized states.
+  - Preserve the seven approved MVP features.
+  - Do not introduce AI features.
+  - Keep the interface professional and consistent with the existing design.
+  - Add frontend tests and API integration tests.
+  - Verify at least one complete AOI-to-analysis-to-report workflow using real backend services where credentials and data access permit.
+  - Clearly distinguish mocked, locally tested, and live-verified functionality.
+  - Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md, PROJECT_STATUS.md and relevant documentation.
+  - Verify commit diff for secrets and commit with:
+    Phase 2.3: Integrate React GIS frontend with FastAPI backend
+  ```
+- **Files Created/Modified:**
+  - Created Frontend (`frontend/`):
+    - `src/types/api.ts`: Full TypeScript interfaces matching FastAPI Pydantic schemas.
+    - `src/services/api.ts`: API client with Bearer token injection, error parsing, and blob download streaming.
+    - `src/services/supabase.ts`: Supabase Auth client with Web Crypto dev token generator.
+    - `src/context/AuthContext.tsx`: React Context for session persistence, profile sync, and role extraction.
+    - `src/components/Header.tsx`: Scientific GIS header with telemetry and user profile badge.
+    - `src/components/AuthModal.tsx`: Authentication modal (Supabase, Dev Presets, Bearer JWT).
+    - `src/components/MapPicker.tsx`: Leaflet CartoDB Dark Matter map with real-time PostGIS geometry validation.
+    - `src/components/AOIManager.tsx`: Save/list/delete persistent AOIs.
+    - `src/components/AnalysisForm.tsx`: NDWI threshold, cloud cover, and datetime range parameter controls.
+    - `src/components/AnalysisStatus.tsx`: Real-time lifecycle tracker polling `GET /api/v1/analyses/{id}`.
+    - `src/components/MetricsDisplay.tsx`: Surface water KPI cards, 4-class transitions, and limitation statement.
+    - `src/components/ArtifactsViewer.tsx`: Cartographic map viewer with authenticated blob streaming and 4-class GIS legend.
+    - `src/components/ReportActions.tsx`: Publication PDF and CSV report streaming downloads.
+    - `src/components/AnalysisHistory.tsx`: Recent analysis runs archive drawer.
+    - `src/App.tsx`: Unified dashboard combining all panels.
+    - `src/index.css`: Charcoal, Forest Green, and Slate GIS styling system.
+    - `src/__tests__/`: 5 test suites (`api.test.ts`, `MetricsDisplay.test.tsx`, `ReportActions.test.tsx`, `AuthModal.test.tsx`, `MapPicker.test.tsx`).
+  - Created Backend Integration Test:
+    - `tests/test_frontend_integration.py`: End-to-end user journey tests (health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation).
+  - Modified:
+    - `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`.
+- **Verification:**
+  - 15/15 frontend Vitest tests passing.
+  - 182/182 automated backend pytest tests passing (+6 new end-to-end integration tests).
+  - 197 total passing tests across the repository.
+  - 0 regressions, clean build, zero client secrets exposed.
+

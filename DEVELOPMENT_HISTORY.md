@@ -485,4 +485,56 @@
   - `tests/test_admin_role_sync.py`: 27 passed (+4 new tests for ambiguous commit outcome resolution).
   - `tests/test_role_journal_durability.py`: 6 passed.
 - **Full Test Suite Execution:** **176 passed, 1 skipped, 173 warnings in 89.16s** (100% pass rate). Zero regressions.
-- **Phase 2.3 Boundary:** Phase 2.3 has not been started. Phase 2.2 is completely closed, hardened, and verified.
+- **Phase 2.2 Complete:** Phase 2.2 is completely closed, hardened, and verified.
+
+---
+
+## 16. Milestone 16: Phase 2.3 — Frontend–Backend Integration
+
+**Date:** 2026-11-11  
+**Phase:** 2.3  
+**Scope:** React GIS Workstation, Supabase Auth & JWT State, Leaflet Cartographic AOI Picker with Real-Time PostGIS Backend Validation, Analysis Lifecycle Polling, Quantitative Metrics & Categorical Transitions, Authenticated Cartography & Report Downloads  
+
+### 16.1 Architecture & Implementation Overview
+- **Vite + React 19 + TypeScript Frontend (`frontend/`):**
+  - Scaffolding cleanly decoupled in `frontend/` with fast Vite HMR and build bundling.
+  - Strict compliance with existing API contracts (`docs/API_CONTRACTS.md`); zero new or modified backend endpoints.
+  - Charcoal canvas (`#0e1115`), Forest Green accent (`#2d6a4f`), Muted Slate (`#1c2128`) panels, and monospace telemetry typography matching GIS requirements.
+- **Authentication & Session Handling (`src/context/AuthContext.tsx`, `src/services/supabase.ts`):**
+  - Live Supabase Auth client (`@supabase/supabase-js`) integration supporting email/password authentication and session listeners.
+  - Browser Web Crypto API (`crypto.subtle`) development token signer generating valid HS256 JWTs matching the backend's development fallback secret for headless and offline development.
+  - Bearer JWT injection into all outbound API requests via `src/services/api.ts`.
+  - Authoritative profile retrieval from `GET /api/v1/auth/me` with role badge (`admin` vs `user`) and monthly quota tracking.
+- **Interactive Cartography & Real-Time PostGIS AOI Validation (`src/components/MapPicker.tsx`, `src/components/AOIManager.tsx`):**
+  - Leaflet map integrating CartoDB Dark Matter tiles and EPSG:4326 WGS84 coordinates.
+  - Pre-configured Lucknow Gomti River urban reach baseline polygon.
+  - Real-time backend validation feedback calling `POST /api/v1/aois/validate`: displays topological validity, ellipsoidal area (km² and ha, enforcing $0.10 \le \text{area} \le 100.00\text{ km}^2$), vertex count ($\le 500$), centroid, and bounding box.
+  - AOI persistence to PostgreSQL via `POST /api/v1/aois` and catalog selection via `GET /api/v1/aois`.
+- **Satellite Analysis Dispatch & Status Polling (`src/components/AnalysisForm.tsx`, `src/components/AnalysisStatus.tsx`):**
+  - Configurable parameters: NDWI classification threshold ($\tau \in [-0.30, 0.30]$), max scene cloud cover filter ($\le 10\%$), ISO-8601 temporal interval, retrieval tier (`auto`, `cdse`, `public`, `synthetic`), and sync/async execution mode.
+  - Asynchronous status polling loop querying `GET /api/v1/analyses/{id}` through `QUEUED` $\to$ `PROCESSING` $\to$ `SUCCESS` / `FAILED`.
+  - Displays Sentinel-2 $T_1$ and $T_2$ scene IDs, acquisition dates, cloud cover percentages, and execution durations.
+- **Quantitative Metrics & 4-Class Categorical Transition Visualization (`src/components/MetricsDisplay.tsx`, `src/components/ArtifactsViewer.tsx`):**
+  - Surface water KPI ribbon: $T_1$ baseline area, $T_2$ later area, net surface water delta ($\Delta$ ha and $\Delta \%$).
+  - 4-Class categorical dynamics: Persistent Water (Perennial), Apparent Loss (Recession), and Apparent Gain (Inundation).
+  - Prominent mandatory hydrological limitation statement rendered from database metadata.
+  - Authenticated map artifact streaming (`AuthenticatedImage`) using temporary blob URLs for dual-panel NDWI comparisons and categorical transition figures.
+  - Standard 4-class GIS legend: Blue (`#1d4ed8`), Cyan (`#0e7490`), Rust (`#c2410c`), Slate (`#334155`).
+- **Secure Report Downloads (`src/components/ReportActions.tsx`):**
+  - Authenticated streaming downloads for publication-quality ReportLab PDF reports (`GET /api/v1/analyses/{id}/reports/pdf`).
+  - Authenticated streaming downloads for structured CSV data manifests (`GET /api/v1/analyses/{id}/reports/csv`).
+  - Loading spinners and error handling for binary blob creation.
+
+### 16.2 Testing & Quality Assurance
+- **Frontend Unit & Component Test Suite (`frontend/src/__tests__/`):**
+  - `api.test.ts`: Bearer header injection, 400 `AOIValidationError`, 401 `Unauthorized`, and blob downloads (5 tests).
+  - `MetricsDisplay.test.tsx`: Area rendering, 4-class transitions, and limitation statement (3 tests).
+  - `ReportActions.test.tsx`: PDF and CSV download dispatch and notifications (3 tests).
+  - `AuthModal.test.tsx`: Dev sessions, Bearer token entry, and Supabase tab switching (2 tests).
+  - `MapPicker.test.tsx`: Gomti preset, Leaflet initialization, and backend validation feedback (2 tests).
+  - **Result:** **15 passed, 0 failed** in Vitest.
+- **Backend Full Workflow Integration Test (`tests/test_frontend_integration.py`):**
+  - Validates health check, session initialization, AOI validation (valid vs tiny), AOI persistence, end-to-end synthetic satellite analysis pipeline, quantitative metrics, artifact registry, authenticated PDF/CSV downloads, and cross-user tenant isolation.
+  - **Result:** **6 passed, 0 failed** in pytest.
+- **Full Test Suite Execution:** **182 backend tests passed + 15 frontend tests passed = 197 total passing tests** (1 skipped live external cloud test). Zero regressions across all prior milestones.
+
