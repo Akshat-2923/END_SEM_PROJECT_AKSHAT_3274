@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-11-11T07:37:50.995Z",
+  "steps": {
+    "step1_landing": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\01_initial_landing.png",
+      "status": "PASSED"
+    },
+    "step2_auth": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\02_authenticated_session.png",
+      "status": "PASSED"
+    },
+    "step3_aoi": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\03_aoi_validated.png",
+      "text": "Valid AOI Geometry (PostGIS Verified)\nPolygon\nArea (km²)\n4.4048\nArea (ha)\n440.48\nVertices\n5 / 500\nCentroid [E, N]\n80.910°, 26.850°\nBBox [W, S, E, N]:\n[80.900, 26.840, 80.920, 26.860]",
+      "status": "PASSED"
+    },
+    "step4_config": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\04_analysis_configured.png",
+      "status": "PASSED"
+    },
+    "step5_analysis": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\05_analysis_success_real_data.png",
+      "status": "PASSED"
+    },
+    "step6_metrics": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\06_metrics_and_transitions.png",
+      "synthetic_banner_absent": true,
+      "status": "PASSED"
+    },
+    "step7_cartography": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\07_cartography_figures.png",
+      "image_count": 1,
+      "status": "PASSED"
+    },
+    "step8_reports": {
+      "screenshot": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\08_report_downloads.png",
+      "csv_path": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\dharascope_analysis_c7463b8c.csv",
+      "csv_verified_real": true,
+      "pdf_path": "D:\\Coding\\Projects\\DharaScope\\outputs\\validation_phase2_4\\dharascope_analysis_c7463b8c.pdf",
+      "pdf_size_bytes": 7416579,
+      "status": "PASSED"
+    }
+  },
+  "real_satellite_verification": {
+    "is_real_badge_present": true,
+    "is_synthetic_badge_absent": true,
+    "details": "Run Lifecycle & Satellite Metadata\nSUCCESS\nREAL ORBITAL S2\nRun ID: c7463b8c...\nT1: Post-Monsoon Baseline\n10/10/2023\nS2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510\nCloud: 0.0%\nB03 (Green) / B08 (NIR)\nT2: Pre-Monsoon Comparison\n12/9/2023\nS2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512\nCloud: 0.0%\nB03 (Green) / B08 (NIR)\nProvider: PUBLIC_OPEN_SENTINEL2_COGS\n·\nReal Sentinel-2 Multi-spectral\nDuration: 8.99s"
+  },
+  "metrics": {},
+  "downloads": {},
+  "success": true
+}

@@ -1,0 +1,23 @@
+# DharaScope Satellite Surface Water Feasibility Report
+# Project,DharaScope
+# Execution Timestamp,2026-11-11T07:38:03.200613+00:00
+# Data Provenance Provider,PUBLIC_OPEN_SENTINEL2_COGS
+# Real Satellite Data,TRUE
+# Provider Description,Retrieved via PUBLIC_OPEN_SENTINEL2_COGS
+# Study Area Bounding Box (WGS84),"[80.9, 26.84, 80.92, 26.86]"
+# Native Coordinate Reference System,EPSG:32644
+# Spatial Ground Sampling Distance,10m (100.0 m²/pixel)
+# NDWI Classification Threshold (tau),0.00
+# Observation T1 (Earlier),S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510,2023-10-10,0.00% cloud
+# Observation T2 (Later),S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512,2023-12-09,0.00% cloud
+
+Metric Group,Hydrological Category,Observation Date / Period,Pixel Count,Area (Square Metres),Area (Hectares),Percentage of Baseline (T1)
+Spatial Envelope,Common Overlapping Valid Pixels,Both Dates,43979,4397900,439.79,100.00%
+Water Extent,Earlier Surface Water (T1),2023-10-10,53,5300,0.53,100.00%
+Water Extent,Later Surface Water (T2),2023-12-09,166,16600,1.66,313.21%
+Transition Component,Perennial Channel Core (Persistent),2023-10-10 to 2023-12-09,39,3900,0.39,73.58%
+Transition Component,Seasonal Recession (Apparent Loss),2023-10-10 to 2023-12-09,14,1400,0.14,26.42%
+Transition Component,Inundation Expansion (Apparent Gain),2023-10-10 to 2023-12-09,127,12700,1.27,239.62%
+Summary Delta,Net Surface Water Change,2023-10-10 to 2023-12-09,113,11300,1.13,213.21%
+
+# Scientific Limitation Notice,"Scientific Limitation Notice: Differences in NDWI-classified water-covered area reflect apparent surface water extent fluctuations. These fluctuations are primarily governed by seasonal precipitation, upstream dam releases, agricultural withdrawal, channel morphology, and riparian vegetation growth. NDWI-based area changes do NOT independently establish permanent water loss, environmental degradation, or river pollution without calibrated in-situ hydrological gauging, bathymetric surveys, and water quality sampling."

@@ -222,8 +222,12 @@ def execute_pipeline_worker(
             ch_m = stats["change_metrics"]
 
             # 5. Visualizations
-            t1_date_str = str(t1_item.get("properties", {}).get("datetime", "2023-10-10"))[:10]
-            t2_date_str = str(t2_item.get("properties", {}).get("datetime", "2023-12-09"))[:10]
+            t1_dt_raw = t1_item.get("datetime") or t1_item.get("properties", {}).get("datetime", "2023-10-10")
+            t2_dt_raw = t2_item.get("datetime") or t2_item.get("properties", {}).get("datetime", "2023-12-09")
+            t1_date_str = str(t1_dt_raw)[:10]
+            t2_date_str = str(t2_dt_raw)[:10]
+            t1_cloud = float(t1_item.get("cloud_cover") if t1_item.get("cloud_cover") is not None else t1_item.get("properties", {}).get("cloudCover", 0.0))
+            t2_cloud = float(t2_item.get("cloud_cover") if t2_item.get("cloud_cover") is not None else t2_item.get("properties", {}).get("cloudCover", 0.0))
 
             panel_path = run_artifacts_dir / "gomti_water_change_comparison_panel.png"
             change_map_path = run_artifacts_dir / f"water_change_{t1_date_str}_to_{t2_date_str}.png"
@@ -292,13 +296,21 @@ def execute_pipeline_worker(
                         "selected_earlier_scene": t1_item,
                         "selected_later_scene": t2_item,
                     },
+                    "catalogue_discovery": {
+                        "earlier_date": t1_date_str,
+                        "later_date": t2_date_str,
+                        "earlier_scene_id": t1_item.get("id", "S2_T1"),
+                        "later_scene_id": t2_item.get("id", "S2_T2"),
+                        "earlier_cloud_cover": t1_cloud,
+                        "later_cloud_cover": t2_cloud,
+                    },
                     "water_classification": {
                         "earlier_date": t1_date_str,
                         "later_date": t2_date_str,
                         "earlier_scene_id": t1_item.get("id", "S2_T1"),
                         "later_scene_id": t2_item.get("id", "S2_T2"),
-                        "earlier_cloud_cover": float(t1_item.get("properties", {}).get("cloudCover", 0.0)),
-                        "later_cloud_cover": float(t2_item.get("properties", {}).get("cloudCover", 0.0)),
+                        "earlier_cloud_cover": t1_cloud,
+                        "later_cloud_cover": t2_cloud,
                     },
                     "real_ndwi_calculation": {
                         "status": "SUCCESS",
@@ -403,11 +415,11 @@ def execute_pipeline_worker(
             run.data_provider = data_provider
             run.is_real_data = is_real
             run.t1_scene_id = t1_item.get("id", "S2_T1")
-            run.t1_date = datetime.fromisoformat(t1_date_str.replace("Z", "+00:00"))
-            run.t1_cloud_cover = float(t1_item.get("properties", {}).get("cloudCover", 0.0))
+            run.t1_date = datetime.fromisoformat(str(t1_dt_raw).replace("Z", "+00:00"))
+            run.t1_cloud_cover = t1_cloud
             run.t2_scene_id = t2_item.get("id", "S2_T2")
-            run.t2_date = datetime.fromisoformat(t2_date_str.replace("Z", "+00:00"))
-            run.t2_cloud_cover = float(t2_item.get("properties", {}).get("cloudCover", 0.0))
+            run.t2_date = datetime.fromisoformat(str(t2_dt_raw).replace("Z", "+00:00"))
+            run.t2_cloud_cover = t2_cloud
             run.execution_duration_sec = duration
             run.error_message = None
 

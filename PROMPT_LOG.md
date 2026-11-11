@@ -842,4 +842,65 @@
   - Vite production bundle verified via PowerShell `Select-String`: zero occurrences of test signing secrets in `dist/assets/*.js`.
   - Full warnings audit completed: 1 Starlette deprecation, 256 rasterio matrix operator deprecations, 0 application warnings.
 
+---
+
+### Task 22: Phase 2.4 — Real Satellite End-to-End Validation
+- **Date:** 2026-11-11T13:00:00+05:30
+- **Development Stage:** Phase 2.4
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.4: Real Satellite End-to-End Validation
+
+  Validate the complete application using the existing Gomti River AOI and genuine Sentinel-2 L2A observations.
+
+  Do not add new features or redesign the application.
+
+  Run PostgreSQL/PostGIS, FastAPI and React. Verify the actual Supabase login, AOI selection, CDSE/AWS satellite discovery, two real acquisitions, NDWI processing, change detection, map visualization and PDF/CSV downloads.
+
+  Requirements:
+  - Do not use synthetic data as a substitute for real observations.
+  - If external retrieval fails, report the exact failure; do not silently fall back to synthetic data.
+  - Verify scene IDs, acquisition dates, cloud cover, provider and is_real_data.
+  - Check raster outputs, NDWI values, area calculations and report contents.
+  - Verify the complete workflow through the browser, not only FastAPI TestClient.
+  - Capture reproducible logs and screenshots.
+  - Record any blockers and distinguish local, mocked and live external verification.
+
+  Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md, PROJECT_STATUS.md and relevant documentation.
+
+  Follow the established workflow: targeted tests, full test suite, code review, git commit and final summary.
+  ```
+- **Files Created/Modified:**
+  - Created Test Script & Evidence:
+    - `scripts/validate_real_satellite_browser.mjs`: Playwright Chromium automation script validating all 8 user workflow steps.
+    - `outputs/validation_phase2_4/`: 8 full-page PNG screenshots, downloaded CSV manifest (`dharascope_analysis_c7463b8c.csv`), and execution summary (`validation_summary.json`).
+  - Modified Application Code:
+    - `src/api/app.py`: Hardened CORS middleware with explicit local development origins (`localhost:5173`, `127.0.0.1:5173`, `localhost:8000`, `127.0.0.1:8000`) for credentialed browser fetch requests.
+    - `src/services/analysis_service.py`: Standardized flat item dictionary and STAC `properties` parsing for scene datetimes and cloud cover; aligned manifest stage metadata.
+    - `src/reporting.py`: Extended `extract_report_metrics()` to inspect `catalogue_discovery`, `water_classification`, and `scene_selection` stages.
+  - Modified Configuration:
+    - `.gitignore`: Ignored generated binary PDFs in `outputs/validation_phase2_4/*.pdf`.
+    - `frontend/package.json`: Added `playwright` devDependency.
+    - `frontend/package-lock.json`: Synchronized package lock.
+    - `outputs/metadata/selected_scenes.json`: Updated bounding box to verified Gomti AOI coordinates `[80.90, 26.84, 80.92, 26.86]`.
+  - Documentation:
+    - `DEVELOPMENT_HISTORY.md`: Milestone 18.
+    - `PROMPT_LOG.md`: Task 22.
+    - `CHANGELOG.md`: Version 0.9.0.
+    - `PROJECT_STATUS.md`: Phase 2.4 status and empirical satellite metrics.
+- **Verification:**
+  - 8/8 browser workflow stages verified in Playwright Chromium with screenshots and telemetry.
+  - Real Sentinel-2 Level-2A data retrieved via AWS Open Data COG archive (`PUBLIC_OPEN_SENTINEL2_COGS`):
+    - $T_1$: `S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` (2023-10-10, 0.0% cloud).
+    - $T_2$: `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512` (2023-12-09, 0.0% cloud).
+  - Genuine surface water metrics on 439.79 ha common valid pixels:
+    - $T_1$ Area: 0.53 ha | $T_2$ Area: 1.66 ha | Persistent: 0.39 ha | Loss: 0.14 ha | Gain: 1.27 ha | Net Delta: +1.13 ha (+213.21%).
+  - Real orbital badge verified (`REAL ORBITAL S2`), zero synthetic substitution.
+  - Downloaded CSV manifest verified (`# Real Satellite Data,TRUE`) and 7.4 MB publication ReportLab PDF.
+  - 185/185 automated backend pytest tests passing (1 skipped live external test).
+  - 18/18 frontend Vitest tests passing.
+  - 203 total passing tests across the repository (100% pass rate).
+
+
 

@@ -5,7 +5,7 @@
 **Academic Affiliation:** Registered College Engineering Capstone Project  
 **Core Study Area Baseline:** Gomti River Corridor, Lucknow, Uttar Pradesh, India (`[80.88, 26.80, 81.00, 26.90]`)  
 **Repository:** `END_SEM_PROJECT_AKSHAT_3274`  
-**Current Architecture Phase:** Phase 2.2 Complete (Parts A, B1, B2, C, D, D.1, D.2, D.3)  
+**Current Architecture Phase:** Phase 2.4 Complete (Phases 1, 2.1, 2.2, 2.3, 2.4 Verified)  
 
 ---
 
@@ -605,5 +605,73 @@ To prevent false claims of live cloud verification, the DharaScope verification 
   - **Frontend (Vitest):** **18 passed, 0 failed** (+3 tests: 2 in `jwt_security.test.ts`, 1 in `MetricsDisplay.test.tsx`).
 - **Production Build:** `npm run build` completed in 706ms. No secrets in bundle chunks.
 - **Pass Rate:** **100%** across both backend and frontend suites. Zero regressions.
+
+---
+
+## Milestone 18: Phase 2.4 — Real Satellite End-to-End Validation
+**Date:** 2026-11-11  
+**Focus:** Validating the complete, unified application stack using genuine Sentinel-2 Level-2A multi-spectral observations over the Gomti River study reach (`[80.90, 26.84, 80.92, 26.86]`), driving the full user workflow through a real browser (Playwright Chromium) against live backend services, and eliminating all synthetic data substitution.
+
+### 18.1 Objectives & Non-Negotiable Zero-Synthetic Constraint
+- **Core Directive:** Execute PostgreSQL 16.15 / PostGIS 3.6.2, the FastAPI ASGI application service layer (port 8000), and the Vite React 19 frontend (port 5173) simultaneously.
+- **Strict Data Provenance Requirement:** Under no circumstances may synthetic or mock rasters substitute for real satellite data. If external data retrieval fails, the system must fail transparently and record the error without falling back to synthetic samples.
+- **Empirical Scope:** Validate real Supabase-authenticated session, Leaflet AOI drawing/preset selection, real-time PostGIS geometry validation, CDSE/AWS STAC candidate discovery, retrieval of two real Sentinel-2 Level-2A acquisitions, McFeeters NDWI spectral processing, 4-class categorical change detection, cartographic artifact generation and streaming, and ReportLab publication PDF / structured CSV downloads.
+
+### 18.2 Live Multi-Service Architecture & CORS Hardening
+- **Concurrent Stack Orchestration:**
+  - Database: PostgreSQL 16.15 + PostGIS 3.6.2 running locally on `localhost:5432`.
+  - Backend: FastAPI 0.115+ ASGI application started via Uvicorn on `http://127.0.0.1:8000`.
+  - Frontend: Vite 8.3 + React 19 GIS Workstation served on `http://127.0.0.1:5173`.
+  - Automated Browser: Playwright Chromium 1.65+ running headless at 1440x960 viewport.
+- **CORS Configuration Hardening (`src/api/app.py`):**
+  - *Identified Issue:* Starlette `CORSMiddleware` with `allow_credentials=True` strictly rejects wildcard `allow_origins=["*"]` per W3C standards, causing browser fetch requests to fail with CORS origin mismatches.
+  - *Architectural Resolution:* Configured explicit trusted local development origins: `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000`, `http://localhost:3000`, `http://127.0.0.1:3000`.
+
+### 18.3 Sentinel-2 Metadata Standardization & Catalogue Alignment
+- **Metadata Parsing Hardening (`src/services/analysis_service.py`):**
+  - Standardized parsing of flat item dictionaries returned by `SceneSelector` (`item["datetime"]`, `item["cloud_cover"]`) alongside raw STAC items, ensuring `run.t1_date`, `run.t2_date`, `run.t1_cloud_cover`, and `run.t2_cloud_cover` are persisted as valid ISO timestamps and floating-point percentages rather than falling back to defaults.
+- **Report Manifest Alignment (`src/reporting.py`):**
+  - Updated `extract_report_metrics()` to inspect `catalogue_discovery`, `water_classification`, and `scene_selection` manifest stages.
+  - Ensured both CSV and ReportLab PDF generators render exact Sentinel-2 dates (`2023-10-10`, `2023-12-09`), scene identifiers, and cloud percentages.
+
+### 18.4 AWS Open Data COG Streaming & Level-2A Ingestion
+- Real Level-2A surface reflectance rasters were retrieved via AWS Open Data Sentinel-2 Cloud-Optimized GeoTIFF archive (`PUBLIC_OPEN_SENTINEL2_COGS`) and verified by `rasterio`:
+  - **Band 3 (Green 10m):** `data/raw/S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B03_10m.tif` (1,983,582 bytes)
+  - **Band 8 (NIR 10m):** `data/raw/S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B08_10m.tif` (2,164,096 bytes)
+  - **Band 3 (Green 10m):** `data/raw/S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B03_10m.tif` (1,994,800 bytes)
+  - **Band 8 (NIR 10m):** `data/raw/S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B08_10m.tif` (2,179,508 bytes)
+  - **Raster Properties:** Projection EPSG:32644 (UTM Zone 44N), 10m ground resolution, 0.0% cloud cover.
+
+### 18.5 Empirical Hydrological Findings on the Gomti River Study Reach
+Quantitative surface water metrics computed from genuine Sentinel-2 Level-2A imagery across the urban reach of the Gomti River in Lucknow (`[80.90, 26.84, 80.92, 26.86]` WGS84):
+- **Overlapping Valid Spatial Domain:** 439.79 ha (43,979 pixels)
+- **Earlier Water Area ($T_1$, 2023-10-10):** 0.53 ha (5,300 m², 53 pixels)
+- **Later Water Area ($T_2$, 2023-12-09):** 1.66 ha (16,600 m², 166 pixels)
+- **Perennial Channel Core (Persistent):** 0.39 ha (3,900 m², 39 pixels, 73.58% retention)
+- **Seasonal Recession (Apparent Loss):** 0.14 ha (1,400 m², 14 pixels, 26.42% of baseline)
+- **Inundation Expansion (Apparent Gain):** 1.27 ha (12,700 m², 127 pixels, 239.62% of baseline)
+- **Net Surface Water Delta:** +1.13 ha (+213.21% increase over baseline)
+- **Scientific Limitation Notice:** Differences in NDWI-classified water-covered area reflect apparent surface water extent fluctuations governed by seasonal flows, upstream barrage operations, and channel vegetation, and do not independently establish permanent environmental degradation.
+
+### 18.6 Playwright Chromium Browser Automation & Telemetry Verification
+Automated test script `scripts/validate_real_satellite_browser.mjs` executed 8 consecutive browser steps:
+1. `01_initial_landing.png`: Landing page loaded with header telemetry (`S2-MSI · 10m GSD · B03/B08`, `API Online`).
+2. `02_authenticated_session.png`: Authenticated as Dr. Gomti Hydrologist (`gomti.hydrologist`, `USER`, quota 50 runs/mo).
+3. `03_aoi_validated.png`: PostGIS real backend geometry validation verified (Valid topology, Area: 4.4048 km² / 440.48 ha, Vertices: 5, Centroid: `[80.910°, 26.850°]`, BBox: `[80.900, 26.840, 80.920, 26.860]`).
+4. `04_analysis_configured.png`: Configured with Retrieval Tier: `Earth Search / AWS STAC` (`public`).
+5. `05_analysis_success_real_data.png`: Analysis completed in 8.99s. Verified real orbital badge: `REAL ORBITAL S2` (Verified Real Badge Count: 1, Synthetic Badge Count: 0).
+6. `06_metrics_and_transitions.png`: Quantitative surface water metrics verified without synthetic alert banner; scientific limitation statement displayed.
+7. `07_cartography_figures.png`: Cartographic raster image loaded via authenticated blob streaming.
+8. `08_report_downloads.png`: Real report downloads triggered. Downloaded CSV (`dharascope_analysis_c7463b8c.csv`) and PDF (7,416,579 bytes ~ 7.4 MB).
+
+### 18.7 ReportLab PDF & Structured CSV Data Downloads
+- **CSV Data Manifest (`dharascope_analysis_c7463b8c.csv`):** Verified headers `# Data Provenance Provider,PUBLIC_OPEN_SENTINEL2_COGS` and `# Real Satellite Data,TRUE`, full spatial bounding box, observation dates, and complete transition matrix.
+- **Publication PDF Report (`dharascope_analysis_c7463b8c.pdf`):** Compiled via ReportLab to 7.4 MB containing title, metadata banner, 300 DPI figures, KPI tables, and scientific disclaimer.
+
+### 18.8 Verification Summary
+- **Test Suite Status:** **203 total passing automated tests** (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live external test).
+- **Live Browser Automation:** 8/8 steps passed in Playwright Chromium.
+- **Pass Rate:** **100%**. Zero regressions. Zero secrets leaked.
+
 
 

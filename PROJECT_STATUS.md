@@ -2,26 +2,33 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.3.1 — Frontend Security & Integration Audit (Complete)  
+**Current Phase:** Phase 2.4 — Real Satellite End-to-End Validation (Complete)  
 **Last Updated:** 2026-11-11  
-**Overall System Health:** `HEALTHY / AUDITED / SECURE`  
+**Overall System Health:** `HEALTHY / OPERATIONAL / LIVE SATELLITE VALIDATED`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully validated the core Phase 1 scientific satellite-processing pipeline (detecting a 24.51% post-monsoon surface water recession along the Gomti River in Lucknow between October and December 2023 using Sentinel-2 MSI Level-2A imagery). Phase 2.1 (SRS, Technical Decision Records, Traceability Matrix, and System Constraints) and Phase 2.2 (Parts A, B1, B2, C, D, D.1, D.2, D.3) are fully verified and approved.
+DharaScope has successfully executed and validated **Phase 2.4 (Real Satellite End-to-End Validation)**, proving the complete, unified remote sensing and hydrological analysis platform from browser UI down to live orbital Sentinel-2 Level-2A data discovery, raster streaming, spectral index calculation, categorical change detection, cartographic generation, and report distribution.
 
-In **Phase 2.3 & 2.3.1**, the project built, integrated, and security-hardened the Modern React 19 + TypeScript GIS Workstation (`frontend/`), fully integrating with the FastAPI application service layer and PostgreSQL 16 + PostGIS 3.6 database without modifying or inventing any API endpoints:
-1. **Supabase Auth & Session Management (`frontend/src/context/`):** Bearer token extraction, session persistence, authoritative profile synchronization via `GET /api/v1/auth/me`, role badge extraction (`admin` vs `user`), and browser Web Crypto HS256 development JWT generator strictly isolated to development mode (`import.meta.env.DEV`). Tree-shaking verification confirms zero secrets in production assets.
-2. **Interactive Cartography & Real-Time PostGIS Validation (`frontend/src/components/MapPicker.tsx`):** Leaflet map integrating CartoDB Dark Matter tiles, Gomti reach preset, and real-time backend validation (`POST /api/v1/aois/validate`) verifying topology, geodetic area ($0.10–100.00\text{ km}^2$), vertex ceilings ($\le 500$), centroid, and bounding box coordinates.
-3. **AOI Catalog & Persistence (`frontend/src/components/AOIManager.tsx`):** Saving polygons to PostGIS (`POST /api/v1/aois`), catalog selection (`GET /api/v1/aois`), and deletion with tenant ownership checks.
-4. **Satellite Analysis Pipeline Control & Lifecycle Tracking (`frontend/src/components/AnalysisForm.tsx`, `AnalysisStatus.tsx`):** Parameter controls for NDWI threshold ($\tau \in [-0.30, 0.30]$), max scene cloud cover ($\le 10\%$), ISO-8601 temporal search intervals, retrieval tier, and synchronous/asynchronous execution modes. Real-time polling loop (`GET /api/v1/analyses/{id}`) tracking `QUEUED` $\to$ `PROCESSING` $\to$ `SUCCESS` / `FAILED` with execution timers and Sentinel-2 $T_1/T_2$ scene discovery metadata.
-5. **Synthetic Benchmark Provenance Guardrails (`frontend/src/components/MetricsDisplay.tsx`, `ArtifactsViewer.tsx`):** Prominent amber warning banners and status badges whenever synthetic benchmark datasets are viewed, preventing synthetic test data from silently posing as real orbital observations.
-6. **Quantitative Metrics & 4-Class Categorical Cartography (`frontend/src/components/MetricsDisplay.tsx`, `ArtifactsViewer.tsx`):** Quantitative KPI cards ($T_1$ area, $T_2$ area, $\Delta$ ha and $\Delta \%$), 4-class categorical dynamics (Persistent Water, Apparent Loss, Apparent Gain, Persistent Non-Water), prominent mandatory hydrological limitation statement, and authenticated map artifact streaming (`AuthenticatedImage`).
-7. **Publication Report Downloads (`frontend/src/components/ReportActions.tsx`):** One-click streaming downloads for ReportLab publication PDF reports and structured CSV data manifests with explicit provenance headers.
+In **Phase 2.4**, the complete stack—comprising PostgreSQL 16.15 + PostGIS 3.6.2, the FastAPI ASGI application service layer, and the React 19 + TypeScript GIS Workstation—was executed concurrently and validated using genuine Sentinel-2 Level-2A multi-spectral observations over the Gomti River study reach (`[80.90, 26.84, 80.92, 26.86]` WGS84):
+1. **Live Browser Automation (Playwright Chromium):** Automated script `scripts/validate_real_satellite_browser.mjs` drove a headless browser through all 8 user journey stages, verifying login, real-time PostGIS geometry validation (4.4048 km² / 440.48 ha), retrieval tier configuration, pipeline execution, real orbital badge display (`REAL ORBITAL S2`), scientific metrics rendering, authenticated cartographic artifact streaming, and publication report downloads.
+2. **Empirical Satellite Observations (AWS Open Data COG Archive):** Discovered and streamed real Sentinel-2 Level-2A surface reflectance rasters without synthetic fallback:
+   - $T_1$ Observation (2023-10-10): `S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` (0.0% cloud cover).
+   - $T_2$ Observation (2023-12-09): `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512` (0.0% cloud cover).
+   - Ground Sampling Distance (GSD): 10m native resolution across Band 3 (Green) and Band 8 (NIR) in UTM Zone 44N (EPSG:32644).
+3. **Hydrological Surface Water Dynamics Metrics:**
+   - Overlapping Valid Spatial Domain: 439.79 ha (43,979 common valid pixels).
+   - Earlier Surface Water ($T_1$, 2023-10-10): 0.53 ha (5,300 m²).
+   - Later Surface Water ($T_2$, 2023-12-09): 1.66 ha (16,600 m²).
+   - Persistent Water (Perennial channel core): 0.39 ha (3,900 m²).
+   - Seasonal Recession (Apparent Loss): 0.14 ha (1,400 m²).
+   - Inundation Expansion (Apparent Gain): 1.27 ha (12,700 m²).
+   - Net Surface Delta: +1.13 ha (+213.21%).
+4. **Data Provenance & Security Hardening:** Verified that CSV reports embed `# Real Satellite Data,TRUE` and exact scene IDs, and that PDF reports compile cleanly (7.4 MB). Hardened CORS configuration in `src/api/app.py` for standard browser credentialed fetch compliance, and standardized datetime/cloud parsing in `src/services/analysis_service.py` and `src/reporting.py`.
 
-The automated test suite has expanded to **203 total passing tests** (185 backend pytest tests + 18 frontend Vitest tests, plus 1 skipped live external storage test) with zero regressions (100% pass rate).
+The full test suite stands at **203 automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
 
 ---
 
@@ -89,12 +96,27 @@ The automated test suite has expanded to **203 total passing tests** (185 backen
   - One-click authenticated report downloads: publication-grade ReportLab PDF (`/reports/pdf`) and structured CSV manifest (`/reports/csv`).
   - Analysis runs archive drawer with historical run selection and cleanup.
 
-### 2.3 Pending Subsystems (Scheduled for Phase 2.4 / Production Hardening)
+### 2.3 Completed Subsystems in Phase 2.4 (Real Satellite End-to-End Validation)
+- [x] **Live Multi-Service Concurrency & Browser Workstation Driving:**
+  - Automated Playwright Chromium browser harness (`scripts/validate_real_satellite_browser.mjs`) driving full stack (PostgreSQL 16, FastAPI 8000, Vite 5173).
+  - Validated all 8 interactive steps with full-page screenshots and empirical telemetry.
+- [x] **Genuine Sentinel-2 Level-2A Multi-Spectral Surface Water Processing:**
+  - Zero-synthetic constraint satisfied: verified genuine orbital acquisitions ($T_1$ 2023-10-10, $T_2$ 2023-12-09, 0.0% cloud cover).
+  - Streamed Band 3 (Green 10m) and Band 8 (NIR 10m) rasters via AWS Open Data COG archive (`PUBLIC_OPEN_SENTINEL2_COGS`).
+  - Calculated real NDWI surface water extent and 4-class categorical transitions over 439.79 ha common valid pixels (+1.13 ha net gain, +213.21%).
+  - Displayed `REAL ORBITAL S2` badge, confirmed synthetic warning banners remain hidden for real data.
+  - Authenticated map artifact streaming for comparison panel, single NDWI, and change map.
+  - Downloaded and verified structured CSV data manifest with real provenance (`# Real Satellite Data,TRUE`) and publication-grade ReportLab PDF (7.4 MB).
+- [x] **CORS & Service Layer Hardening:**
+  - Configured explicit origins for browser credentialed requests in `src/api/app.py`.
+  - Hardened item datetime, cloud cover, and discovery stage metadata parsing in `src/services/analysis_service.py` and `src/reporting.py`.
+
+### 2.4 Pending Subsystems (Scheduled for Phase 3 / Production Hardening)
 - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
 - [ ] **Durable Task Queue Migration:** Celery/Redis worker migration for distributed background jobs across server restarts.
 
-### 2.4 Blocked Subsystems
-- **None.** All prerequisites for Phase 2.3 are satisfied.
+### 2.5 Blocked Subsystems
+- **None.** All prerequisites for Phase 2.4 are fully satisfied and validated.
 
 ---
 

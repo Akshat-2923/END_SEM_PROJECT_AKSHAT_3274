@@ -1,9 +1,9 @@
 {
   "study_area_bbox": [
-    80.88,
-    26.8,
-    81.0,
-    26.9
+    80.9,
+    26.84,
+    80.92,
+    26.86
   ],
   "datetime_search_range": "2023-10-01T00:00:00Z/2024-05-31T23:59:59Z",
   "max_cloud_cover_filter": 10.0,

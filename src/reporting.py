@@ -67,7 +67,7 @@ def extract_report_metrics(manifest: Dict[str, Any]) -> Dict[str, Any]:
     if not stages:
         raise ReportingError("Manifest missing 'stages' payload.")
 
-    cat_stage = stages.get("catalogue_discovery", {})
+    cat_stage = stages.get("catalogue_discovery") or stages.get("water_classification") or stages.get("scene_selection", {})
     change_stage = stages.get("real_change_detection", {})
     stats = change_stage.get("statistics", {})
 

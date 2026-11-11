@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-11-11
+### Validated
+- **Phase 2.4: Real Satellite End-to-End Validation:**
+  - Validated full real-world pipeline using genuine Sentinel-2 Level-2A multi-spectral observations over the Gomti River reach in Lucknow (`[80.90, 26.84, 80.92, 26.86]` WGS84).
+  - Retrieved 10m Ground Sampling Distance (GSD) surface reflectance rasters from the AWS Open Data Sentinel-2 COG archive (`PUBLIC_OPEN_SENTINEL2_COGS`):
+    - Band 3 (Green 10m): `data/raw/S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B03_10m.tif` (1.98 MB)
+    - Band 8 (NIR 10m): `data/raw/S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510_B08_10m.tif` (2.16 MB)
+    - Band 3 (Green 10m): `data/raw/S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B03_10m.tif` (1.99 MB)
+    - Band 8 (NIR 10m): `data/raw/S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512_B08_10m.tif` (2.18 MB)
+  - Computed real surface water change dynamics across 43,979 common valid pixels (439.79 ha):
+    - Earlier Water Area ($T_1$, 2023-10-10): 0.53 ha (53 pixels)
+    - Later Water Area ($T_2$, 2023-12-09): 1.66 ha (166 pixels)
+    - Perennial Channel Core (Persistent): 0.39 ha (39 pixels)
+    - Seasonal Recession (Apparent Loss): 0.14 ha (14 pixels)
+    - Inundation Expansion (Apparent Gain): 1.27 ha (127 pixels)
+    - Net Surface Water Delta: +1.13 ha (+213.21%)
+  - Executed automated browser validation suite via Playwright Chromium (`scripts/validate_real_satellite_browser.mjs`) against live FastAPI (port 8000) and React (port 5173):
+    - Verified all 8 workflow stages: Landing, Supabase/Hydrologist Authentication, PostGIS Geometry Validation, Pipeline Parameter Configuration, Analysis Execution & Real Badge verification (`REAL ORBITAL S2`), Scientific Metrics & Transition Tables, Cartographic Artifact Streaming, and Report Downloads.
+    - Verified real downloaded CSV data manifest (`# Real Satellite Data,TRUE`) and 7.4 MB publication ReportLab PDF.
+
+### Fixed
+- **CORS Configuration Hardening (`src/api/app.py`):**
+  - Replaced wildcard `allow_origins=["*"]` with explicit local hosts (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000`, `http://localhost:3000`, `http://127.0.0.1:3000`), resolving W3C browser CORS rejections for credentialed requests.
+- **Sentinel-2 Discovery Metadata Extraction (`src/services/analysis_service.py`):**
+  - Standardized parsing of flat item dictionaries returned by `SceneSelector` (`item["datetime"]`, `item["cloud_cover"]`) alongside raw STAC items, ensuring `t1_date`, `t2_date`, `t1_cloud_cover`, and `t2_cloud_cover` are properly formatted ISO timestamps and floats in database runs and manifest stages.
+- **Report Manifest Stage Alignment (`src/reporting.py`):**
+  - Extended `extract_report_metrics()` to inspect `catalogue_discovery`, `water_classification`, and `scene_selection` stages, guaranteeing that CSV and PDF reports render actual Sentinel-2 acquisition dates (`2023-10-10`, `2023-12-09`) and scene IDs.
+
+---
+
 ## [0.8.1] - 2026-11-11
 ### Security
 - **Frontend JWT Secret Isolation & Tree-Shaking:**

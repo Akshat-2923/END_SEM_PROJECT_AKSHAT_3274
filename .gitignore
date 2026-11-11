@@ -16,6 +16,7 @@ ENV/
 data/raw/
 data/cache/
 outputs/*-*-*-*-*/
+outputs/validation_phase2_4/*.pdf
 *.SAFE/
 *.zip
 *.jp2
