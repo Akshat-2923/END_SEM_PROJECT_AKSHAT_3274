@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-11-12
+### Delivered & Defense-Ready
+- **Phase 2.7: Final Defense & Presentation Readiness:**
+  - **Master Presentation (`DharaScope_Final_Presentation.pptx`):**
+    - Built automated generator `scripts/generate_presentation.py` using `python-pptx` (v1.0.2).
+    - Produced a 15-slide widescreen master deck featuring midnight-navy geospatial theme (`#0f172a`), container cards (`#1e293b`), cyan/emerald accents, real Gomti River validation screenshot, comparison tables, and full speaker notes on all 15 slides.
+  - **Code Coverage Verification:**
+    - Conducted full reproducible coverage report with `pytest-cov` across `src/`: verified 83.0% statement coverage across 2,605 statements (185 passed, 1 skipped).
+    - Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), and `database/models` (100%).
+    - Reconciled coverage citation in `docs/PROJECT_REPORT.md` and `docs/JUDGE_QA.md`.
+  - **Defense Q&A Enhancements (`docs/JUDGE_QA.md`):**
+    - Enhanced all 30 questions with two distinct tiers: plain-language non-specialist summaries and technical deep-dives.
+    - Linked exact source code and test files with clickable references.
+  - **Defense Script & Demo Runbook (`docs/FINAL_DEFENSE_SCRIPT.md`):**
+    - Authored rehearsal script with 60s elevator pitch, 3-min technical breakdown, 5-min cue-by-cue live demo across 8 stages, 2-min scientific results & limitations, rapid-fire Q&A, and 60s concluding statement.
+
+---
+
 ## [1.0.1] - 2026-11-12
 ### Finalized
 - **Phase 2.6: Final Academic Deliverables & Defense Preparation:**

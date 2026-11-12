@@ -2,40 +2,33 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.6 — Final Academic Deliverables & Defense Preparation (Complete)  
+**Current Phase:** Phase 2.7 — Final Defense & Presentation Readiness (Complete)  
 **Last Updated:** 2026-11-12  
-**Overall System Health:** `HEALTHY / OPERATIONAL / PRODUCTION STABILIZED & DEFENSE-READY (v1.0.1)`  
+**Overall System Health:** `HEALTHY / OPERATIONAL / DEFENSE-READY & PRESENTATION-VERIFIED (v1.0.2)`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully completed **Phase 2.6 (Final Academic Deliverables & Defense Preparation)**, finalizing all academic materials for capstone evaluation, technical judging, and defense presentation. This phase hardened scientific consistency, eliminated all unsupported causal claims, reconciled the 44,178 versus 44,600 pixel grid discretization discrepancy, formulated the multi-scale findings as an expression of environmental spatial heterogeneity, delivered a 15-slide defense presentation with genuine application evidence, and established a 30-question judge Q&A manual.
+DharaScope has successfully completed **Phase 2.7 (Final Defense & Presentation Readiness)**, finalizing all materials for the capstone oral defense and evaluator technical examination. This phase generated the master 15-slide presentation (`DharaScope_Final_Presentation.pptx`), verified statement code coverage via `pytest-cov` (83.0% statement coverage across 2,605 statements in `src/`), overhauled all 30 evaluator questions in `docs/JUDGE_QA.md` with two-tier plain-language summaries and code-linked technical explanations, and created a comprehensive rehearsal defense script (`docs/FINAL_DEFENSE_SCRIPT.md`).
 
-### Key Phase 2.6 Accomplishments:
-1. **Scientific Consistency Hardening & Causality Elimination:**
-   - Audited `src/reporting.py`, `app.py`, `README.md`, `docs/SYSTEM_CONSTRAINTS.md`, and `docs/TECHNICAL_DECISIONS.md`.
-   - Eliminated all unverified causal assertions attributing the $+1.13\text{ ha}$ urban water expansion to "baseflow stabilization", "channel clearing", or "silt settling".
-   - Formulated findings strictly as **observed satellite-derived changes in optical open-water surface reflectance** ($\text{NDWI} > 0.00$). Documented that 2D planar satellite Earth observation cannot prove subsurface hydrological processes, channel bathymetry, or hydraulic operations without in-situ gauging data.
-2. **Mathematical Reconciliation of 44,178 vs. 44,600 Pixel Discrepancy:**
-   - Proved mathematically that reprojecting the WGS 84 bounding box `[80.90, 26.84, 80.92, 26.86]` to UTM Zone 44N yields $1,988.50\text{ m} \times 2,216.55\text{ m}$ ($198.85 \times 221.65\text{ pixels}$ at 10m GSD).
-   - Inner truncated integer window (`round_shape()`): $222 \times 199 = \mathbf{44,178\text{ pixels}}$ ($441.78\text{ ha}$, 100% valid mask).
-   - Outer expanded bounding window (ceiling bounds): $223 \times 200 = \mathbf{44,600\text{ pixels}}$ ($446.00\text{ ha}$, with 43,979 valid data pixels inside the polygon mask).
-   - **Invariant:** In both window formulations, detected water pixels are identical: $53\text{ pixels}$ ($0.53\text{ ha}$) at $T_1$, $166\text{ pixels}$ ($1.66\text{ ha}$) at $T_2$, and net change $+113\text{ pixels}$ ($+1.13\text{ ha}$, $+213.21\%$). The marginal outer boundary pixels ($44,600 - 44,178 = 422\text{ pixels}$) are purely terrestrial urban land with $\text{NDWI} \ll 0.0$.
-3. **Environmental Spatial Heterogeneity vs. Simple Scale Effect:**
-   - Proved that the divergent directions of change between the regional basin ($132.30\text{ km}^2$, $-45.23\text{ ha}$ / $-24.51\%$) and the urban reach ($4.40\text{ km}^2$, $+1.13\text{ ha}$ / $+213.21\%$) represent authentic **environmental spatial heterogeneity** across diverse landscape zones (unconfined agricultural floodplains naturally desiccating post-monsoon vs. a confined urban river corridor), rather than a statistical scale aggregation effect.
-4. **Cloud Cover Metadata vs. AOI Assessment Distinction:**
-   - Preserved and clarified the distinction between scene-level tile cloud cover metadata (`eo:cloud_cover` from Sen2Cor: 0.0% across tile `T44RMQ`) and AOI-level pixel cloud assessment (visual and SCL pixel verification confirming 0.0% cloud obscuration within the $4.40\text{ km}^2$ reach).
-5. **Submission-Quality Capstone Project Report (`docs/PROJECT_REPORT.md`):**
-   - Comprehensive, publication-grade academic report covering Abstract, Problem Statement, Objectives, Literature Review, Architecture, Database Design, STAC Retrieval, NDWI Processing, Quality Assurance, Limitations, and Traceable References.
-6. **Academic Defense Presentation (`docs/PRESENTATION.md`):**
-   - 15-slide technical presentation featuring genuine application screenshots, concise technical bullet points, ASCII tables, and speaker notes for committee evaluation.
-7. **Judge Preparation Guide (`docs/JUDGE_QA.md`):**
-   - Comprehensive defense manual featuring 60-second and 3-minute pitches alongside 30 deep-dive technical questions and defensible answers covering remote sensing physics, geospatial engineering, scientific validity, web architecture, and security.
-8. **Demonstration Rehearsal Runbook (`docs/DEMO_GUIDE.md`):**
-   - Updated with exact startup commands, environment variables without secrets, demo AOI/dates, expected metrics with provenance, PDF/CSV download steps, and recovery procedures for failure scenarios.
-9. **Automated Test Suite Status:** **203 passing automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
-10. **GitHub Synchronization:** All local commits fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
+### Key Phase 2.7 Accomplishments:
+1. **Master Presentation Generation (`DharaScope_Final_Presentation.pptx`):**
+   - Implemented `scripts/generate_presentation.py` using `python-pptx` to build a 15-slide widescreen deck ($13.333 \times 7.5\text{ in}$).
+   - Designed with dark geospatial identity: midnight-navy background (`#0f172a`), deep slate cards (`#1e293b`), crisp white text (`#f8fafc`), cyan borders (`#06b6d4`), and emerald highlights (`#10b981`).
+   - Embedded real application screenshot from Phase 2.4 Gomti River validation run, structured tables, formulas, and unscripted speaker notes for all 15 slides.
+2. **Reproducible Code Coverage Audit (`pytest-cov`):**
+   - Executed full backend test suite with statement coverage tracking: 185 passed, 1 skipped.
+   - Verified exact statement coverage: **83.0%** across all 2,605 statements in `src/` (2,163 covered).
+   - Core scientific and security modules achieve 89%–100% coverage (`visualization`: 99%, `reporting`: 94%, `change_detection`: 95%, `water_indices`: 91%, `role_sync_service`: 90%, `database/models`: 100%).
+   - Reconciled code coverage citations in `docs/PROJECT_REPORT.md` and `docs/JUDGE_QA.md`.
+3. **Defense Q&A Modernization (`docs/JUDGE_QA.md`):**
+   - Overhauled all 30 questions into two-tier responses: intuitive plain-language analogies for non-specialist committee members, followed by rigorous mathematical and architectural deep-dives.
+   - Linked exact code paths and tests with clickable references.
+4. **Final Defense & Demonstration Script (`docs/FINAL_DEFENSE_SCRIPT.md`):**
+   - Formulated a timed rehearsal runbook: 60s elevator pitch, 3-min technical architecture deep-dive, 5-min live demo runbook across 8 workflow stages with visual cues and screen artifacts, 2-min scientific findings/limitations, rapid-fire defense Q&A, and 60s concluding statement.
+5. **Automated Test Suite Status:** **203 passing automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
+6. **GitHub Synchronization:** All local commits fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
 
 ---
 
@@ -131,6 +124,7 @@ DharaScope has successfully completed **Phase 2.6 (Final Academic Deliverables &
 
 - **Total Automated Tests:** 203 passing tests (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
 - **Pass Rate:** 100% (203 passing tests, zero regressions)
+- **Code Coverage (`pytest-cov` across `src/`):** **83.0% statement coverage** (2,163 of 2,605 statements covered). Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%).
 - **Backend Test Modules (16 modules, 185 passed, 1 skipped):**
   1. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).
   2. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).

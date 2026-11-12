@@ -391,7 +391,7 @@ Backend Pytest Suite:
   - Total Test Files: 16 modules
   - Total Test Cases: 186 tests
   - Result: 185 PASSED, 1 SKIPPED (Live CDSE external credential test)
-  - Code Coverage: 87.4% across src/ and app.py
+  - Code Coverage: 83.0% statement coverage across src/ (2,163 of 2,605 statements; core scientific modules 89%–100%)
   - Regressions: 0
 
 Frontend Vitest Suite:

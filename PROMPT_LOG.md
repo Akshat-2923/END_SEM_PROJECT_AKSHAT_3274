@@ -1181,6 +1181,79 @@
   - Produced 15-slide presentation (`docs/PRESENTATION.md`), 30-question judge Q&A guide (`docs/JUDGE_QA.md`), and updated runbook (`docs/DEMO_GUIDE.md`).
   - Ran backend pytest and reporting tests.
 
+---
+
+### Task 26: Phase 2.7 — Final Defense & Presentation Readiness
+- **Date:** 2026-11-12
+- **Development Stage:** Phase 2.7 (Final Defense & Presentation Readiness)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.7: Final Defense & Presentation Readiness
+
+  Continue from commit b4568d7 on main.
+
+  The objective is to turn the existing academic documentation into a polished presentation and prepare the developer to defend the project confidently.
+
+  ### 1. Create the actual presentation
+  Create DharaScope_Final_Presentation.pptx with 15 slides based on docs/PRESENTATION.md.
+
+  Requirements:
+  - Professional academic and geospatial visual identity.
+  - Use actual DharaScope screenshots and architecture diagrams.
+  - Include the NDWI formula and actual experimental results.
+  - Use readable charts and concise slide text.
+  - Add speaker notes for every slide.
+  - Do not invent results or use unsupported scientific claims.
+
+  ### 2. Final scientific verification
+  - Recheck raster transforms, CRS, masks and pixel classifications behind the 44,178/44,600 reconciliation.
+  - Verify the 87.4% coverage claim using a reproducible coverage report.
+  - Preserve the distinction between observed satellite results and causal hypotheses.
+  - Remove or qualify any geographical claims lacking supporting evidence.
+
+  ### 3. Defense preparation
+  Audit and enhance docs/JUDGE_QA.md:
+  - Ensure all 30 questions have clear, defensible answers.
+  - Add references to specific code and files.
+  - Add simple, plain-language summaries for non-specialist evaluators.
+  - Include short, confident answers for limitations and future work.
+
+  ### 4. Presentation rehearsal
+  Create docs/FINAL_DEFENSE_SCRIPT.md:
+  - 60-second elevator pitch.
+  - 3-minute technical explanation.
+  - 5-minute live demonstration script with cue-by-cue screen actions and spoken lines.
+  - 2-minute concluding summary.
+  - Rapid-fire Q&A script for common examiner questions.
+
+  ### 5. Permanent records
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - Relevant documentation files
+
+  ### 6. GitHub workflow
+  Check branch and working tree. Review modifications and secrets. Stage only intended files. Commit with:
+
+  Phase 2.7: Prepare final defense presentation and rehearsal materials
+
+  Push to origin/main and verify remote commit hash and clean working tree. Never force-push or claim synchronization without verification.
+
+  ### Deliverables
+  Report the created presentation, script, verified judge Q&A, test results, coverage report and verified GitHub synchronization.
+  ```
+- **Files Created/Modified:**
+  - Created: `DharaScope_Final_Presentation.pptx`, `scripts/generate_presentation.py`, `docs/FINAL_DEFENSE_SCRIPT.md`
+  - Modified: `docs/JUDGE_QA.md`, `docs/PROJECT_REPORT.md`, `.gitignore`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:**
+  - Generated 15-slide master slide deck `DharaScope_Final_Presentation.pptx` (309 KB, 16:9 widescreen, dark midnight-navy theme `#0f172a`, card containers, real application screenshot, speaker notes on all 15 slides).
+  - Executed reproducible test coverage audit with `pytest-cov` across `src/`: 185 passed, 1 skipped; verified 83.0% statement coverage (2,163 of 2,605 statements), with core scientific modules at 89%–100%. Reconciled coverage figure across `docs/PROJECT_REPORT.md` and `docs/JUDGE_QA.md`.
+  - Audited and enhanced `docs/JUDGE_QA.md` with two-tier plain-language summaries and technical deep-dives for all 30 evaluator questions, including clickable code links.
+  - Created `docs/FINAL_DEFENSE_SCRIPT.md` with 60s pitch, 3-min technical explanation, 5-min demo runbook across 8 stages, 2-min scientific findings/limitations, rapid-fire Q&A, and 60s conclusion.
+
 
 
 
