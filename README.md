@@ -47,16 +47,16 @@ Observation T2 (Late Post-Monsoon / Early Winter):
 - Acquisition Date: 2023-12-09 | Sun Elevation: 40.18° | Cloud Cover: 0.0%
 ```
 
-### Multi-Scale Hydro-Spatial Dynamics
+### Environmental Spatial Heterogeneity & Scale Analysis
 
-Remote sensing observations of surface water vary fundamentally across spatial scales. DharaScope highlights this principle through two validated analytical scales:
+Multi-temporal observations of surface water reflect the environmental characteristics of specific landscape units. DharaScope highlights this principle through two validated analytical envelopes:
 
 | Dimension / Metric | Macro-Scale Regional Basin (Phase 1 Baseline) | Meso-Scale Urban Reach (Phase 2.4/2.5 Operational) |
 | :--- | :--- | :--- |
 | **Spatial Bounding Box** | `[80.88, 26.80, 81.00, 26.90]` | `[80.90, 26.84, 80.92, 26.86]` |
 | **Geographic Extent** | $132.30\text{ km}^2$ ($13,230\text{ ha}$) | $4.40\text{ km}^2$ ($441.78\text{ ha}$) |
 | **Operational Limit Status** | **Exceeds $100\text{ km}^2$ limit** (Historical experiment) | **Within $100\text{ km}^2$ limit** (Standard operational) |
-| **Grid Dimensions** | $1,110 \times 1,192\text{ pixels}$ ($1,323,120\text{ px}$) | $222 \times 199\text{ pixels}$ ($44,178\text{ px}$) |
+| **Grid Dimensions** | $1,110 \times 1,192\text{ pixels}$ ($1,323,120\text{ px}$) | $222 \times 199\text{ px}$ (Inner: 44,178 px) / $223 \times 200\text{ px}$ (Outer: 44,600 px) |
 | **$T_1$ Water Area (2023-10-10)** | **$184.56\text{ ha}$** ($18,456\text{ px}$) | **$0.53\text{ ha}$** ($53\text{ px}$) |
 | **$T_2$ Water Area (2023-12-09)** | **$139.33\text{ ha}$** ($13,933\text{ px}$) | **$1.66\text{ ha}$** ($166\text{ px}$) |
 | **Net Water Dynamics ($\Delta A$)** | **$-45.23\text{ ha}$** ($-24.51\%$ Net Loss) | **$+1.13\text{ ha}$** ($+213.21\%$ Net Gain) |
@@ -64,10 +64,10 @@ Remote sensing observations of surface water vary fundamentally across spatial s
 | **Inundation / Gain Area** | $\approx 26.9\text{ ha}$ | **$1.16\text{ ha}$** ($116\text{ px}$) |
 | **Recession / Loss Area** | $\approx 72.1\text{ ha}$ | **$0.03\text{ ha}$** ($3\text{ px}$) |
 | **Persistent Land Area** | $\approx 13,018\text{ ha}$ | **$440.09\text{ ha}$** ($44,009\text{ px}$) |
-| **Hydrological Synthesis** | Broad agricultural floodplains and shallow depressions naturally dry out post-monsoon. | Confined urban reach exhibits channel expansion due to baseflow stabilization and potential local drainage/weir factors. |
+| **Landscape Zone Dynamics** | Broad agricultural floodplains and shallow depressions naturally dry out post-monsoon. | Confined urban river corridor exhibits localized expansion in open-water reflectance footprint. |
 
 > [!NOTE]
-> **Scientific Integrity Notice:** The observed $+1.13\text{ ha}$ increase in the urban channel reach is attributed to post-monsoon baseflow stabilization and potential local influences (such as urban drainage discharges, channel maintenance, or downstream barrage adjustments). Without in-situ stream gauge records and barrage operational logs, local hydraulic factors are presented as unverified hypotheses rather than proven causality.
+> **Scientific Integrity Notice:** The observed $+1.13\text{ ha}$ increase in the urban channel reach represents satellite-derived changes in optical surface reflectance (NDWI > 0.00). In both the 44,178-pixel inner window and the 44,600-pixel outer window, the detected water pixels (53 at $T_1$, 166 at $T_2$, net $+113$) are mathematically invariant. This localized expansion contrasts with regional floodplain recession due to environmental spatial heterogeneity across diverse landscape zones. Satellite data measures planar surface reflections; remote sensing cannot prove subsurface hydrological causes or hydraulic operations without in-situ gauging data.
 
 ---
 

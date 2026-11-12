@@ -1075,6 +1075,113 @@
   - Scale dynamics thoroughly documented between Phase 1 regional basin ($132.30\text{ km}^2$) and Phase 2.4/2.5 operational reach ($4.40\text{ km}^2$).
   - Remote repository synchronized with fast-forward push.
 
+---
+
+### Task 25: Phase 2.6 — Final Academic Deliverables
+- **Date:** 2026-11-12T13:20:00+05:30
+- **Development Stage:** Phase 2.6 (Final Academic Deliverables & Defense Preparation)
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.6: Final Academic Deliverables
+
+  Continue from commit 5ff0bbd on main.
+
+  The application is stabilized. Do not add new product features. Focus on preparing DharaScope for academic evaluation.
+
+  ### 1. Scientific consistency audit
+  - Remove unsupported claims about baseflow stabilization and channel clearing.
+  - Describe findings as observed satellite-derived changes, not proven hydrological causes.
+  - Reconcile the 44,178 versus 44,600 pixel discrepancy.
+  - Distinguish spatial heterogeneity from a simple scale effect.
+  - Preserve the distinction between scene-level cloud metadata and AOI-level cloud assessment.
+
+  ### 2. Final project report
+  Review docs/PROJECT_REPORT.md and prepare a submission-quality report covering:
+  - Abstract and problem statement
+  - Objectives and scope
+  - Literature review and technology selection
+  - System architecture and database design
+  - Sentinel-2 retrieval and NDWI methodology
+  - Backend, frontend and security implementation
+  - Testing methodology and results
+  - Real satellite observations and limitations
+  - Conclusion and future scope
+  - References
+
+  Use only traceable results. Do not invent references, measurements or performance claims.
+
+  ### 3. Presentation
+  Create a concise 12–15 slide academic presentation:
+  1. Title
+  2. Problem statement
+  3. Objectives
+  4. Existing approach and proposed solution
+  5. System architecture
+  6. Technology stack
+  7. Database design
+  8. Satellite data retrieval
+  9. NDWI and change detection
+  10. Application demonstration
+  11. Experimental results
+  12. Testing and security
+  13. Limitations
+  14. Future scope
+  15. Conclusion
+
+  Use genuine application screenshots and actual experimental results. Keep slides readable and technically defensible.
+
+  ### 4. Judge preparation
+  Create docs/JUDGE_QA.md containing:
+  - 30 likely technical and project-related questions.
+  - Clear, concise answers.
+  - Questions about NDWI, Sentinel-2, spatial resolution, CRS, PostGIS, FastAPI, authentication, RLS, cloud contamination and change detection.
+  - Questions challenging the scientific validity of the results.
+  - Honest answers about limitations and future improvements.
+
+  Include a simple 60-second explanation and a 3-minute technical explanation of the project.
+
+  ### 5. Demonstration rehearsal
+  Update docs/DEMO_GUIDE.md with:
+  - Exact startup commands.
+  - Required environment variables, without secrets.
+  - Demo AOI and observation dates.
+  - Expected metrics, with provenance.
+  - PDF/CSV download steps.
+  - Recovery steps for API, database or satellite-service failures.
+
+  ### 6. Permanent records
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - Relevant documents under docs/
+
+  ### 7. GitHub workflow
+  Inspect the current branch and working tree. Preserve unrelated changes. Run relevant document/build checks, review all modifications and secrets, stage only intended files, commit with:
+
+  Phase 2.6: Finalize academic report and presentation
+
+  Push to origin/main and verify the remote commit hash and clean working tree. Never force-push or claim synchronization without verification.
+
+  ### Final deliverable
+  Report the completed academic materials, presentation slide outline, judge Q&A coverage, validation results, remaining limitations and verified GitHub synchronization.
+
+  Do not modify working scientific calculations merely to make results look more impressive.
+  ```
+- **Files Created/Modified:**
+  - Created: `docs/PRESENTATION.md`, `docs/JUDGE_QA.md`
+  - Modified: `src/reporting.py`, `app.py`, `README.md`, `docs/PROJECT_REPORT.md`, `docs/DEMO_GUIDE.md`, `docs/SCIENTIFIC_METHODOLOGY.md`, `docs/SYSTEM_CONSTRAINTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:**
+  - Scientific consistency audit: eliminated unsupported claims about baseflow stabilization, sediment settling, and channel clearing; strictly described findings as observed satellite-derived changes.
+  - Reconciled 44,178 vs 44,600 pixel grid discrepancy mathematically (inner truncated window vs outer expanded bounding window, proving identical 53 px and 166 px water counts).
+  - Clarified environmental spatial heterogeneity vs simple scale aggregation.
+  - Preserved scene-level cloud metadata (0.0% tile) vs AOI-level cloud assessment (0.0% AOI).
+  - Produced 15-slide presentation (`docs/PRESENTATION.md`), 30-question judge Q&A guide (`docs/JUDGE_QA.md`), and updated runbook (`docs/DEMO_GUIDE.md`).
+  - Ran backend pytest and reporting tests.
+
+
 
 
 

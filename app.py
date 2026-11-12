@@ -902,9 +902,9 @@ with tab_method:
         <div style="font-size: 0.78rem; color: #94a3b8; line-height: 1.45; margin-top: 6px;">
             <b>Evaluation Context for Academic Review:</b>
             <ol style="margin-top: 4px; padding-left: 18px;">
-                <li><b>Monsoon Hydrodynamics:</b> The Gomti River basin receives >85% of its annual precipitation between July and September. October captures residual post-monsoon peak bankfull storage, while December reflects typical winter baseflow.</li>
-                <li><b>Morphological Exposure:</b> The 24.51% surface area recession predominantly corresponds to the emergence of mid-channel sandbars and lateral sediment shoals rather than complete channel desiccation.</li>
-                <li><b>Potential Infrastructure Influence:</b> Upstream flow through Lucknow is subject to hydraulic structures (such as Gaughat Barrage and canal diversions) and municipal drainage, which may influence local stage heights alongside natural seasonal baseflow variations.</li>
+                <li><b>Satellite-Derived Surface Changes:</b> Metrics quantify observed shifts in optical open-water reflectance (NDWI &gt; 0.00) between the observation dates, rather than direct measurements of river discharge, volume, or depth.</li>
+                <li><b>Morphological Context:</b> Multi-temporal surface area variations in braided or meandering channels frequently reflect the emergence or submergence of lateral sediment bars and channel margins.</li>
+                <li><b>Unverified Operational Hypotheses:</b> While local river segments may be influenced by regional precipitation patterns, municipal drainage, or hydraulic controls, satellite observations alone cannot determine specific hydrological causes without in-situ gauging data.</li>
             </ol>
         </div>
         """,

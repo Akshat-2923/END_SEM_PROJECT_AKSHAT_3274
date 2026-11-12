@@ -793,6 +793,70 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
 - **Browser Validation:** 8/8 stages passed on live server instances with real Sentinel-2 Level-2A imagery.
 - **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
 
+---
+
+## 21. Milestone 21: Phase 2.6 — Final Academic Deliverables
+
+**Date:** 2026-11-12  
+**Phase:** 2.6  
+**Scope:** Final Academic Deliverables, Scientific Consistency Hardening (Removal of unverified causal assertions, Mathematical Discretization Reconciliation of 44,178 vs. 44,600 Pixels, Environmental Spatial Heterogeneity Formulation, Cloud Metadata vs. AOI Assessment Distinction), Submission-Quality Capstone Project Report (`docs/PROJECT_REPORT.md`), 15-Slide Academic Presentation (`docs/PRESENTATION.md`), Evaluator/Judge Technical Defense Guide (`docs/JUDGE_QA.md`), Demo Rehearsal Runbook (`docs/DEMO_GUIDE.md`), and Remote Repository Synchronization  
+
+### 21.1 Scientific Consistency Audit & Causality Elimination
+- **Removal of Unsupported Causal Claims:**
+  - Audited `src/reporting.py` (lines 565–575), `app.py` (lines 900–912), `README.md`, `docs/SYSTEM_CONSTRAINTS.md`, and `docs/TECHNICAL_DECISIONS.md`.
+  - Removed all assertions attributing the observed $+1.13\text{ ha}$ surface water expansion to "baseflow stabilization", "channel clearing", or "silt settling".
+  - Explicitly formulated findings strictly as **observed satellite-derived changes in optical open-water surface reflectance** ($\text{NDWI} > 0.00$). Documented that optical satellite remote sensing measures 2D planar reflectance and cannot independently prove subsurface hydrological processes, channel bathymetry, or hydraulic operations without synchronized in-situ stream gauge hydrographs and official barrage gate operational records.
+- **Mathematical Reconciliation of the 44,178 vs. 44,600 Pixel Counts:**
+  - Proved mathematically that the geographic AOI `[80.90, 26.84, 80.92, 26.86]` in WGS 84 projects to $1,988.50\text{ m} \times 2,216.55\text{ m}$ in UTM Zone 44N ($198.85 \times 221.65\text{ pixels}$ at 10m GSD).
+  - Truncated inner window (`round_shape()`): $222 \times 199 = \mathbf{44,178\text{ pixels}}$ ($441.78\text{ ha}$, 100% valid mask).
+  - Outer expanded bounding window (ceiling bounds): $223 \times 200 = \mathbf{44,600\text{ pixels}}$ ($446.00\text{ ha}$, with 43,979 valid data pixels inside the polygon mask).
+  - **Invariant:** In both window formulations, detected water pixels are identical: $53\text{ pixels}$ ($0.53\text{ ha}$) at $T_1$, $166\text{ pixels}$ ($1.66\text{ ha}$) at $T_2$, and net change $+113\text{ pixels}$ ($+1.13\text{ ha}$, $+213.21\%$). The marginal outer boundary pixels ($44,600 - 44,178 = 422\text{ pixels}$) are purely terrestrial urban land with $\text{NDWI} \ll 0.0$.
+- **Environmental Spatial Heterogeneity vs. Simple Scale Effect:**
+  - Clarified that the contrasting results between Phase 1 regional basin ($132.30\text{ km}^2$, $-45.23\text{ ha}$ / $-24.51\%$) and Phase 2.4/2.5 urban reach ($4.40\text{ km}^2$, $+1.13\text{ ha}$ / $+213.21\%$) represent authentic **environmental spatial heterogeneity** across diverse landscape units (broad unconfined agricultural floodplains and shallow depressions that naturally desiccate post-monsoon vs. a confined urban river corridor), rather than a statistical aggregation artifact.
+- **Cloud Cover Distinction:**
+  - Confirmed and preserved the distinction between scene-level cloud cover metadata (`eo:cloud_cover` from Sen2Cor across the $100 \times 100\text{ km}$ tile `T44RMQ`) and AOI-level cloud assessment (visual and SCL pixel-level verification confirming 0.0% cloud obscuration across the $4.40\text{ km}^2$ reach).
+
+### 21.2 Academic Capstone Project Report (`docs/PROJECT_REPORT.md`)
+- Expanded into a comprehensive, submission-ready academic report conforming to formal capstone specifications:
+  - Abstract & Problem Statement (high-resolution framing, in-situ sparsity, data transfer bottlenecks).
+  - Objectives & Scope (7 approved MVP features, $100\text{ km}^2$ single-run limit).
+  - Literature Review & Remote Sensing Fundamentals (optical physics, McFeeters NDWI, Sentinel-2 MSI bands, technology selection).
+  - System Architecture & Spatial Relational Database Design (Mermaid flowchart, PostGIS schema, ER diagram, RLS policies).
+  - Satellite Retrieval & NDWI Processing Core (windowed COG streaming via `/vsicurl/`, numerical protections, 4-class categorical transitions).
+  - Experimental Verification (Gomti River case study, 44,178 vs 44,600 pixel reconciliation, spatial heterogeneity, non-causal framing).
+  - Quality Assurance (186 backend tests, 18 frontend tests, Oxlint, Playwright live E2E).
+  - Limitations, Future Scope & Traceable References.
+
+### 21.3 Academic Defense Presentation (`docs/PRESENTATION.md`)
+- Authored a 15-slide technical presentation structured for capstone committee review:
+  - Slides 1–4: Title, Problem Statement, Objectives, Existing Approaches vs Proposed Solution.
+  - Slides 5–7: System Architecture, Technology Stack, Database Design & RLS.
+  - Slides 8–10: Satellite Retrieval (COG Streaming), NDWI & Transitions, Application Walkthrough (8 Stages with genuine screenshot links).
+  - Slides 11–13: Experimental Results (Gomti Case Study), Testing & Security Rigor, System Limitations.
+  - Slides 14–15: Future Scope (Sentinel-1 SAR, Otsu Thresholding, Celery) and Conclusion.
+  - Each slide includes clear bullet points, ASCII diagrams/tables, and dedicated speaker notes.
+
+### 21.4 Judge Preparation Guide (`docs/JUDGE_QA.md`)
+- Developed a comprehensive defense manual featuring:
+  - **Elevator Pitches:** 60-second non-specialist pitch and 3-minute technical architecture briefing.
+  - **30 Deep-Dive Technical Questions & Defensible Answers:** Covering remote sensing physics (McFeeters vs MNDWI, GSD, atmospheric correction), geospatial engineering (COGs, CRS, 44,178 vs 44,600 reconciliation), scientific validity (scale vs spatial heterogeneity, attribution vs correlation), web architecture (FastAPI, PostGIS, RLS, distributed transaction consistency), and honest limitations.
+
+### 21.5 Demonstration Rehearsal Runbook (`docs/DEMO_GUIDE.md`)
+- Updated with:
+  - Exact startup commands for backend and frontend.
+  - Required environment variables with non-secret dummy values.
+  - Demo AOI coordinates (`[80.90, 26.84]` to `[80.92, 26.86]`) and observation dates (`2023-10-10` vs `2023-12-09`).
+  - Expected metrics with proven provenance ($0.53\text{ ha} \to 1.66\text{ ha}$, $+1.13\text{ ha}$ / $+213.21\%$).
+  - PDF/CSV download verification steps.
+  - Immediate failure recovery steps for satellite catalog timeouts, database connection drops, and orphaned port bindings.
+
+### 21.6 Verification & Test Execution Summary
+- **Backend Test Suite:** 185 passed, 1 skipped across 16 test modules in 7.49s.
+- **Frontend Test Suite:** 18 passed across 6 test suites.
+- **Linter & Build:** 0 errors in Oxlint, production build succeeded in 5.97s.
+- **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
+
+
 
 
 

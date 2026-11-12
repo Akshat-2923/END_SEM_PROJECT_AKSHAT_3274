@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-11-12
+### Finalized
+- **Phase 2.6: Final Academic Deliverables & Defense Preparation:**
+  - **Scientific Consistency Audit:**
+    - Eliminated unsupported causal assertions attributing urban channel water expansion to baseflow stabilization, sediment settling, or channel clearing; strictly described findings as observed satellite-derived changes in optical surface reflectance (NDWI &gt; 0.00).
+    - Mathematically reconciled the 44,178 versus 44,600 pixel grid discrepancy (inner truncated window vs. outer expanded bounding window, proving invariant detected water pixels of 53 px at T1 and 166 px at T2).
+    - Formulated the divergence between regional floodplain recession (-45.23 ha) and localized channel expansion (+1.13 ha) as an authentic manifestation of environmental spatial heterogeneity across diverse landscape zones, rather than a mere statistical scale aggregation effect.
+    - Preserved and clarified the distinction between scene-level tile cloud cover metadata (0.0% across T44RMQ) and AOI-level pixel cloud assessment (0.0% within the 4.40 km² reach).
+  - **Academic Deliverables:**
+    - `docs/PROJECT_REPORT.md`: Comprehensive, submission-quality capstone project report conforming to academic guidelines with traceable measurements and complete references.
+    - `docs/PRESENTATION.md`: 15-slide academic defense presentation with genuine screenshot evidence, concise technical bullet points, ASCII tables, and speaker notes.
+    - `docs/JUDGE_QA.md`: Comprehensive evaluation defense manual featuring 60-second and 3-minute pitches alongside 30 deep-dive technical questions and defensible answers across remote sensing physics, geospatial engineering, scientific validity, web architecture, and security.
+    - `docs/DEMO_GUIDE.md`: Updated rehearsal runbook with exact startup commands, environment variables without secrets, demo AOI/dates, expected metrics, PDF/CSV download steps, and recovery procedures.
+
+---
+
 ## [1.0.0] - 2026-11-12
 ### Stabilized & Released
 - **Phase 2.5: Final Product Stabilization & Demonstration Preparation:**

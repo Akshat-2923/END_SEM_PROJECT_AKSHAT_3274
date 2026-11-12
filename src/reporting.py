@@ -566,11 +566,10 @@ def generate_pdf_report(
     story.append(Paragraph("4. Hydrological Limitations & Evaluation Disclaimer", section_heading))
     callout_p = Paragraph(
         f"<b>ACADEMIC NOTICE:</b> {m['limitation_statement']}<br/><br/>"
-        "<b>Hydrological Context & Interpretation:</b> Differences in NDWI surface water extent reflect optical surface dynamics between observation dates. "
-        "In monsoonal river networks, potential contributing factors to observed surface extent shifts include post-monsoon baseflow transitions, "
-        "channel morphology, local hydraulic controls, agricultural abstractions, and the emergence of riparian sandbars and seasonal vegetation. "
-        "Satellite-derived surface water changes represent optical surface reflections and do NOT independently establish permanent volume loss, "
-        "hydrological alteration, or river contamination without in-situ gauging and cross-sectional bathymetric measurements.",
+        "<b>Observed Satellite-Derived Changes:</b> Analytical metrics report observed variations in optical open-water surface reflectance (NDWI &gt; 0.00) between the analyzed observation dates. "
+        "Satellite Earth observation measures planar surface reflectance and does NOT directly observe or prove underlying hydrological processes, channel bathymetry, or hydraulic operations. "
+        "Observed surface water changes represent optical surface reflections and do NOT independently establish permanent volumetric changes, "
+        "groundwater interactions, discharge rates, or water contamination without synchronized in-situ stream gauging, bathymetric surveys, and operational records.",
         callout_style,
     )
     callout_table = Table([[callout_p]], colWidths=[540])

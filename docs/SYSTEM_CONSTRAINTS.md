@@ -27,7 +27,7 @@
   - Three-dimensional river depth or volumetric discharge ($\text{m}^3/\text{s}$).
   - Sub-surface groundwater table recharge.
   - Bathymetric channel capacity changes without in-situ cross-sectional acoustic surveys.
-- **Potential Hydraulic & Anthropogenic Influences:** While river flow through urban Lucknow is subject to hydraulic infrastructure (including Gaughat and Gomti Barrages) and municipal withdrawals, optical remote sensing detects only the apparent surface reflectance footprint. Satellite measurements alone cannot independently prove or isolate the specific causal contribution of barrage gate operations versus natural baseflow recession without synchronized in-situ stream gauging telemetry and operational gate logs.
+- **Potential Hydraulic & Anthropogenic Influences:** While river flow through urban Lucknow is subject to hydraulic infrastructure (including Gaughat and Gomti Barrages) and municipal withdrawals, optical remote sensing detects only the apparent surface reflectance footprint. Satellite measurements alone cannot independently prove or isolate the specific causal contribution of barrage gate operations, municipal runoff, or channel maintenance without synchronized in-situ stream gauging telemetry and operational gate logs.
 - **Environmental Quality Disclaimer:** NDWI is an index of surface water reflectance, **not** an indicator of biochemical contamination, biological oxygen demand (BOD), fecal coliform levels, or industrial heavy metal pollution. Reductions in water area must never be conflated with chemical river pollution.
 
 ---
@@ -41,10 +41,10 @@ $$0.10\text{ km}^2 \le \text{Area}_{\text{AOI}} \le 100.00\text{ km}^2$$
 
 - **Lower Boundary ($0.10\text{ km}^2 = 100,000\text{ m}^2 = 1,000\text{ pixels}$):** Below this threshold, 10m pixel granularity produces excessive statistical variance where single-pixel classification shifts cause disproportionate percentage swings.
 - **Upper Boundary ($100.00\text{ km}^2 = 100,000,000\text{ m}^2 = 1,000,000\text{ pixels}$):** Restricts the maximum array dimensions to approximately $1000 \times 1000$ elements, ensuring memory footprint stays under $500\text{ MB}$ per analysis run on a single worker node.
-- **Multi-Scale Spatial Dynamics (Historical Regional Basin vs. Operational Reach):**
+- **Multi-Scale Spatial Dynamics & Environmental Spatial Heterogeneity:**
   - **Historical Phase 1 Feasibility Experiment:** The Phase 1 study area (`[80.88, 26.80, 81.00, 26.90]`, $132.30\text{ km}^2$) was an initial macro-scale feasibility experiment covering 1,323,037 pixels. Because it exceeds the subsequently adopted $100.00\text{ km}^2$ operational safety constraint, it remains preserved as historical baseline data and cannot be submitted through standard user endpoints.
-  - **Operational Reach Analysis:** Reach-scale analysis (e.g., Phase 2.4 urban study reach `[80.90, 26.84, 80.92, 26.86]`, $4.40\text{ km}^2$) complies fully with single-run bounds and captures localized hydrodynamic dynamics along the Gomti Riverfront (+213.21%).
-  - **Scale Invariance Principle:** Surface water extent metrics are fundamentally scale-dependent; results from different spatial envelopes must not be directly compared without normalizing for spatial area. Hypothesized local drivers (e.g., localized barrage impoundment, vegetation clearing, drainage inflows) must remain distinct from verified satellite observations.
+  - **Operational Reach Analysis:** Reach-scale analysis (e.g., Phase 2.4/2.5 urban study reach `[80.90, 26.84, 80.92, 26.86]`, $4.40\text{ km}^2$) complies fully with single-run bounds and captures localized dynamics along the Gomti Riverfront (+213.21%).
+  - **Spatial Environmental Heterogeneity Principle:** Surface water extent metrics reflect the distinct geomorphic and physical characteristics of different landscape zones (e.g., broad agricultural floodplains and shallow depressions that naturally desiccate post-monsoon vs. confined urban channels). The divergent directions of change between regional and urban scales represent environmental spatial heterogeneity, not a mere statistical scale artifact. Hypothesized local drivers (e.g., localized barrage impoundment, channel maintenance, drainage inflows) must remain distinct from verified satellite observations.
 - **Configurability:** Bounds are governed by `MIN_AOI_AREA_KM2` and `MAX_AOI_AREA_KM2` environment variables in `src/config.py`.
 
 ### 2.2 Boundary Complexity & Topology Limits

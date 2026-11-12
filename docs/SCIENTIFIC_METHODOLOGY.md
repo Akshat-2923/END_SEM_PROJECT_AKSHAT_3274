@@ -154,7 +154,19 @@ Spatial Extent Scale Comparison:
 +--------------------------------------------------------------------------------+
 ```
 
-### 4.2 Distinguishing Observed Changes from Hypothesized Explanations
+### 4.2 Pixel Count Discretization Reconciliation (44,178 vs. 44,600 Pixels)
+When transforming the WGS 84 geographic bounding box `[80.90, 26.84, 80.92, 26.86]` into UTM Zone 44N meters, the extent measures $1,988.50\text{ m} \times 2,216.55\text{ m}$ ($198.85 \times 221.65\text{ pixels}$ at 10m GSD).
+- **Inner Truncated Window (`round_shape()`):** $222\text{ rows} \times 199\text{ cols} = \mathbf{44,178\text{ pixels}}$ ($441.78\text{ ha}$, 100% valid data mask).
+- **Outer Expanded Window (ceiling grid bounds):** $223\text{ rows} \times 200\text{ cols} = \mathbf{44,600\text{ pixels}}$ ($446.00\text{ ha}$, with 43,979 common valid pixels inside the polygon mask).
+- **Mathematical Invariance:** In both windowing formulations, the detected water pixels are **identical**: 53 pixels ($0.53\text{ ha}$) at $T_1$, 166 pixels ($1.66\text{ ha}$) at $T_2$, and net change $+113\text{ pixels}$ ($+1.13\text{ ha}$). The marginal outer boundary pixels ($44,600 - 44,178 = 422\text{ pixels}$) are purely terrestrial urban land with $\text{NDWI} \ll 0.0$.
+
+### 4.3 Environmental Spatial Heterogeneity vs. Simple Scale Effect
+The divergent directions of change between the regional corridor ($-45.23\text{ ha}$) and the urban reach ($+1.13\text{ ha}$) reflect **environmental spatial heterogeneity**, not a mere statistical scale aggregation effect:
+1. **Heterogeneous Landscape Elements:** The regional corridor ($132.30\text{ km}^2$) contains broad agricultural floodplains, low-lying paddy depressions, and unconfined oxbow wetlands that naturally dry out post-monsoon.
+2. **Confined Urban Reach:** The operational reach ($4.40\text{ km}^2$) is a heavily channelized urban river corridor in central Lucknow flanked by embankments, where open water surface extent expanded.
+3. **Synthesis:** Sampling different landscape units captures their distinct physical and geomorphic behaviors rather than averaging a uniform process over different window sizes.
+
+### 4.4 Distinguishing Observed Changes from Hypothesized Explanations
 1. **Verified Empirical Observations:**
    - At the regional scale ($132.30\text{ km}^2$), surface water area decreased by 45.23 ha (-24.51%) between October 10 and December 9, 2023.
    - At the local reach scale ($4.40\text{ km}^2$), surface water area increased by 1.13 ha (+213.21%) within the downtown Gomti Riverfront embankments over the identical period.
