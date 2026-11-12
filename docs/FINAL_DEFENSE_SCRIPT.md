@@ -98,18 +98,18 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 |   The backend extracts this identity to set PostgreSQL session RLS context."          |
 +---------------------------------------------------------------------------------------+
 | STAGE 3: VECTOR AOI DIGITIZATION & SPATIAL VALIDATION                 [1:00 - 1:45]  |
-| - Action: Select 'Gomti River Study Reach' preset or draw custom polygon.            |
+| - Action: Select 'Urban Gomti River Study Reach, Lucknow' preset.                     |
 | - Screen: outputs/validation_phase2_4/03_aoi_validated.png                            |
-| - Narration: "We select the Gomti River reach in Lucknow. The client checks the       |
-|   geometry and sends it to POST /api/v1/aois. PostGIS evaluates ST_IsValid and        |
-|   ST_Area in EPSG:4326/3857, confirming a validated area of 4.41 km²—well within      |
+| - Narration: "We select the Urban Gomti River Study Reach in Lucknow. The client      |
+|   checks geometry and sends it to POST /api/v1/aois. PostGIS evaluates ST_IsValid     |
+|   and ST_Area in EPSG:4326/3857, confirming a validated area of 4.40 km²—well within  |
 |   our 100 km² boundary limit. The AOI is committed with its unique UUID."             |
 +---------------------------------------------------------------------------------------+
 | STAGE 4: STAC SATELLITE DISCOVERY & SELECTION                         [1:45 - 2:30]  |
-| - Action: Open Scene Discovery tab, query Sentinel-2 L2A for 2024 and 2025.           |
+| - Action: Open Scene Discovery tab, query Sentinel-2 L2A for 2023.                    |
 | - Screen: outputs/validation_phase2_4/04_analysis_configured.png                      |
-| - Narration: "The user selects our two real observation dates: November 20, 2024      |
-|   (T44TPN) and February 18, 2025 (T44TPN). The UI displays metadata including scene   |
+| - Narration: "The user selects our two real observation dates: October 10, 2023       |
+|   (T44RMQ) and December 09, 2023 (T44RMQ). The UI displays metadata including scene   |
 |   tile IDs, acquisition timestamps, and provider source ('copernicus')."              |
 +---------------------------------------------------------------------------------------+
 | STAGE 5: ANALYSIS SUBMISSION & PIPELINE EXECUTION                     [2:30 - 3:15]  |
@@ -123,11 +123,13 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 | STAGE 6: DUAL-OBSERVATION METRICS & TRANSITION MATRIX                 [3:15 - 4:00]  |
 | - Action: Scroll through Quantitative Metrics and Transition Breakdown.               |
 | - Screen: outputs/validation_phase2_4/06_metrics_and_transitions.png                 |
-| - Narration: "Here are the scientific metrics: Water area on 2024-11-20 was 53.07 ha  |
-|   (53,074 m²), and on 2025-02-18 it was 166.45 ha (166,447 m²), representing a net   |
-|   observed increase of +113.37 ha (+213.6%). The transition table classifies this     |
-|   into 114.71 ha inundation, 1.33 ha recession, 51.74 ha permanent water, and         |
-|   273.79 ha persistent land."                                                         |
+| - Narration: "Here are the scientific metrics: Water area on 2023-10-10 (T1) was      |
+|   0.53 ha (53 pixels / 5,300 m²), and on 2023-12-09 (T2) it was 1.66 ha (166 pixels  |
+|   / 16,600 m²), representing a net observed increase of +1.13 ha (+113 pixels /       |
+|   +213.21%). The transition matrix classifies this into 0.39 ha perennial channel     |
+|   core (39 pixels), 1.27 ha inundation expansion (127 pixels), 0.14 ha seasonal       |
+|   recession (14 pixels), and 437.99 ha persistent terrestrial land (43,799 pixels),    |
+|   across 43,979 common valid pixels (439.79 ha)."                                     |
 +---------------------------------------------------------------------------------------+
 | STAGE 7: INTERACTIVE CARTOGRAPHY & SPATIAL VISUALIZATION              [4:00 - 4:30]  |
 | - Action: Toggle layer switcher between T1 NDWI, T2 NDWI, and Change Map.             |
@@ -152,11 +154,11 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 > **Audience Context:** Remote sensing specialists, hydrology faculty, rigorous examiners.  
 > **Key Goal:** Explain the observed data with scientific humility, reconcile technical pixel counts, and state limitations transparently.
 
-### 1. Explanation of Observed Water Area Increase (+113.37 ha)
-"Our dual observations over the Gomti River reach show a substantial increase in detected water surface area:
-- **November 20, 2024 (T1):** 53.07 ha of open surface water.
-- **February 18, 2025 (T2):** 166.45 ha of open surface water.
-- **Net Change:** $+113.37\text{ ha}$ ($+213.6\%$).
+### 1. Explanation of Observed Water Area Increase (+1.13 ha / +213.21%)
+"Our dual observations over the Urban Gomti River Study Reach in Lucknow show an increase in detected surface water area:
+- **October 10, 2023 (T1):** 0.53 ha (53 pixels) of open surface water.
+- **December 09, 2023 (T2):** 1.66 ha (166 pixels) of open surface water.
+- **Net Change:** $+1.13\text{ ha}$ ($+113\text{ pixels}$, $+213.21\%$).
 
 **Crucial Scientific Distinction:**  
 As responsible data scientists, we report this strictly as an **observed satellite-derived surface water expansion**. We do **not** claim this proves upstream barrage operations, baseflow changes, or river engineering interventions. The observed reflectance increase could be caused by localized barrage impoundment, agricultural runoff accumulation, backwater effects, or temporary seasonal flooding. Attributing root hydrological causes requires in-situ gauge records and barrage operational logs, which lie outside satellite optical data alone."
@@ -164,9 +166,10 @@ As responsible data scientists, we report this strictly as an **observed satelli
 ### 2. Reconciliation of the 44,178 vs. 44,600 Pixel Count
 "During Phase 2.4, an apparent discrepancy arose between an earlier count of 44,600 pixels and the verified raster count of 44,178 pixels:
 - **Mathematical Root:** When reprojecting a WGS84 (EPSG:4326) vector polygon into UTM Zone 44N (EPSG:32644) at a 10m grid, bounding raster dimensions are determined by affine coordinate transforms (`rasterio.transform.from_origin`).
-- The unmasked rectangular bounding box is $223 \times 200 = 44,600\text{ pixels}$.
-- When the precise polygonal boundary is burned as a valid-data mask (`rasterio.features.geometry_mask`), exactly **44,178 pixels** fall inside the valid polygon interior ($4.4178\text{ km}^2$), while 422 pixels are outside boundary margins.
-- Both observations were processed on the **exact same 44,178-pixel grid**, ensuring zero spatial misalignment."
+- The unmasked rectangular bounding box is $223 \times 200 = 44,600\text{ pixels}$ ($446.00\text{ ha}$).
+- The inner truncated integer raster window is $222 \times 199 = 44,178\text{ pixels}$ ($441.78\text{ ha}$).
+- When intersected with the validated polygon boundary mask, exactly **43,979 common valid pixels** ($439.79\text{ ha}$) represent the true non-NoData analytical footprint.
+- **Invariant:** Because the Gomti river channel is centered inside the bounding box, all marginal outer pixels are purely terrestrial land ($\text{NDWI} \ll 0.0$). In all three formulations, detected water pixels are strictly identical: **53 pixels ($0.53\text{ ha}$) at $T_1$, 166 pixels ($1.66\text{ ha}$) at $T_2$, and net change $+1.13\text{ ha}$ ($+213.21\%$)**."
 
 ### 3. Known System Limitations
 1. **Cloud Occlusion:** Optical Sentinel-2 imagery cannot penetrate dense monsoon cloud cover. (Future scope: Sentinel-1 SAR integration).
@@ -189,7 +192,7 @@ Use these concise, authoritative responses when challenged by the committee:
 > **Answer:** "The downloader raises a descriptive `SatelliteDiscoveryError` or `BandDownloadError` with HTTP status codes and endpoint URLs. The backend transitions the analysis job state to `FAILED`, persists the exact error in the database, and alerts the user through the UI. Crucially, the system **never silently falls back to synthetic data** in production."
 
 ### Q4: "How did you verify test coverage, and what is your current testing state?"
-> **Answer:** "We maintain a multi-tier test suite of **186 backend test cases** and **18 frontend tests**—totaling 204 automated tests with a 100% pass rate (185 passed, 1 skipped external live test). Using `pytest-cov`, we verified **83.0% statement coverage across all 2,605 statements in `src/`**, with core computational modules such as `visualization` (99%), `reporting` (94%), `change_detection` (95%), and `water_indices` (91%) achieving 90%–100% coverage."
+> **Answer:** "We maintain a multi-tier test suite of **186 backend test cases** and **18 frontend tests**—totaling 204 automated tests with **185/185 executed backend tests passing (1 test skipped for live external CDSE credentials) and 18/18 frontend tests passing (203 total passing automated tests)**. Using `pytest-cov`, we verified **83.0% statement coverage across all 2,605 statements in `src/`**, with core computational modules such as `visualization` (99%), `reporting` (94%), `change_detection` (95%), and `water_indices` (91%) achieving 90%–100% coverage."
 
 ### Q5: "Can your system handle an entire state or country (e.g. all of Uttar Pradesh)?"
 > **Answer:** "Not in the current synchronous architecture, by design. We deliberately enforce a $100\text{ km}^2$ AOI ceiling to ensure sub-10-second processing and bounded memory footprints. Scaling to state-wide monitoring would require migrating our background worker to an asynchronous distributed cluster using Apache Spark or Celery with cloud-native raster mosaicking."

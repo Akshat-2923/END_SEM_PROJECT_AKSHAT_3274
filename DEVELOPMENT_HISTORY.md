@@ -879,7 +879,7 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
     8. Sentinel-2 Retrieval & Spectral Processing (Band 3 Green, Band 8 NIR, McFeeters NDWI formula, valid-data masking).
     9. Change Detection & Transition Modeling (Categorical 4-class matrix: Permanent Water, Inundation, Recession, Persistent Land).
     10. Platform Workflow: Interactive Web GIS (8 stages with genuine application screenshot embedded from `outputs/validation_phase2_4/05_analysis_success_real_data.png`).
-    11. Experimental Results: Gomti River Basin Case Study (Quantitative metrics table: $53.07\text{ ha} \to 166.45\text{ ha}$, $+113.37\text{ ha}$, non-causal satellite observation framing).
+    11. Experimental Results: Urban Gomti River Study Reach (Quantitative metrics table: $0.53\text{ ha} \to 1.66\text{ ha}$, $+1.13\text{ ha}$, non-causal satellite observation framing).
     12. Discretization Reconciliation & Spatial Heterogeneity (44,178 vs 44,600 pixel grid proof; regional floodplain recession vs urban corridor expansion).
     13. Testing Rigor, Verification & Security Audit (186 backend tests, 18 frontend tests, 83.0% verified statement coverage across 2,605 statements in `src/`).
     14. System Constraints & Future Scope (Optical cloud limitations, $100\text{ km}^2$ ceiling; Sentinel-1 SAR, Otsu thresholding, distributed Celery queues).
@@ -925,13 +925,63 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
   - **Part 1: 60-Second Elevator Pitch:** Highlighting freshwater seasonality, in-situ sparsity, the satellite download bottleneck, and DharaScope's solution.
   - **Part 2: 3-Minute Technical Architecture Deep-Dive:** Covering React 19 Leaflet frontend, PostGIS RLS persistence, windowed COG streaming via GDAL `/vsicurl/`, and McFeeters NDWI pipeline.
   - **Part 3: 5-Minute Live Demonstration Runbook:** Cue-by-cue narration across all 8 verified workflow stages with exact screen artifacts and timestamps.
-  - **Part 4: 2-Minute Scientific Findings, Reconciliation & Limitations:** Clear explanation of $+113.37\text{ ha}$ observation, mathematical pixel count reconciliation, and honest constraints.
+  - **Part 4: 2-Minute Scientific Findings, Reconciliation & Limitations:** Clear explanation of $+1.13\text{ ha}$ observation, mathematical pixel count reconciliation, and honest constraints.
   - **Part 5: Rapid-Fire Examiner Defense Q&A:** Fast, punchy answers to the top 5 most common evaluator challenges.
   - **Part 6: 60-Second Concluding Statement.**
 
 ### 22.5 Verification & Test Execution Summary
 - **Backend Tests:** 185 passed, 1 skipped in 7.42s; 83.0% verified statement coverage across `src/`.
 - **Frontend Tests:** 18 passed across 6 test suites.
+- **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
+
+---
+
+## 23. Milestone 23: Phase 2.7.1 — Critical Presentation Data Correction
+
+**Date:** 2026-11-12  
+**Phase:** 2.7.1  
+**Scope:** Critical Presentation Data Correction, Authoritative Measurement Reconciliation from Phase 2.4 CSV/PDF Manifests, Slide 11 & Speaker Notes Correction, Study Area Renaming to "Urban Gomti River Study Reach, Lucknow", Test Suite Pass Rate Refinement ("185/185 executed tests passed; 1 test skipped"), PPTX Master Deck Regeneration, and Cross-Document Numerical Verification  
+
+### 23.1 Root Cause & Provenance Audit
+- **Discrepancy Identification:** Slide 11 in `DharaScope_Final_Presentation.pptx` and draft notes in `docs/FINAL_DEFENSE_SCRIPT.md` previously cited surface water figures of $53.07\text{ ha}$, $166.45\text{ ha}$, and $+113.37\text{ ha}$.
+- **Authoritative Provenance Tracing:**
+  - Audited `outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`, `outputs/validation_phase2_4/validation_summary.json`, and `outputs/reports/dharascope_report_2023-10-10_to_2023-12-09.csv`.
+  - Proved that the verified urban Gomti AOI observations (`EPSG:32644`, $10\text{m}$ GSD, $100\text{ m}^2/\text{pixel}$) produced:
+    - **Earlier Surface Water ($T_1$, 2023-10-10):** Exactly **53 pixels** ($5,300\text{ m}^2$, **$0.53\text{ ha}$**, 100.00% baseline).
+    - **Later Surface Water ($T_2$, 2023-12-09):** Exactly **166 pixels** ($16,600\text{ m}^2$, **$1.66\text{ ha}$**, 313.21% of baseline).
+    - **Net Surface Water Dynamics ($\Delta A$):** Exactly **+113 pixels** ($+11,300\text{ m}^2$, **$+1.13\text{ ha}$**, **$+213.21\%$** net expansion).
+    - **Perennial Channel Core (Permanent Water):** Exactly **39 pixels** ($3,900\text{ m}^2$, **$0.39\text{ ha}$**, 73.58% of baseline).
+    - **Inundation Expansion (Apparent Gain):** Exactly **127 pixels** ($12,700\text{ m}^2$, **$1.27\text{ ha}$**, 239.62% of baseline).
+    - **Seasonal Recession (Apparent Loss):** Exactly **14 pixels** ($1,400\text{ m}^2$, **$0.14\text{ ha}$**, 26.42% of baseline).
+    - **Persistent Non-Water / Terrestrial Land:** Exactly **43,799 pixels** ($4,379,900\text{ m}^2$, **$437.99\text{ ha}$**).
+    - **Common Overlapping Valid Footprint:** Exactly **43,979 pixels** ($4,397,900\text{ m}^2$, **$439.79\text{ ha}$**).
+  - Proved mathematically that $39 + 14 = 53\text{ px}$ ($T_1$), $39 + 127 = 166\text{ px}$ ($T_2$), $166 - 53 = +113\text{ px}$ ($\Delta A$), and $43,799 + 39 + 14 + 127 = 43,979\text{ px}$ (Total Valid AOI).
+
+### 23.2 Study Area Renaming & Geographic Specificity
+- Renamed the study area to **"Urban Gomti River Study Reach, Lucknow"** across `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, `docs/FINAL_DEFENSE_SCRIPT.md`, and `docs/JUDGE_QA.md` to prevent confusion with the broader regional basin envelope ($132.30\text{ km}^2$, Phase 1).
+
+### 23.3 Mathematical Discretization Consistency
+- Maintained strict consistency between the three grid formulations:
+  - Valid polygon interior footprint: **43,979 pixels** ($439.79\text{ ha}$).
+  - Truncated inner integer window (`round_shape()`): **44,178 pixels** ($222 \times 199$, $441.78\text{ ha}$).
+  - Outer expanded bounding box window (ceiling bounds): **44,600 pixels** ($223 \times 200$, $446.00\text{ ha}$).
+  - **Invariance:** In all three window formulations, detected water pixels are strictly identical ($53\text{ px}$ at $T_1$, $166\text{ px}$ at $T_2$, net change $+113\text{ px}$ / $+1.13\text{ ha}$).
+
+### 23.4 Test Suite Pass Rate Refinement
+- Replaced ambiguous "100% pass rate" claims with precise, transparent language:
+  - **"185/185 executed backend tests passed (1 live CDSE credential test skipped), 18/18 frontend tests passed (203 total passing automated tests)"**.
+
+### 23.5 Master Deck Regeneration (`DharaScope_Final_Presentation.pptx`)
+- Re-executed `scripts/generate_presentation.py` to regenerate `DharaScope_Final_Presentation.pptx`.
+- Inspected the presentation programmatically via `python-pptx`, confirming:
+  - Total 15 widescreen slides intact.
+  - Slide 11 table updated with exact authoritative numbers (53 px / 0.53 ha, 166 px / 1.66 ha, +113 px / +1.13 ha, 39 px / 0.39 ha, 127 px / 1.27 ha, 14 px / 0.14 ha).
+  - Unscripted speaker notes verified on all 15 slides.
+
+### 23.6 Verification & Test Execution Summary
+- **Backend Tests:** 185 passed, 1 skipped across 16 test modules.
+- **Frontend Tests:** 18 passed across 6 test suites in Vitest.
+- **Linter:** 0 errors across 25 source files in Oxlint.
 - **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
 
 

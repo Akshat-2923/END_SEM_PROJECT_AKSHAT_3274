@@ -360,10 +360,10 @@ A central scientific finding of this research is that multi-temporal water dynam
 | **$T_1$ Water Area (2023-10-10)** | **$184.56\text{ ha}$** ($18,456\text{ pixels}$) | **$0.53\text{ ha}$** ($53\text{ pixels}$) |
 | **$T_2$ Water Area (2023-12-09)** | **$139.33\text{ ha}$** ($13,933\text{ pixels}$) | **$1.66\text{ ha}$** ($166\text{ pixels}$) |
 | **Net Water Dynamics ($\Delta A$)** | **$-45.23\text{ ha}$** ($-24.51\%$ Net Recession) | **$+1.13\text{ ha}$** ($+213.21\%$ Net Expansion) |
-| **Permanent Water Area** | $\approx 112.4\text{ ha}$ | **$0.50\text{ ha}$** ($50\text{ pixels}$) |
-| **Inundation / Gain Area** | $\approx 26.9\text{ ha}$ | **$1.16\text{ ha}$** ($116\text{ pixels}$) |
-| **Recession / Loss Area** | $\approx 72.1\text{ ha}$ | **$0.03\text{ ha}$** ($3\text{ pixels}$) |
-| **Persistent Land Area** | $\approx 13,018\text{ ha}$ | **$440.09\text{ ha}$** ($44,009\text{ pixels}$) |
+| **Permanent Water Area** | **$125.18\text{ ha}$** ($12,518\text{ pixels}$) | **$0.39\text{ ha}$** ($39\text{ pixels}$) |
+| **Inundation / Gain Area** | **$14.15\text{ ha}$** ($1,415\text{ pixels}$) | **$1.27\text{ ha}$** ($127\text{ pixels}$) |
+| **Recession / Loss Area** | **$59.38\text{ ha}$** ($5,938\text{ pixels}$) | **$0.14\text{ ha}$** ($14\text{ pixels}$) |
+| **Persistent Land Area** | **$13,045.81\text{ ha}$** ($1,304,581\text{ pixels}$) | **$437.99\text{ ha}$** ($43,799\text{ pixels}$) |
 | **Environmental Landscape Zone** | Broad agricultural floodplains, oxbow lakes, natural depressions | Confined urban channel corridor flanked by concrete riverfront |
 
 #### Why This Is Environmental Spatial Heterogeneity, Not a Simple Scale Effect:
@@ -400,7 +400,7 @@ Frontend Vitest Suite:
   - Result: 18 PASSED, 0 FAILED
   - Regressions: 0
 
-Total Passing Automated Tests: 203 / 203 (100% Pass Rate)
+Total Passing Automated Tests: 203 (185/185 executed backend tests passed, 1 skipped; 18/18 frontend tests passed)
 
 Frontend Static Analysis & Build:
   - Oxlint: 0 errors across 26 scanned TypeScript/TSX source files

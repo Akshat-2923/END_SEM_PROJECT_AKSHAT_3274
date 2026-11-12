@@ -23,7 +23,7 @@
 - **Project:** DharaScope — End-to-End Earth Observation Web GIS
 - **Core Technology:** Copernicus Sentinel-2 Level-2A, McFeeters NDWI, FastAPI, PostgreSQL 16 + PostGIS 3.6, React 19 + Leaflet
 - **Target Application:** Automated, reproducible surface water monitoring across alluvial and urbanized river networks
-- **Study Area:** Gomti River Basin, Lucknow, Uttar Pradesh, India
+- **Study Area:** Urban Gomti River Study Reach, Lucknow, Uttar Pradesh, India
 
 *Speaker Notes:*  
 "Good morning, esteemed panel members and evaluators. Today, we present DharaScope, an automated, production-grade geospatial platform designed to bridge raw satellite Earth Observation data from the European Space Agency's Sentinel-2 constellation directly to an interactive, secure web GIS workstation for surface water dynamics monitoring."
@@ -216,9 +216,9 @@ The complete end-to-end user journey was verified on live servers across 8 workf
    - Evidence: [01_initial_landing.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/01_initial_landing.png)
 2. **Authenticated Session:** Secure Supabase login; token claims displayed in header.
    - Evidence: [02_authenticated_session.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/02_authenticated_session.png)
-3. **Interactive AOI Validation:** Gomti River preset validated via backend PostGIS ($4.40\text{ km}^2$, simple polygon).
+3. **Interactive AOI Validation:** Urban Gomti River Study Reach, Lucknow preset validated via backend PostGIS ($4.40\text{ km}^2$, simple polygon).
    - Evidence: [03_aoi_validated.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/03_aoi_validated.png)
-4. **Satellite Scene Discovery:** Automated STAC discovery identifies clear Sentinel-2A granules for October 10 and December 9, 2023.
+4. **Satellite Scene Discovery:** Automated STAC discovery identifies clear Sentinel-2A granules for October 10 and December 9, 2023 (T44RMQ).
    - Evidence: [04_analysis_configured.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/04_analysis_configured.png)
 5. **Pipeline Execution & Provenance:** Background worker executes in 18.4s; `REAL ORBITAL S2` badge rendered.
    - Evidence: [05_analysis_success_real_data.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/05_analysis_success_real_data.png)
@@ -230,14 +230,14 @@ The complete end-to-end user journey was verified on live servers across 8 workf
    - Evidence: [08_report_downloads.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/08_report_downloads.png)
 
 *Speaker Notes:*  
-"Here we see the 8 stages of the user experience, proven through live browser automation. The user selects the Gomti River reach, configures cloud thresholds, triggers the pipeline, inspects the 4-class categorical map, and downloads publication-grade PDF and CSV reports."
+"Here we see the 8 stages of the user experience, proven through live browser automation. The user selects the Urban Gomti River Study Reach, Lucknow, configures cloud thresholds, triggers the pipeline, inspects the 4-class categorical map, and downloads publication-grade PDF and CSV reports."
 
 ---
 
-### Slide 11: Experimental Results: Gomti River Case Study
+### Slide 11: Experimental Results: Urban Gomti River Study Reach Dynamics
 
 ```
-Study Area: Gomti River Urban Reach, Lucknow, UP [80.90, 26.84, 80.92, 26.86]
+Study Area: Urban Gomti River Study Reach, Lucknow, UP [80.90, 26.84, 80.92, 26.86]
 Satellite: Sentinel-2A MSI Level-2A (UTM 44N / EPSG:32644, 10m GSD)
 Observation T1: 2023-10-10 (0.0% Cloud Cover) | Observation T2: 2023-12-09 (0.0% Cloud Cover)
 ```
@@ -247,32 +247,33 @@ Observation T1: 2023-10-10 (0.0% Cloud Cover) | Observation T2: 2023-12-09 (0.0%
 | **Earlier Water Area ($T_1$, Oct 10)** | **53 px** | **$0.53\text{ ha}$** | **$0.12\%$** |
 | **Later Water Area ($T_2$, Dec 09)** | **166 px** | **$1.66\text{ ha}$** | **$0.38\%$** |
 | **Net Water Dynamics ($\Delta A$)** | **$+113\text{ px}$** | **$+1.13\text{ ha}$** | **$+213.21\%$** |
-| **Permanent Water (Stable Channel)** | 50 px | $0.50\text{ ha}$ | $0.11\%$ |
-| **Water Inundation (Apparent Gain)** | 116 px | $1.16\text{ ha}$ | $0.26\%$ |
-| **Water Recession (Apparent Loss)** | 3 px | $0.03\text{ ha}$ | $0.01\%$ |
-| **Persistent Land (Terrestrial Urban)** | 44,009 px | $440.09\text{ ha}$ | $99.62\%$ |
-| **Total Evaluated Footprint** | **44,178 px** | **$441.78\text{ ha}$** | **$100.00\%$** |
+| **Perennial Channel Core (Persistent)** | 39 px | $0.39\text{ ha}$ | $0.09\%$ |
+| **Water Inundation (Apparent Gain)** | 127 px | $1.27\text{ ha}$ | $0.29\%$ |
+| **Water Recession (Apparent Loss)** | 14 px | $0.14\text{ ha}$ | $0.03\%$ |
+| **Persistent Land (Terrestrial Urban)** | 43,799 px | $437.99\text{ ha}$ | $99.59\%$ |
+| **Total Valid Overlapping Footprint** | **43,979 px** | **$439.79\text{ ha}$** | **$100.00\%$** |
 
 - **Reconciliation of 44,178 vs 44,600 Pixels:**
-  - $44,178\text{ pixels}$ ($222 \times 199$) represents the truncated inner integer window.
-  - $44,600\text{ pixels}$ ($223 \times 200$) represents the ceiling outer bounding window.
-  - **Invariant:** In both windows, detected water pixels are identical: 53 px at $T_1$, 166 px at $T_2$ ($+1.13\text{ ha}$ net gain).
+  - $43,979\text{ pixels}$ represents the non-NoData common valid polygon footprint.
+  - $44,178\text{ pixels}$ ($222 \times 199$) represents the truncated inner integer raster window.
+  - $44,600\text{ pixels}$ ($223 \times 200$) represents the ceiling outer bounding box raster window.
+  - **Invariant:** In all formulations, detected water pixels are strictly identical: 53 px at $T_1$, 166 px at $T_2$ ($+1.13\text{ ha}$ net gain).
 - **Environmental Spatial Heterogeneity:**
   - *Regional Basin ($132.30\text{ km}^2$, Phase 1):* $184.56\text{ ha} \to 139.33\text{ ha}$ ($-45.23\text{ ha}$, $-24.51\%$) across drying agricultural floodplains.
-  - *Urban Reach ($4.40\text{ km}^2$, Phase 2.4):* $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$) along the confined city riverfront.
+  - *Urban Gomti Reach ($4.40\text{ km}^2$, Phase 2.4):* $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$) along the confined city riverfront.
   - Divergent directions of change reflect distinct landscape zones, not an aggregation artifact.
 
 *Speaker Notes:*  
-"In our operational urban reach, detected surface water increased from 0.53 ha to 1.66 ha, a net gain of 1.13 ha. Crucially, we reconciled the pixel count math: whether using the 44,178 inner window or the 44,600 outer window, the detected water pixels are invariant. Furthermore, the divergence from the regional feasibility results illustrates environmental spatial heterogeneity between unconfined floodplains and a confined urban river corridor."
+"In our operational study area, the Urban Gomti River Study Reach in Lucknow, detected surface water increased from 0.53 ha (53 pixels) to 1.66 ha (166 pixels), a net gain of 1.13 ha (+113 pixels, +213.21%). The transition breakdown reveals 0.39 ha of perennial channel core, 1.27 ha of inundation expansion, and 0.14 ha of seasonal recession, surrounded by 437.99 ha of persistent land. Crucially, whether evaluating the 43,979 valid polygon pixels, the 44,178 inner window, or the 44,600 outer window, the detected water pixels are strictly invariant. Furthermore, the divergence from regional feasibility results illustrates environmental spatial heterogeneity across diverse landscape zones."
 
 ---
 
 ### Slide 12: Testing, Quality Assurance & Security
 
-- **Automated Verification Harness (100% Pass Rate):**
+- **Automated Verification Harness (185/185 Executed Passed, 1 Skipped):**
   - **Backend Pytest Suite:** 185 passed, 1 skipped (live CDSE credential check) across 16 test modules.
   - **Frontend Vitest Suite:** 18 passed across 6 test suites.
-  - **Total Automated Tests:** **203 automated test cases**.
+  - **Total Automated Tests:** **203 automated test cases (185/185 executed backend passed, 1 skipped; 18/18 frontend passed)**.
 - **Static Code Analysis & Compilation:**
   - **Oxlint:** 0 errors across 26 TypeScript/TSX files.
   - **Vite Production Build:** Completed in 5.97s with zero bundle errors.
@@ -331,7 +332,7 @@ To ensure scientific defensibility, we explicitly document the system's operatio
 - **Core Engineering Innovation:** Replaced gigabyte-scale tile downloads with windowed Cloud-Optimized GeoTIFF streaming ($> 99.9\%$ bandwidth savings).
 - **Core Scientific Contribution:** Demonstrated that localized urban channel dynamics ($+1.13\text{ ha}$) and regional floodplain recession ($-45.23\text{ ha}$) reflect environmental spatial heterogeneity across diverse geomorphic zones.
 - **Enterprise Security:** Demonstrated that modern web GIS platforms can enforce multi-tenant isolation via native PostgreSQL Row-Level Security and cryptographic JWT validation.
-- **Evaluation Readiness:** All 203 automated tests passing, live browser demonstration validated, full academic report and documentation suite published, and repository synchronized with GitHub.
+- **Evaluation Readiness:** 185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing tests), live browser demonstration validated, full academic report and documentation suite published, and repository synchronized with GitHub.
 
 **Thank you. We welcome questions from the examination committee.**
 

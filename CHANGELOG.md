@@ -6,6 +6,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] - 2026-11-12
+### Corrected & Verified
+- **Phase 2.7.1: Critical Presentation Data Correction:**
+  - **Slide 11 Scientific Measurement Reconciliation:**
+    - Corrected surface water metrics in `DharaScope_Final_Presentation.pptx` and `docs/PRESENTATION.md` to authoritative values from `outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`:
+      - $T_1$ (2023-10-10): Exactly 53 pixels = 0.53 ha (100.00% baseline).
+      - $T_2$ (2023-12-09): Exactly 166 pixels = 1.66 ha (313.21% of baseline).
+      - Net Surface Water Dynamics ($\Delta A$): +113 pixels = +1.13 ha (+213.21% net expansion).
+      - Perennial Channel Core: 39 pixels = 0.39 ha (73.58% of baseline).
+      - Inundation Expansion (Gain): 127 pixels = 1.27 ha (239.62% of baseline).
+      - Seasonal Recession (Loss): 14 pixels = 0.14 ha (26.42% of baseline).
+      - Persistent Land: 43,799 pixels = 437.99 ha.
+      - Common Overlapping Valid Footprint: 43,979 pixels = 439.79 ha.
+    - Reconciled mathematical conservation: $39 + 14 = 53\text{ px}$ ($T_1$), $39 + 127 = 166\text{ px}$ ($T_2$), $166 - 53 = +113\text{ px}$ ($\Delta A$).
+  - **Study Area Renaming:**
+    - Renamed study area to "Urban Gomti River Study Reach, Lucknow" across all slides, script narration, and reports to clearly distinguish the operational $4.40\text{ km}^2$ reach from the $132.30\text{ km}^2$ regional feasibility envelope.
+  - **Discretization Discussion Consistency:**
+    - Preserved consistent mathematical reconciliation across valid polygon pixels (43,979 px / 439.79 ha), inner truncated window (44,178 px / 441.78 ha), and outer rectangular bounding box (44,600 px / 446.00 ha), confirming invariant water detection in all cases.
+  - **Test Pass Rate Precision:**
+    - Refined test metrics across slides and docs from generic "100% pass rate" to "185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing tests)".
+  - **Presentation Regeneration:**
+    - Recompiled `DharaScope_Final_Presentation.pptx` using `python-pptx`, verifying all 15 widescreen slides and comprehensive speaker notes remain intact.
+
+---
+
 ## [1.0.2] - 2026-11-12
 ### Delivered & Defense-Ready
 - **Phase 2.7: Final Defense & Presentation Readiness:**

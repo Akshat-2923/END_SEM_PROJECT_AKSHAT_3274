@@ -2,32 +2,37 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.7 — Final Defense & Presentation Readiness (Complete)  
+**Current Phase:** Phase 2.7.1 — Critical Presentation Data Correction (Complete)  
 **Last Updated:** 2026-11-12  
-**Overall System Health:** `HEALTHY / OPERATIONAL / DEFENSE-READY & PRESENTATION-VERIFIED (v1.0.2)`  
+**Overall System Health:** `HEALTHY / OPERATIONAL / DEFENSE-READY & PRESENTATION-VERIFIED (v1.0.3)`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully completed **Phase 2.7 (Final Defense & Presentation Readiness)**, finalizing all materials for the capstone oral defense and evaluator technical examination. This phase generated the master 15-slide presentation (`DharaScope_Final_Presentation.pptx`), verified statement code coverage via `pytest-cov` (83.0% statement coverage across 2,605 statements in `src/`), overhauled all 30 evaluator questions in `docs/JUDGE_QA.md` with two-tier plain-language summaries and code-linked technical explanations, and created a comprehensive rehearsal defense script (`docs/FINAL_DEFENSE_SCRIPT.md`).
+DharaScope has successfully completed **Phase 2.7.1 (Critical Presentation Data Correction)**, reconciling all numerical presentation metrics with the authoritative Phase 2.4 CSV and PDF execution manifests (`outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`). Slide 11 in `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, and `docs/FINAL_DEFENSE_SCRIPT.md` now strictly reflect the ground-truth observed surface water extents: $T_1 = 53\text{ px}$ ($0.53\text{ ha}$), $T_2 = 166\text{ px}$ ($1.66\text{ ha}$), and net change $\Delta A = +113\text{ px}$ ($+1.13\text{ ha}$, $+213.21\%$). The study area was explicitly renamed to "Urban Gomti River Study Reach, Lucknow" across all materials, and the automated test pass rate was refined to "185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing automated tests)".
 
-### Key Phase 2.7 Accomplishments:
-1. **Master Presentation Generation (`DharaScope_Final_Presentation.pptx`):**
-   - Implemented `scripts/generate_presentation.py` using `python-pptx` to build a 15-slide widescreen deck ($13.333 \times 7.5\text{ in}$).
-   - Designed with dark geospatial identity: midnight-navy background (`#0f172a`), deep slate cards (`#1e293b`), crisp white text (`#f8fafc`), cyan borders (`#06b6d4`), and emerald highlights (`#10b981`).
-   - Embedded real application screenshot from Phase 2.4 Gomti River validation run, structured tables, formulas, and unscripted speaker notes for all 15 slides.
-2. **Reproducible Code Coverage Audit (`pytest-cov`):**
-   - Executed full backend test suite with statement coverage tracking: 185 passed, 1 skipped.
-   - Verified exact statement coverage: **83.0%** across all 2,605 statements in `src/` (2,163 covered).
-   - Core scientific and security modules achieve 89%–100% coverage (`visualization`: 99%, `reporting`: 94%, `change_detection`: 95%, `water_indices`: 91%, `role_sync_service`: 90%, `database/models`: 100%).
-   - Reconciled code coverage citations in `docs/PROJECT_REPORT.md` and `docs/JUDGE_QA.md`.
-3. **Defense Q&A Modernization (`docs/JUDGE_QA.md`):**
-   - Overhauled all 30 questions into two-tier responses: intuitive plain-language analogies for non-specialist committee members, followed by rigorous mathematical and architectural deep-dives.
-   - Linked exact code paths and tests with clickable references.
-4. **Final Defense & Demonstration Script (`docs/FINAL_DEFENSE_SCRIPT.md`):**
-   - Formulated a timed rehearsal runbook: 60s elevator pitch, 3-min technical architecture deep-dive, 5-min live demo runbook across 8 workflow stages with visual cues and screen artifacts, 2-min scientific findings/limitations, rapid-fire defense Q&A, and 60s concluding statement.
-5. **Automated Test Suite Status:** **203 passing automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
+### Key Phase 2.7.1 Accomplishments:
+1. **Authoritative Measurement Reconciliation:**
+   - Traced data provenance directly to `outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`:
+     - Earlier Water ($T_1$, Oct 10, 2023): Exactly 53 pixels = 0.53 ha (100.00% baseline).
+     - Later Water ($T_2$, Dec 09, 2023): Exactly 166 pixels = 1.66 ha (313.21% of baseline).
+     - Net Water Dynamics ($\Delta A$): +113 pixels = +1.13 ha (+213.21% net expansion).
+     - Perennial Channel Core: 39 pixels = 0.39 ha (73.58% of baseline).
+     - Inundation Expansion (Gain): 127 pixels = 1.27 ha (239.62% of baseline).
+     - Seasonal Recession (Loss): 14 pixels = 0.14 ha (26.42% of baseline).
+     - Persistent Land: 43,799 pixels = 437.99 ha.
+     - Common Overlapping Valid Footprint: 43,979 pixels = 439.79 ha.
+   - Verified exact mathematical conservation: $39 + 14 = 53\text{ px}$, $39 + 127 = 166\text{ px}$, $166 - 53 = +113\text{ px}$.
+2. **Master Deck Regeneration (`DharaScope_Final_Presentation.pptx`):**
+   - Re-executed `scripts/generate_presentation.py` to regenerate `DharaScope_Final_Presentation.pptx`.
+   - Verified that all 15 widescreen slides, Slide 11 data table, and comprehensive unscripted speaker notes are completely preserved and consistent.
+3. **Study Area Renaming & Geographic Specificity:**
+   - Standardized the naming to **"Urban Gomti River Study Reach, Lucknow"** across slides, speaker notes, defense scripts, and report documentation to prevent confusion with the broader Phase 1 regional feasibility basin ($132.30\text{ km}^2$).
+4. **Test Pass Rate Precision:**
+   - Replaced generic "100% pass rate" claims with transparent reporting: **"185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing automated tests)"**.
+5. **Cross-Document Numerical Consistency:**
+   - Audited and synchronized numerical values across `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, `docs/FINAL_DEFENSE_SCRIPT.md`, `docs/JUDGE_QA.md`, and `docs/PROJECT_REPORT.md`.
 6. **GitHub Synchronization:** All local commits fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
 
 ---
@@ -123,7 +128,7 @@ DharaScope has successfully completed **Phase 2.7 (Final Defense & Presentation 
 ## 3. Automated Test Suite Metrics & Audit Categorization
 
 - **Total Automated Tests:** 203 passing tests (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
-- **Pass Rate:** 100% (203 passing tests, zero regressions)
+- **Pass Rate:** 185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing tests, zero regressions)
 - **Code Coverage (`pytest-cov` across `src/`):** **83.0% statement coverage** (2,163 of 2,605 statements covered). Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%).
 - **Backend Test Modules (16 modules, 185 passed, 1 skipped):**
   1. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).

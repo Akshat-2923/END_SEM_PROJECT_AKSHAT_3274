@@ -1254,6 +1254,66 @@
   - Audited and enhanced `docs/JUDGE_QA.md` with two-tier plain-language summaries and technical deep-dives for all 30 evaluator questions, including clickable code links.
   - Created `docs/FINAL_DEFENSE_SCRIPT.md` with 60s pitch, 3-min technical explanation, 5-min demo runbook across 8 stages, 2-min scientific findings/limitations, rapid-fire Q&A, and 60s conclusion.
 
+---
+
+### Task 27: Phase 2.7.1 — Critical Presentation Data Correction
+- **Date:** 2026-11-12
+- **Development Stage:** Phase 2.7.1 (Critical Presentation Data Correction)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Phase 2.7.1: Critical Presentation Data Correction
+
+  Continue from e2b9063 on main.
+
+  A critical discrepancy was found in the generated PowerPoint.
+
+  The previously verified urban Gomti AOI results are:
+  - T1: 53 pixels = 0.53 ha
+  - T2: 166 pixels = 1.66 ha
+  - Net change: +113 pixels = +1.13 ha
+  - Percentage change: +213.21%
+
+  But Slide 11 currently reports 53.07 ha, 166.45 ha and +113.37 ha.
+
+  ### Required actions
+  1. Inspect the original raster manifests, CSV/PDF reports and source calculations.
+  2. Establish the authoritative measurements from the actual analysis run.
+  3. Correct Slide 11, speaker notes, defense script and all dependent references.
+  4. Rename the study area to "Urban Gomti River Study Reach, Lucknow" where appropriate.
+  5. Verify all numerical values across PPTX, Markdown report, CSV and PDF.
+  6. Ensure the 44,178/44,600 pixel discussion remains consistent.
+  7. Change "100% pass rate" to "185/185 executed tests passed; 1 test skipped" where appropriate.
+  8. Regenerate and inspect the actual PPTX. Confirm all 15 slides and speaker notes remain intact.
+
+  Do not simply replace numbers without tracing their provenance.
+
+  Update permanent records:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+  - Relevant docs/
+
+  Run relevant tests, inspect the final diff and check for secrets.
+
+  Commit as:
+  Phase 2.7.1: Correct final presentation scientific measurements
+
+  Push to origin/main, verify the remote commit and clean working tree. Do not force-push or claim success without verification.
+
+  Return a slide-by-slide numerical consistency report.
+  ```
+- **Files Created/Modified:**
+  - Modified: `scripts/generate_presentation.py`, `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, `docs/FINAL_DEFENSE_SCRIPT.md`, `docs/JUDGE_QA.md`, `docs/PROJECT_REPORT.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:**
+  - Traced authoritative data in `outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`: T1 = 53 px (0.53 ha), T2 = 166 px (1.66 ha), net change = +113 px (+1.13 ha / +213.21%); transition breakdown: 39 px perennial core (0.39 ha), 127 px inundation (1.27 ha), 14 px recession (0.14 ha), 43,799 px persistent land (437.99 ha) over 43,979 common valid pixels (439.79 ha).
+  - Corrected Slide 11 in `scripts/generate_presentation.py` and `docs/PRESENTATION.md` with exact numbers and speaker notes.
+  - Renamed study area to "Urban Gomti River Study Reach, Lucknow" across all presentation and defense docs.
+  - Updated test pass rate to "185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing tests)".
+  - Regenerated `DharaScope_Final_Presentation.pptx` via `python-pptx`, confirming 15 slides and speaker notes intact.
+  - Ran backend pytest suite (185 passed, 1 skipped) and frontend vitest suite (18 passed).
+
 
 
 

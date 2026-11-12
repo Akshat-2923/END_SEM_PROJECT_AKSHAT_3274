@@ -159,7 +159,7 @@ def create_presentation():
     p3.space_after = Pt(20)
     
     p4 = tf.add_paragraph()
-    p4.text = "Author: DharaScope Engineering Team | Academic Year: 2026 | Study Area: Gomti River Basin, Lucknow, UP"
+    p4.text = "Author: DharaScope Engineering Team | Academic Year: 2026 | Study Area: Urban Gomti River Study Reach, Lucknow, UP"
     p4.font.size = Pt(11)
     p4.font.bold = True
     p4.font.color.rgb = TEXT_WHITE
@@ -480,8 +480,8 @@ def create_presentation():
     add_bullet_list(s10, 1.05, 2.2, 5.2, 4.3, [
         ("Step 1: Landing", "Dark scientific aesthetic, telemetry pills, health status."),
         ("Step 2: Authentication", "Supabase JWT session, researcher/admin personas."),
-        ("Step 3: AOI Selection", "Gomti preset (4.40 km²), PostGIS real-time validation."),
-        ("Step 4: Scene Discovery", "STAC query selects Oct 10 & Dec 09, 2023 granules."),
+        ("Step 3: AOI Selection", "Urban Gomti reach preset (4.40 km²), PostGIS real-time validation."),
+        ("Step 4: Scene Discovery", "STAC query selects Oct 10 & Dec 09, 2023 granules (T44RMQ)."),
         ("Step 5: Execution", "Worker completes in 18s; REAL ORBITAL S2 badge rendered."),
         ("Step 6: Metrics & Transitions", "0.53 ha -> 1.66 ha (+1.13 ha / +213.21%) displayed."),
         ("Step 7: Cartography", "Interactive 300 DPI 4-panel and transition maps."),
@@ -498,16 +498,16 @@ def create_presentation():
 
     add_speaker_notes(s10,
         "Here we see the 8 stages of the user experience, proven through live browser automation. "
-        "The user selects the Gomti River reach, configures cloud thresholds, triggers the pipeline, inspects the 4-class categorical map, "
-        "and downloads publication-grade PDF and CSV reports."
+        "The user selects the Urban Gomti River Study Reach in Lucknow, configures cloud thresholds, triggers the pipeline, "
+        "inspects the 4-class categorical map, and downloads publication-grade PDF and CSV reports."
     )
 
     # =========================================================================
-    # SLIDE 11: Experimental Results: Gomti River Case Study
+    # SLIDE 11: Experimental Results: Urban Gomti River Study Reach
     # =========================================================================
     s11 = prs.slides.add_slide(blank_layout)
     add_background(s11)
-    add_header(s11, "Experimental Results: Gomti River Urban Reach Dynamics")
+    add_header(s11, "Experimental Results: Urban Gomti River Study Reach Dynamics")
     
     # Left table, Right explanation
     rows, cols = 7, 3
@@ -518,13 +518,13 @@ def create_presentation():
     table11.columns[2].width = Inches(1.6)
 
     res_data = [
-        ["Transition Category", "Pixel Count", "Surface Area"],
-        ["Earlier Water (T1, Oct 10)", "53 px", "0.53 ha"],
-        ["Later Water (T2, Dec 09)", "166 px", "1.66 ha"],
-        ["Net Water Dynamics (ΔA)", "+113 px", "+1.13 ha (+213.2%)"],
-        ["Permanent Water Core", "50 px", "0.50 ha"],
-        ["Water Inundation (Gain)", "116 px", "1.16 ha"],
-        ["Water Recession (Loss)", "3 px", "0.03 ha"]
+        ["Transition Category", "Pixel Count", "Surface Area (ha)"],
+        ["Earlier Water (T1, Oct 10)", "53 px", "0.53 ha (100.0%)"],
+        ["Later Water (T2, Dec 09)", "166 px", "1.66 ha (313.2%)"],
+        ["Net Water Dynamics (ΔA)", "+113 px", "+1.13 ha (+213.21%)"],
+        ["Perennial Channel Core", "39 px", "0.39 ha (73.6%)"],
+        ["Water Inundation (Gain)", "127 px", "1.27 ha (239.6%)"],
+        ["Water Recession (Loss)", "14 px", "0.14 ha (26.4%)"]
     ]
 
     for r_idx, row in enumerate(res_data):
@@ -551,15 +551,17 @@ def create_presentation():
 
     add_card(s11, 6.8, 1.6, 5.7, 5.2, "Scientific Synthesis & Reconciliation")
     add_bullet_list(s11, 7.05, 2.2, 5.2, 4.3, [
-        ("Pixel Discretization Reconciliation", "Inner window: 222x199 = 44,178 px. Outer window: 223x200 = 44,600 px. Invariant: Water pixels are strictly identical (53 px at T1, 166 px at T2, net +1.13 ha)."),
-        ("Environmental Spatial Heterogeneity", "Regional basin (132.30 km²): -45.23 ha (-24.51%) across drying agricultural floodplains. Urban reach (4.40 km²): +1.13 ha (+213.21%) along confined riverfront. The difference is distinct landscape zones, not an aggregation artifact."),
+        ("Pixel Discretization Reconciliation", "Common valid footprint: 43,979 px (439.79 ha). Inner window: 222x199 = 44,178 px. Outer window: 223x200 = 44,600 px. Invariant: Water pixels are strictly identical (53 px at T1, 166 px at T2, net +1.13 ha)."),
+        ("Environmental Spatial Heterogeneity", "Regional basin (132.30 km², Phase 1): -45.23 ha (-24.51%) across drying agricultural floodplains. Urban Gomti reach (4.40 km², Phase 2.4): +1.13 ha (+213.21%) along confined riverfront. Distinct landscape zones, not an aggregation artifact."),
         ("Non-Causal Attribution Notice", "Remote sensing observes 2D planar reflectance. Causal factors (e.g. weir gates, urban runoff) remain unverified hypotheses without in-situ gauging telemetry.")
     ])
 
     add_speaker_notes(s11,
-        "In our operational urban reach, detected surface water increased from 0.53 ha to 1.66 ha, a net gain of 1.13 ha. "
-        "Crucially, we reconciled the pixel count math: whether using the 44,178 inner window or the 44,600 outer window, "
-        "the detected water pixels are invariant. Furthermore, the divergence from regional feasibility results illustrates environmental spatial heterogeneity."
+        "In our operational study area, the Urban Gomti River Study Reach in Lucknow, detected surface water increased from 0.53 ha (53 pixels) to 1.66 ha (166 pixels), "
+        "a net gain of 1.13 ha (+113 pixels, +213.21%). The transition breakdown reveals 0.39 ha of perennial channel core, 1.27 ha of inundation expansion, "
+        "and 0.14 ha of seasonal recession, surrounded by 437.99 ha of persistent land. Crucially, whether evaluating the 43,979 valid polygon pixels, "
+        "the 44,178 inner window, or the 44,600 outer window, the detected water pixels are strictly invariant. "
+        "Furthermore, the divergence from regional feasibility results illustrates environmental spatial heterogeneity across diverse landscape zones."
     )
 
     # =========================================================================
@@ -569,12 +571,12 @@ def create_presentation():
     add_background(s12)
     add_header(s12, "Testing, Quality Assurance & Security Verification")
     
-    add_card(s12, 0.8, 1.6, 5.7, 5.2, "1. Automated Test Suite (100% Pass Rate)")
+    add_card(s12, 0.8, 1.6, 5.7, 5.2, "1. Automated Test Suite (185/185 Executed Passed, 1 Skipped)")
     add_bullet_list(s12, 1.05, 2.2, 5.2, 4.3, [
-        ("Backend Pytest", "185 passed, 1 skipped across 16 test modules covering auth, RLS, STAC, NDWI, storage, and reporting."),
+        ("Backend Pytest", "185 passed, 1 skipped (live CDSE credential check) across 16 test modules covering auth, RLS, STAC, NDWI, storage, and reporting."),
         ("Code Coverage", "83.0% verified statement coverage across 2,605 statements in src/ (with core modules reaching 89%–100%)."),
         ("Frontend Vitest", "18 passed across 6 test suites covering components and JWT security."),
-        ("Total Automated Tests", "203 passing tests with zero regressions."),
+        ("Total Automated Tests", "185/185 executed backend tests and 18/18 frontend tests passed (203 total passing tests)."),
         ("Static Analysis", "0 errors across 26 TypeScript/TSX files in Oxlint."),
         ("Production Build", "Vite production build succeeds in 5.97s with zero errors.")
     ])
@@ -588,8 +590,9 @@ def create_presentation():
     ])
 
     add_speaker_notes(s12,
-        "The platform has been validated through 203 automated tests spanning unit, integration, and security assertions, "
-        "alongside static linting with Oxlint and headless browser testing with Playwright. "
+        "The platform has been validated through 203 automated tests spanning unit, integration, and security assertions—with all 185 executed backend tests "
+        "and 18 frontend tests passing, and 1 live external credential test intentionally skipped. "
+        "This is paired with static linting with Oxlint and headless browser testing with Playwright. "
         "Every security boundary—including RLS tenant isolation and immediate admin revocation—is verified by regression tests."
     )
 
@@ -656,13 +659,13 @@ def create_presentation():
         ("Sub-Granule Ingestion Innovation", "Eliminated gigabyte-scale tile downloads using windowed Cloud-Optimized GeoTIFF streaming via /vsicurl/, achieving >99.9% bandwidth reduction."),
         ("Environmental Spatial Heterogeneity Proven", "Demonstrated that localized urban channel expansion (+1.13 ha) and regional floodplain recession (-45.23 ha) reflect authentic environmental spatial heterogeneity across diverse landscape zones."),
         ("Enterprise Multi-Tenant Security", "Pioneered native PostgreSQL Row-Level Security coupled to Supabase JWT authentication, with authoritative database role checks for immediate admin revocation."),
-        ("Reproducible & Defensible Baseline", "Full 203 automated test suite passing (100% pass rate), 83.0% statement coverage, verified Playwright browser automation, and submission-quality academic documentation published.")
+        ("Reproducible & Defensible Baseline", "Full 185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed, 83.0% statement coverage, verified Playwright browser automation, and submission-quality academic documentation published.")
     ])
 
     add_speaker_notes(s15,
         "In conclusion, DharaScope demonstrates that high-precision satellite Earth Observation can be operationalized into a secure, responsive, "
-        "and reproducible web GIS. All 203 tests are passing, live browser demonstration is verified, and documentation is complete. "
-        "Thank you. We welcome questions from the examination committee."
+        "and reproducible web GIS. All 185 executed backend tests and 18 frontend tests are passing (1 live external test skipped), live browser demonstration is verified, "
+        "and documentation is complete. Thank you. We welcome questions from the examination committee."
     )
 
     # Save presentation
