@@ -18,20 +18,8 @@ import {
 import type { GeoJSONPolygon, AOIValidateResponse } from '../types/api';
 import { api, APIError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-
-// Canonical Lucknow Gomti River urban reach baseline polygon
-export const LUCKNOW_GOMTI_PRESET: GeoJSONPolygon = {
-  type: 'Polygon',
-  coordinates: [
-    [
-      [80.90, 26.84],
-      [80.92, 26.84],
-      [80.92, 26.86],
-      [80.90, 26.86],
-      [80.90, 26.84],
-    ],
-  ],
-};
+import { LUCKNOW_GOMTI_PRESET } from '../constants/aoi';
+export { LUCKNOW_GOMTI_PRESET };
 
 interface MapPickerProps {
   geometry: GeoJSONPolygon;

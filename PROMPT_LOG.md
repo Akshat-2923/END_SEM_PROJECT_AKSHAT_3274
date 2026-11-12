@@ -971,6 +971,111 @@
   - Browser screenshots (8/8), execution summary, matching CSV, and 7.4 MB PDF verified.
   - Fast-forward GitHub push verified.
 
+---
+
+### Task 24: Phase 2.5 — Final Product Stabilization & Demonstration Preparation
+- **Date:** 2026-11-12T11:15:00+05:30
+- **Development Stage:** Phase 2.5 (Final Capstone Delivery & Stabilization)
+- **Task Outcome:** Completed
+- **Actual User Prompt:**
+  ```text
+  # DharaScope — Phase 2.5: Final Product Stabilization & Demonstration Preparation
+
+  Continue from commit 35acc55 on main.
+
+  The objective is to prepare DharaScope for final academic evaluation. Focus on quality, reliability, reproducibility and presentation. Do not introduce unnecessary features or redesign the architecture.
+
+  ### 1. Scientific documentation correction
+  - Correct the unsupported causal claim about Gomti and Gaughat Barrage operations.
+  - Clearly distinguish observed satellite changes from possible explanations.
+  - Document Phase 1's 132.30 km² AOI as a historical experiment exceeding the current 100 km² limit.
+  - Preserve existing verified satellite results and methodology.
+
+  ### 2. Frontend quality audit
+  Inspect the complete React application:
+  - Visual consistency, typography, spacing and layout.
+  - Desktop and mobile responsiveness.
+  - Navigation and interaction consistency.
+  - Leaflet map usability and AOI selection.
+  - Loading, empty, error and success states.
+  - Analysis progress and result presentation.
+  - PDF/CSV download experience.
+
+  Fix genuine usability and visual defects. Preserve the existing dark scientific aesthetic. Fix React Fast Refresh warnings. Do not add unnecessary decorative icons.
+
+  ### 3. Fresh installation and execution verification
+  Verify that the project can be set up and run from scratch:
+  - Clean virtual environment creation.
+  - Dependency installation (requirements.txt and package.json).
+  - PostgreSQL 16/PostGIS 3.6 database initialization and migrations.
+  - Environment configuration (.env.example).
+  - Service startup (FastAPI and Vite).
+  - Health check verification.
+
+  Document exact prerequisites, versions and step-by-step instructions.
+
+  ### 4. End-to-end demonstration reliability
+  Re-verify the complete live demonstration with real Sentinel-2 satellite data:
+  - Step 1: Landing and authentication.
+  - Step 2: AOI selection and validation (Gomti River preset).
+  - Step 3: Satellite scene discovery (October 2023 vs December 2023).
+  - Step 4: Analysis configuration.
+  - Step 5: Pipeline execution and progress tracking.
+  - Step 6: Water change visualization and NDWI display.
+  - Step 7: Transition matrix and summary metrics.
+  - Step 8: PDF and CSV report downloads.
+
+  Ensure the demonstration succeeds reliably without manual intervention.
+
+  ### 5. Academic documentation
+  Produce or update:
+  - README.md: Installation, configuration and execution guide.
+  - docs/ARCHITECTURE.md: Complete system architecture and component interactions.
+  - docs/DEMO_GUIDE.md: Step-by-step evaluator guide with expected outputs.
+  - docs/SCIENTIFIC_METHODOLOGY.md: Sentinel-2 data, NDWI calculation, classification and scale dynamics.
+  - docs/PROJECT_REPORT.md: Academic capstone report.
+
+  ### 6. Verification and test suite
+  Run full test suites:
+  - Backend pytest suite (185+ tests).
+  - Frontend Vitest suite (18 tests).
+  - Frontend build and linting.
+  - Playwright browser test.
+  - Audit and report any remaining warnings.
+
+  ### 7. Documentation and Git
+  Update:
+  - DEVELOPMENT_HISTORY.md
+  - PROMPT_LOG.md
+  - CHANGELOG.md
+  - PROJECT_STATUS.md
+
+  Synchronize with GitHub (fast-forward push to origin/main). Do not force-push. Ensure clean Git status.
+
+  ### Final report
+  Provide a comprehensive summary:
+  - Key corrections made.
+  - Frontend improvements.
+  - Fresh setup verification results.
+  - Test suite and build results.
+  - Live demonstration verification.
+  - Documentation links.
+  - Remaining limitations or future work.
+  - Confirmed GitHub commit hash and push status.
+  ```
+- **Files Created/Modified:**
+  - Created: `docs/ARCHITECTURE.md`, `docs/DEMO_GUIDE.md`, `docs/SCIENTIFIC_METHODOLOGY.md`, `docs/PROJECT_REPORT.md`, `frontend/src/constants/aoi.ts`
+  - Modified: `app.py`, `src/reporting.py`, `README.md`, `frontend/src/components/Header.tsx`, `frontend/src/components/MapPicker.tsx`, `frontend/src/components/ArtifactsViewer.tsx`, `frontend/src/index.css`, `frontend/src/__tests__/AuthModal.test.tsx`, `scripts/validate_real_satellite_browser.mjs`, `docs/SYSTEM_CONSTRAINTS.md`, `docs/TECHNICAL_DECISIONS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:**
+  - 185 backend pytest tests passing, 1 skipped.
+  - 18 frontend Vitest tests passing.
+  - Oxlint: 0 errors. Vite build: 0 errors in 1.99s.
+  - Headless browser validation: 8/8 stages verified with real Sentinel-2 Level-2A orbital imagery.
+  - Scientific non-causal explanation corrected across reports and documentation.
+  - Scale dynamics thoroughly documented between Phase 1 regional basin ($132.30\text{ km}^2$) and Phase 2.4/2.5 operational reach ($4.40\text{ km}^2$).
+  - Remote repository synchronized with fast-forward push.
+
+
 
 
 

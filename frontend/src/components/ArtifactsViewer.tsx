@@ -104,17 +104,10 @@ export const ArtifactsViewer: React.FC<ArtifactsViewerProps> = ({
       a.artifact_type === 'THUMBNAIL_JPG'
   );
 
-  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
-    visualArtifacts[0]?.id || null
-  );
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!selectedArtifactId && visualArtifacts.length > 0) {
-      setSelectedArtifactId(visualArtifacts[0].id);
-    }
-  }, [visualArtifacts, selectedArtifactId]);
-
-  const activeArtifact = visualArtifacts.find((a) => a.id === selectedArtifactId) || visualArtifacts[0];
+  const activeArtifact =
+    visualArtifacts.find((a) => a.id === selectedArtifactId) || visualArtifacts[0];
 
   const handleDownload = (art: ArtifactResponse) => {
     api.downloadArtifact(art.id, art.file_name);

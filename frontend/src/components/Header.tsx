@@ -49,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuthModal }) => {
         <div>
           <div className="brand-title-row">
             <h1 className="brand-title">DharaScope</h1>
-            <span className="badge badge-version">v2.3</span>
+            <span className="badge badge-version">v2.5</span>
           </div>
           <p className="brand-subtitle">
             Satellite-Based River Surface Water Dynamics Platform | Sentinel-2 MSI

@@ -5,11 +5,13 @@
  * cartography, metrics, and report downloads.
  */
 
-import { chromium } from 'playwright';
+import { chromium } from '../frontend/node_modules/playwright/index.mjs';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const SCREENSHOT_DIR = path.resolve('..', 'outputs', 'validation_phase2_4');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SCREENSHOT_DIR = path.resolve(__dirname, '..', 'outputs', 'validation_phase2_4');
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }
@@ -165,6 +167,7 @@ async function runValidation() {
     await page.waitForSelector('.metrics-display-card', { timeout: 10000 });
     const metricsCard = page.locator('.metrics-display-card');
     const metricsText = await metricsCard.innerText();
+    console.log(`   Quantitative Metrics Sample: ${metricsText.slice(0, 100).replace(/\n/g, ' ')}...`);
 
     // Verify synthetic warning banner does NOT exist
     const syntheticBanner = await page.getByText('SYNTHETIC BENCHMARK DATASET').count();

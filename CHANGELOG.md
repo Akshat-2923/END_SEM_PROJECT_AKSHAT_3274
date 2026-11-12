@@ -6,6 +6,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-11-12
+### Stabilized & Released
+- **Phase 2.5: Final Product Stabilization & Demonstration Preparation:**
+  - **Academic Release Baseline:** Officially closed and verified the DharaScope platform for final capstone demonstration and academic evaluation.
+  - **Scientific Documentation Correction:**
+    - Corrected unsupported causal claims in `src/reporting.py` and `app.py`, replacing hardcoded assertions about Gaughat Barrage operations with an objective, scientifically disciplined explanation attributing observed water expansion to post-monsoon baseflow stabilization and potential local factors (drainage, channel maintenance, or hydraulic adjustments).
+    - Formulated barrage impoundment as an unverified local hypothesis alongside other municipal and morphological factors, explicitly noting that causal claims require in-situ river gauge hydrographs and operational gate logs.
+    - Documented Phase 1's $132.30\text{ km}^2$ bounding box as a historical feasibility experiment that intentionally exceeded the current operational $100\text{ km}^2$ system limit.
+  - **Frontend Quality, Usability & Cleanliness:**
+    - Extracted `LUCKNOW_GOMTI_PRESET` from `frontend/src/components/MapPicker.tsx` to `frontend/src/constants/aoi.ts`, eliminating React Fast Refresh warnings.
+    - Refactored `frontend/src/components/ArtifactsViewer.tsx` to derive `activeArtifact` during render, eliminating `react(set-state-in-effect)` linter warnings.
+    - Added responsive CSS media queries for `<1024px`, `<768px`, and `<480px` in `frontend/src/index.css` for tablet and mobile viewing.
+    - Updated `frontend/src/components/Header.tsx` version badge to `v2.5`.
+    - Removed unused test imports in `frontend/src/__tests__/AuthModal.test.tsx`.
+    - Confirmed 0 errors across 24 scanned TypeScript/TSX files in oxlint.
+  - **Live Demonstration Verification:**
+    - Executed automated browser validation via Playwright against live FastAPI (:8000) and Vite (:5173).
+    - Confirmed 100% pass across all 8 stages with genuine Sentinel-2 Level-2A data (`2023-10-10` vs `2023-12-09`).
+    - Verified metrics: $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$), real orbital badge (`REAL ORBITAL S2`), and verified download of 7.4 MB PDF report and CSV data manifest.
+  - **Academic Documentation Suite:**
+    - `README.md`: Comprehensively rewritten platform guide covering architecture, multi-scale findings, quickstart setup, testing, and documentation sitemap.
+    - `docs/ARCHITECTURE.md`: Complete architectural specification with 3 Mermaid diagrams.
+    - `docs/DEMO_GUIDE.md`: Step-by-step evaluator script and expected outputs.
+    - `docs/SCIENTIFIC_METHODOLOGY.md`: Detailed remote sensing and optical index methodology.
+    - `docs/PROJECT_REPORT.md`: Full academic capstone engineering report.
+
+---
+
 ## [0.9.1] - 2026-11-12
 ### Audited
 - **Phase 2.4.1: Scientific Results Audit & GitHub Synchronization:**

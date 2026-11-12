@@ -566,10 +566,11 @@ def generate_pdf_report(
     story.append(Paragraph("4. Hydrological Limitations & Evaluation Disclaimer", section_heading))
     callout_p = Paragraph(
         f"<b>ACADEMIC NOTICE:</b> {m['limitation_statement']}<br/><br/>"
-        "<b>Hydrological Context:</b> The Gomti River basin is monsoonal with peak precipitation during July&ndash;September. "
-        "The observed 24.51% surface water recession between October and December corresponds to post-monsoon baseflow decline, "
-        "upstream Gaughat Barrage stage modulation, and the emergence of riparian sandbars and seasonal silt banks. "
-        "Surface area differences do NOT indicate river desiccation or water contamination.",
+        "<b>Hydrological Context & Interpretation:</b> Differences in NDWI surface water extent reflect optical surface dynamics between observation dates. "
+        "In monsoonal river networks, potential contributing factors to observed surface extent shifts include post-monsoon baseflow transitions, "
+        "channel morphology, local hydraulic controls, agricultural abstractions, and the emergence of riparian sandbars and seasonal vegetation. "
+        "Satellite-derived surface water changes represent optical surface reflections and do NOT independently establish permanent volume loss, "
+        "hydrological alteration, or river contamination without in-situ gauging and cross-sectional bathymetric measurements.",
         callout_style,
     )
     callout_table = Table([[callout_p]], colWidths=[540])

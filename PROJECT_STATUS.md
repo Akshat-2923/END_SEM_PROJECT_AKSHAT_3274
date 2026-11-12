@@ -2,42 +2,40 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.4.1 — Scientific Results Audit & GitHub Synchronization (Complete)  
+**Current Phase:** Phase 2.5 — Final Product Stabilization & Demonstration Preparation (Complete)  
 **Last Updated:** 2026-11-12  
-**Overall System Health:** `HEALTHY / OPERATIONAL / AUDITED & SYNCHRONIZED`  
+**Overall System Health:** `HEALTHY / OPERATIONAL / PRODUCTION STABILIZED & DEMO-READY (v1.0.0)`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully completed **Phase 2.4.1 (Scientific Results Audit & GitHub Synchronization)**. This audit rigorously evaluated the mathematical, spatial, and hydrodynamic consistency between Phase 1 feasibility figures and Phase 2.4 live satellite validation results, verified reproducibility across all raster assets, and verified complete synchronization with the remote GitHub repository.
+DharaScope has successfully completed **Phase 2.5 (Final Product Stabilization & Demonstration Preparation)**, marking the official `v1.0.0` academic capstone release. This phase finalized the product for examiner evaluation and demonstration, resolved all remaining scientific documentation caveats, eliminated frontend linter warnings, enhanced mobile/tablet responsiveness, verified live end-to-end browser workflows, and delivered a complete academic documentation suite.
 
-### Key Audit Findings:
-1. **Scientific Scale Consistency:** Proved that both Phase 1 (184.56 ha / 139.33 ha, -24.51%) and Phase 2.4 (0.53 ha / 1.66 ha, +213.21%) were calculated from the **exact same** Sentinel-2 Level-2A acquisitions (`S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` and `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512`), identical 10m B03/B08 bands, identical McFeeters NDWI formulation ($\tau = 0.00$), and identical projected CRS (`EPSG:32644`). The numerical difference is 100% explained by spatial extent:
-   - *Phase 1:* Regional basin corridor `[80.88, 26.80, 81.00, 26.90]` spanning **13,230.37 ha** (132.30 km²), encompassing wide meanders, oxbows, and floodplain wetlands experiencing natural post-monsoon recession (-45.23 ha). Note that this regional rectangle exceeds the single-run system ceiling of 100 km² established in Phase 2.2 (`MAX_AOI_AREA_KM2 = 100.00 km²`).
-   - *Phase 2.4:* Urban reach polygon `[80.90, 26.84, 80.92, 26.86]` spanning **439.79 ha** (4.40 km², 3.32% of regional area) along the channelized Gomti Riverfront in Lucknow, where post-monsoon barrage impoundment (Gaughat and Gomti Barrages) elevates urban water pool levels (+1.13 ha).
-2. **Cloud Cover Metadata Clarification:** Confirmed that the 0.0% cloud cover reported in STAC metadata represents whole-scene granule metadata (`eo:cloud_cover` across the $100 \times 100\text{ km}$ MGRS tile `T44RMQ`), rather than an AOI-clipped cloud mask.
-3. **Reproducibility & Evidence Audit:** Verified all 8 Playwright browser screenshots (`outputs/validation_phase2_4/01_*.png` through `08_*.png`), execution summary JSON, matching CSV data manifest (`dharascope_analysis_c7463b8c.csv`), and 7.4 MB PDF report. Confirmed zero synthetic data intrusion into real orbital workflows.
-4. **Automated Test Suite Status:** **203 passing automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
-5. **GitHub Synchronization:** All local commits up to Phase 2.4.1 fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
-
-In **Phase 2.4**, the complete stack—comprising PostgreSQL 16.15 + PostGIS 3.6.2, the FastAPI ASGI application service layer, and the React 19 + TypeScript GIS Workstation—was executed concurrently and validated using genuine Sentinel-2 Level-2A multi-spectral observations over the Gomti River study reach (`[80.90, 26.84, 80.92, 26.86]` WGS84):
-1. **Live Browser Automation (Playwright Chromium):** Automated script `scripts/validate_real_satellite_browser.mjs` drove a headless browser through all 8 user journey stages, verifying login, real-time PostGIS geometry validation (4.4048 km² / 440.48 ha), retrieval tier configuration, pipeline execution, real orbital badge display (`REAL ORBITAL S2`), scientific metrics rendering, authenticated cartographic artifact streaming, and publication report downloads.
-2. **Empirical Satellite Observations (AWS Open Data COG Archive):** Discovered and streamed real Sentinel-2 Level-2A surface reflectance rasters without synthetic fallback:
-   - $T_1$ Observation (2023-10-10): `S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` (0.0% cloud cover).
-   - $T_2$ Observation (2023-12-09): `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512` (0.0% cloud cover).
-   - Ground Sampling Distance (GSD): 10m native resolution across Band 3 (Green) and Band 8 (NIR) in UTM Zone 44N (EPSG:32644).
-3. **Hydrological Surface Water Dynamics Metrics:**
-   - Overlapping Valid Spatial Domain: 439.79 ha (43,979 common valid pixels).
-   - Earlier Surface Water ($T_1$, 2023-10-10): 0.53 ha (5,300 m²).
-   - Later Surface Water ($T_2$, 2023-12-09): 1.66 ha (16,600 m²).
-   - Persistent Water (Perennial channel core): 0.39 ha (3,900 m²).
-   - Seasonal Recession (Apparent Loss): 0.14 ha (1,400 m²).
-   - Inundation Expansion (Apparent Gain): 1.27 ha (12,700 m²).
-   - Net Surface Delta: +1.13 ha (+213.21%).
-4. **Data Provenance & Security Hardening:** Verified that CSV reports embed `# Real Satellite Data,TRUE` and exact scene IDs, and that PDF reports compile cleanly (7.4 MB). Hardened CORS configuration in `src/api/app.py` for standard browser credentialed fetch compliance, and standardized datetime/cloud parsing in `src/services/analysis_service.py` and `src/reporting.py`.
-
-The full test suite stands at **203 automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
+### Key Phase 2.5 Accomplishments:
+1. **Scientific Documentation Correction & Non-Causal Formulation:**
+   - Corrected unsupported causal assertions in `src/reporting.py` and `app.py`. Replaced rigid statements attributing the $+1.13\text{ ha}$ urban water expansion solely to barrage operations with an objective, scientifically disciplined formulation attributing observed change to post-monsoon baseflow stabilization and potential local factors (drainage, channel maintenance, or hydraulic adjustments).
+   - Documented barrage impoundment strictly as an unverified local hypothesis alongside other municipal and morphological factors, noting that causal proof requires in-situ river stage hydrographs and operational gate logs.
+   - Documented Phase 1's $132.30\text{ km}^2$ bounding box as a historical feasibility experiment exceeding the current $100\text{ km}^2$ operational limit (`src/aoi_validation.py`).
+2. **Frontend Usability, Responsive Layout & Fast Refresh Cleanup:**
+   - Extracted `LUCKNOW_GOMTI_PRESET` from `frontend/src/components/MapPicker.tsx` to `frontend/src/constants/aoi.ts`, eliminating React Fast Refresh warnings.
+   - Refactored `frontend/src/components/ArtifactsViewer.tsx` to derive `activeArtifact` during render, eliminating `react(set-state-in-effect)` linter warnings.
+   - Added responsive CSS media queries for `<1024px`, `<768px`, and `<480px` in `frontend/src/index.css` for tablet and mobile viewing.
+   - Updated frontend version badge in `frontend/src/components/Header.tsx` to `v2.5`.
+   - Verified 0 errors across 24 scanned TypeScript/TSX files in oxlint.
+   - Verified 18/18 tests passing in Vitest, and Vite production build succeeded in 1.99s.
+3. **End-to-End Live Demonstration Verification:**
+   - Executed automated browser validation via Playwright against live FastAPI (:8000) and Vite (:5173).
+   - Confirmed 100% pass across all 8 stages with genuine Sentinel-2 Level-2A data (`2023-10-10` vs `2023-12-09`).
+   - Verified metrics: $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$), real orbital badge (`REAL ORBITAL S2`), and verified download of 7.4 MB PDF report and CSV data manifest.
+4. **Academic Documentation Suite:**
+   - `README.md`: Comprehensively rewritten platform guide covering architecture, multi-scale findings, quickstart setup, testing, and documentation sitemap.
+   - `docs/ARCHITECTURE.md`: Complete architectural specification with 3 Mermaid diagrams.
+   - `docs/DEMO_GUIDE.md`: Step-by-step evaluator script and expected outputs.
+   - `docs/SCIENTIFIC_METHODOLOGY.md`: Detailed remote sensing and optical index methodology.
+   - `docs/PROJECT_REPORT.md`: Full academic capstone engineering report.
+5. **Automated Test Suite Status:** **203 passing automated tests** (185 backend pytest + 18 frontend Vitest) plus 8 live browser validation steps, with 100% pass rate.
+6. **GitHub Synchronization:** All local commits fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
 
 ---
 

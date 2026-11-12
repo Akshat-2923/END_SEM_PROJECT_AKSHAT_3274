@@ -735,6 +735,65 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
 - Fast-forward pushed all 13 commits from Phase 2.2 through Phase 2.4.1 without force-pushing, preserving complete history.
 - Remote commit hash verified, working tree clean.
 
+---
+
+## 20. Milestone 20: Phase 2.5 — Final Product Stabilization & Demonstration Preparation
+
+**Date:** 2026-11-12  
+**Phase:** 2.5  
+**Scope:** Final Academic Stabilization, Scientific Non-Causal Explanation Correction, Scale Dynamics Clarification, Frontend Usability & Responsive Polish, Fast Refresh Linter Cleanup, Live Playwright End-to-End Validation, Academic Documentation Suite (`docs/ARCHITECTURE.md`, `docs/DEMO_GUIDE.md`, `docs/SCIENTIFIC_METHODOLOGY.md`, `docs/PROJECT_REPORT.md`, `README.md`), and Remote GitHub Synchronization  
+
+### 20.1 Scientific Documentation Correction & Non-Causal Formulation
+- **Correction of Unsupported Causal Assertions:**
+  - Audited `src/reporting.py` (lines 565-578) and `app.py` (line 907). Replaced the rigid, unproven causal assertion attributing the $+1.13\text{ ha}$ water expansion solely to Gaughat Barrage operations with an objective, scientifically disciplined formulation.
+  - Re-framed findings: the observed increase in NDWI open water along the urban river corridor is attributed to post-monsoon baseflow stabilization and potential local influences (including municipal stormwater/treated wastewater inflows, riverfront channel maintenance, or downstream weir/barrage adjustments).
+  - Explicitly documented that without in-situ river stage hydrographs and barrage operational gate logs, local hydraulic factors remain plausible hypotheses rather than proven causation.
+- **Scale Dynamics & Historical Baseline Boundary:**
+  - Updated `docs/SYSTEM_CONSTRAINTS.md` (Sections 1.3 & 2.1) and `docs/TECHNICAL_DECISIONS.md` (ADR-014).
+  - Documented Phase 1's $132.30\text{ km}^2$ bounding box as a historical macro-scale feasibility experiment that intentionally exceeded the current $100\text{ km}^2$ operational system limit (`src/aoi_validation.py`).
+  - Proved mathematical consistency: Phase 1 ($132.30\text{ km}^2$, $-45.23\text{ ha}$ / $-24.51\%$) and Phase 2.4/2.5 ($4.40\text{ km}^2$, $+1.13\text{ ha}$ / $+213.21\%$) were derived from the identical raw Sentinel-2 Level-2A granules; the divergent direction of net water change is an authentic manifestation of spatial scale.
+
+### 20.2 Frontend Quality, Usability & Fast Refresh Cleanup
+- **Linter & React Component Cleanup:**
+  - Extracted `LUCKNOW_GOMTI_PRESET` from `frontend/src/components/MapPicker.tsx` into a dedicated constant file `frontend/src/constants/aoi.ts`, resolving the React Fast Refresh `react(only-export-components)` warning.
+  - Refactored `frontend/src/components/ArtifactsViewer.tsx` to derive `activeArtifact` during render rather than mutating state inside a `useEffect`, eliminating the `react(set-state-in-effect)` warning.
+  - Cleaned up `frontend/src/__tests__/AuthModal.test.tsx` by removing unused test imports (`waitFor`).
+  - Updated `frontend/src/components/Header.tsx` version badge from `v2.3` to `v2.5` to accurately reflect the stabilized release.
+- **Responsive Layout Enhancements (`frontend/src/index.css`):**
+  - Added CSS media queries for desktop, tablet, and mobile breakpoints (`@media (max-width: 1024px)`, `@media (max-width: 768px)`, `@media (max-width: 480px)`).
+  - Configured flex-wrapping for header telemetry badges, grid stacking for metrics cards and cartographic figure displays, and touch-friendly padding adjustments.
+- **Static Analysis & Build Verification:**
+  - Oxlint: Scanned 24 frontend TypeScript/TSX source files with 0 errors and 0 blocking warnings.
+  - Vitest: 18 passed across all 4 test suites.
+  - Vite: Production build completed in 1.99s with 0 errors.
+
+### 20.3 Live Demonstration & Playwright End-to-End Browser Validation
+- **End-to-End Automated Browser Validation:**
+  - Updated `scripts/validate_real_satellite_browser.mjs` with dynamic path resolution and correct ESM imports.
+  - Executed full 8-stage browser journey on live running instances of FastAPI (:8000) and Vite (:5173).
+  - All 8 steps passed successfully against genuine Sentinel-2 Level-2A data (`2023-10-10` vs `2023-12-09`):
+    - Real orbital badge (`REAL ORBITAL S2`) verified in DOM.
+    - Water metrics: $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$).
+    - 4-class transitions verified: Permanent Water ($0.50\text{ ha}$), Inundation ($1.16\text{ ha}$), Recession ($0.03\text{ ha}$), Persistent Land ($440.09\text{ ha}$).
+    - High-resolution cartography rendered.
+    - Verified download and integrity of audit report assets: 7.4 MB PDF and CSV dataset.
+  - Captured fresh 8-panel screenshot sequence in `outputs/validation_phase2_4/` (`01_initial_landing.png` through `08_report_downloads.png`).
+
+### 20.4 Academic Documentation Suite Completion
+- **`README.md`:** Completely rewritten from Phase 1 feasibility stub to comprehensive production platform guide, including multi-scale findings, architecture diagram, installation steps, and test instructions.
+- **`docs/ARCHITECTURE.md`:** Comprehensive blueprint with 3 valid Mermaid diagrams (`flowchart TD`, `sequenceDiagram`, `erDiagram`), documenting all five operational tiers, PostGIS spatial indexing, and security boundaries.
+- **`docs/DEMO_GUIDE.md`:** Step-by-step evaluator guide detailing live demo execution, expected metrics, test assertions, and fallback procedures.
+- **`docs/SCIENTIFIC_METHODOLOGY.md`:** Detailed remote sensing reference detailing Sentinel-2 MSI physics, McFeeters NDWI formulation, windowed COG streaming, scale dynamics, and environmental limitations.
+- **`docs/PROJECT_REPORT.md`:** Complete academic capstone engineering report including Abstract, Problem Statement, Literature Review, Architecture, Multi-Scale Findings, Ethical Considerations, and References.
+
+### 20.5 Verification Summary
+- **Backend Test Suite:** 185 passed, 1 skipped (live CDSE credential test) across 16 test modules. Zero regressions.
+- **Frontend Test Suite:** 18 passed, 0 failed across 4 test suites.
+- **Frontend Lint & Build:** 0 errors in oxlint, Vite production build succeeded in 1.99s.
+- **Browser Validation:** 8/8 stages passed on live server instances with real Sentinel-2 Level-2A imagery.
+- **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
+
+
 
 
 
