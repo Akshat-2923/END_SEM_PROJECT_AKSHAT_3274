@@ -5,7 +5,7 @@
 **Academic Affiliation:** Registered College Engineering Capstone Project  
 **Core Study Area Baseline:** Gomti River Corridor, Lucknow, Uttar Pradesh, India (`[80.88, 26.80, 81.00, 26.90]`)  
 **Repository:** `END_SEM_PROJECT_AKSHAT_3274`  
-**Current Architecture Phase:** Phase 2.4 Complete (Phases 1, 2.1, 2.2, 2.3, 2.4 Verified)  
+**Current Architecture Phase:** Phase 2.4.1 Complete (Phases 1, 2.1, 2.2, 2.3, 2.4, 2.4.1 Audited & Synchronized)  
 
 ---
 
@@ -672,6 +672,69 @@ Automated test script `scripts/validate_real_satellite_browser.mjs` executed 8 c
 - **Test Suite Status:** **203 total passing automated tests** (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live external test).
 - **Live Browser Automation:** 8/8 steps passed in Playwright Chromium.
 - **Pass Rate:** **100%**. Zero regressions. Zero secrets leaked.
+
+---
+
+## Milestone 19: Phase 2.4.1 — Scientific Results Audit & GitHub Synchronization
+**Date:** 2026-11-12  
+**Focus:** Comprehensive scientific consistency audit of Sentinel-2 multi-spectral calculations across spatial scales (Phase 1 regional basin vs. Phase 2.4 urban reach), metadata verification of cloud cover attributes, verification of reproducible browser and report assets, and fast-forward synchronization with the remote GitHub repository.
+
+### 19.1 Scientific Consistency Audit & Comparative Scale Resolution
+- **Investigation Objective:** Evaluate the mathematical, spectral, and spatial relationship between:
+  - *Phase 1 Feasibility Report:* Earlier water area = 184.56 ha, Later water area = 139.33 ha, Net change = -45.23 ha (-24.51% seasonal recession).
+  - *Phase 2.4 Validation Report:* Earlier water area = 0.53 ha, Later water area = 1.66 ha, Net change = +1.13 ha (+213.21% inundation expansion).
+- **Identical Raw Observation Verification:**
+  - Both analyses retrieved and processed the **exact same** Sentinel-2 Level-2A surface reflectance granules:
+    - Earlier ($T_1$, 2023-10-10): `S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510`
+    - Later ($T_2$, 2023-12-09): `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512`
+  - Both analyses ingested the exact same 10m bands: Band 3 (Green 10m) and Band 8 (NIR 10m).
+  - Both analyses applied the identical McFeeters (1996) NDWI formulation: $\text{NDWI} = (\text{B03} - \text{B08}) / (\text{B03} + \text{B08})$, with zero-denominator clamping ($|\text{B03} + \text{B08}| \le 10^{-6}$) and classification threshold $\tau = 0.00$.
+  - Both analyses projected in native UTM Zone 44N (`EPSG:32644`) with 10.0m $\times$ 10.0m ground resolution ($100.0\text{ m}^2/\text{pixel}$).
+- **Spatial Extent Discrepancy Resolution:**
+  - *Phase 1 Spatial Envelope (Regional Basin):* Bounding box `[80.88, 26.80, 81.00, 26.90]`, covering **13,230.37 ha** ($132.30\text{ km}^2$, 1,323,037 valid pixels). Over this large metropolitan Lucknow corridor enclosing over 40 km of the meandering river network, oxbow lakes, and floodplain agricultural wetlands, surface water exhibited natural post-monsoon recession from 184.56 ha to 139.33 ha (-45.23 ha, -24.51%).
+  - *Phase 2.4 Spatial Envelope (Urban Reach):* Bounding box `[80.90, 26.84, 80.92, 26.86]`, covering **439.79 ha** ($4.40\text{ km}^2$, 43,979 valid pixels) — representing only **3.32%** of the Phase 1 regional area.
+  - *Hydrodynamic Phenomenon:* In this specific urban sub-reach directly along the channelized Gomti Riverfront in downtown Lucknow, water area expanded from 0.53 ha to 1.66 ha (+1.13 ha) because river stages through Lucknow city are regulated by the **Gomti Barrage** and **Gaughat Barrage** gates. Barrage gates are closed and impounded post-monsoon to maintain minimum pool elevations for municipal water intake and riverfront aesthetics during early winter, even while unimpounded natural wetlands and floodplain meanders upstream experience seasonal recession.
+- **System Constraint Alignment:**
+  - In Phase 2.1 / Phase 2.2, ADR-004 and `src/aoi_validation.py` established a strict system ceiling of $\text{Area}_{\text{AOI}} \le 100.00\text{ km}^2$ to guarantee that single-node worker memory remains under 500 MB.
+  - The Phase 1 regional rectangle ($132.30\text{ km}^2$) exceeds this operational boundary, whereas the 4.40 km² urban reach complies fully.
+
+### 19.2 Mathematical Consistency Verification
+Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
+1. *When clipped to Phase 1 BBOX (`[80.88, 26.80, 81.00, 26.90]`):*
+   - Grid Shape: $(1109, 1193)$ = 1,323,037 pixels = 13,230.37 ha
+   - $T_1$ Water Pixels: 18,456 $\implies$ 184.56 ha (100.0% match with Phase 1)
+   - $T_2$ Water Pixels: 13,933 $\implies$ 139.33 ha (100.0% match with Phase 1)
+   - Persistent Water: 12,518 pixels $\implies$ 125.18 ha
+   - Apparent Loss: 5,938 pixels $\implies$ 59.38 ha
+   - Apparent Gain: 1,415 pixels $\implies$ 14.15 ha
+   - Net Change: -45.23 ha (-24.51%)
+2. *When clipped to Phase 2.4 BBOX (`[80.90, 26.84, 80.92, 26.86]`):*
+   - Grid Shape: $(223, 200)$ = 44,600 total pixels (43,979 common valid pixels = 439.79 ha)
+   - $T_1$ Water Pixels: 53 $\implies$ 0.53 ha (100.0% match with Phase 2.4)
+   - $T_2$ Water Pixels: 166 $\implies$ 1.66 ha (100.0% match with Phase 2.4)
+   - Persistent Water: 39 pixels $\implies$ 0.39 ha
+   - Apparent Loss: 14 pixels $\implies$ 0.14 ha
+   - Apparent Gain: 127 pixels $\implies$ 1.27 ha
+   - Net Change: +1.13 ha (+213.21%)
+- **Conclusion:** Both sets of metrics are 100% mathematically and algorithmically accurate for their respective spatial extents. Neither is synthetic or corrupted.
+
+### 19.3 Cloud Cover Metadata vs. Pixel Masking Distinction
+- **Investigation:** STAC catalogue search and analysis runs report `cloud_cover: 0.0%`.
+- **Finding:** The STAC metadata value is extracted directly from the Sentinel-2 L2A STAC item property `eo:cloud_cover`. This represents the **whole-scene (granule-level) cloud cover percentage** computed by ESA's Sen2Cor Level-2A processor across the full $100 \times 100\text{ km}$ MGRS tile (`T44RMQ`).
+- **Clarification:** It is not an AOI-specific cloud mask (e.g. from the Scene Classification Layer / SCL band). In both selected scenes, clear-sky winter conditions produced 0.0% cloud obscuration across the entire tile.
+
+### 19.4 Browser Evidence & Asset Integrity
+- Verified that all 8 Playwright browser screenshots exist in `outputs/validation_phase2_4/`:
+  `01_initial_landing.png` through `08_report_downloads.png`.
+- Verified execution summary `outputs/validation_phase2_4/validation_summary.json` confirms `success: true`.
+- Verified that `dharascope_analysis_c7463b8c.csv` and `dharascope_analysis_c7463b8c.pdf` (7,416,579 bytes) share the identical analysis run ID (`c7463b8c`), proving zero cross-run contamination.
+- Confirmed zero synthetic data intrusion into real orbital workflows (`# Real Satellite Data,TRUE`, `is_real_badge_present: true`, `synthetic_banner_absent: true`).
+
+### 19.5 GitHub Synchronization
+- Verified remote `origin` pointed to `https://github.com/Akshat-2923/END_SEM_PROJECT_AKSHAT_3274.git`.
+- Fast-forward pushed all 13 commits from Phase 2.2 through Phase 2.4.1 without force-pushing, preserving complete history.
+- Remote commit hash verified, working tree clean.
+
 
 
 

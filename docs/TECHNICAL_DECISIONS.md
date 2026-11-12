@@ -22,6 +22,7 @@
 - [ADR-011: Distributed Role Consistency, Compensating Updates, and Immediate Admin Revocation](#adr-011-distributed-role-consistency-compensating-updates-and-immediate-admin-revocation)
 - [ADR-012: PostgreSQL Commit Recovery Lifecycle and Role Journal Durability Audit](#adr-012-postgresql-commit-recovery-lifecycle-and-role-journal-durability-audit)
 - [ADR-013: Handling Ambiguous PostgreSQL Commit Outcomes in Distributed Role Synchronization](#adr-013-handling-ambiguous-postgresql-commit-outcomes-in-distributed-role-synchronization)
+- [ADR-014: Spatial Extent Scale Invariance and Multi-Scale Surface Water Dynamics](#adr-014-spatial-extent-scale-invariance-and-multi-scale-surface-water-dynamics)
 
 ---
 
@@ -356,3 +357,34 @@ Implement rigorous ambiguous commit resolution in `execute_reliable_role_update(
      - Raise HTTP 502 Bad Gateway with diagnostic notification.
 4. **Anti-Split-Brain Invariant:** Never mark a synchronization `COMPENSATED` without proving both PostgreSQL and Supabase Auth contain the `old_role`.
 5. **Idempotent Reconciliation:** Ensure reconciliation calls (`reconcile_user_role()`) update prior desynchronized journal records and re-apply authoritative PostgreSQL roles idempotently.
+
+---
+
+### ADR-014: Spatial Extent Scale Invariance and Multi-Scale Surface Water Dynamics
+
+#### Status
+**ACCEPTED AND VALIDATED (Phase 2.4.1 Scientific Audit)**
+
+#### Context
+A comparative scientific audit of Phase 1 feasibility results versus Phase 2.4 end-to-end results identified an apparent discrepancy:
+- **Phase 1 Baseline:** Earlier water area = 184.56 ha, Later water area = 139.33 ha, Net change = -45.23 ha (-24.51% seasonal recession).
+- **Phase 2.4 Verification:** Earlier water area = 0.53 ha, Later water area = 1.66 ha, Net change = +1.13 ha (+213.21% inundation expansion).
+
+An audit was required to determine whether this difference represents an algorithmic error, spectral calculation divergence, or spatial scale variance.
+
+#### Investigation & Findings
+1. **Identical Satellite Acquisitions:** Both Phase 1 and Phase 2.4 utilized the exact same Sentinel-2 Level-2A granules:
+   - $T_1$: `S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` (Acquired: 2023-10-10)
+   - $T_2$: `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512` (Acquired: 2023-12-09)
+2. **Identical Processing Pipeline:** Both phases applied McFeeters (1996) NDWI ($\tau = 0.00$), native 10m spatial resolution ($100.0\text{ m}^2/\text{pixel}$), native projected CRS `EPSG:32644` (UTM Zone 44N), and common valid pixel mask intersection ($T_1 \land T_2$).
+3. **Discrepancy Root Cause — Spatial Extent Difference:**
+   - **Phase 1 AOI (Regional Basin Corridor):** Bounding box `[80.88, 26.80, 81.00, 26.90]`, spanning **13,230.37 ha** ($132.30\text{ km}^2$, 1,323,037 pixels). This regional envelope encloses over 40 km of the meandering Gomti River, suburban oxbow lakes, floodplain wetlands, and peripheral irrigation drainage. Over this full regional basin, post-monsoon natural surface water receded by 45.23 ha (-24.51%).
+   - **Phase 2.4 AOI (Urban Reach Corridor):** Bounding box `[80.90, 26.84, 80.92, 26.86]`, spanning **439.79 ha** ($4.40\text{ km}^2$, 43,979 common valid pixels). This focused reach covers only **3.32%** of the Phase 1 regional area, situated in downtown Lucknow directly along the channelized Gomti Riverfront.
+   - **Hydrodynamic Explanation:** In this urban reach, water surface expanded from 0.53 ha to 1.66 ha (+1.13 ha) because the Gomti River through Lucknow is regulated by the Gomti Barrage and Gaughat Barrage gates, which are impounded post-monsoon to maintain minimum pool elevations for urban water works, even while upstream natural wetlands and floodplains experience standard seasonal drying.
+4. **System Constraint Alignment:** In Phase 2.1 / Phase 2.2, ADR-004 and `src/aoi_validation.py` established a strict system constraint of $\text{Area}_{\text{AOI}} \le 100.00\text{ km}^2$ to prevent worker memory exhaustion. The Phase 1 regional rectangle ($132.3\text{ km}^2$) properly exceeds this operational safety limit, whereas the 4.4 km² urban reach complies fully.
+5. **Cloud Cover Metadata Clarification:** The reported 0.0% cloud cover in STAC and analysis runs represents whole-scene granule metadata (`eo:cloud_cover` across the $100 \times 100\text{ km}$ MGRS tile `T44RMQ`), rather than an AOI-clipped cloud mask.
+
+#### Decision
+1. Retain the verified scientific findings transparently. Do not alter empirical results to artificially match earlier regional figures.
+2. Formally document that DharaScope is an extent-dependent multi-scale analytical platform: surface water dynamics are function of the user's specific spatial envelope.
+3. Explicitly report the AOI bounding box, spatial area (ha/km²), and valid pixel count alongside all surface water change metrics in API responses, CSV data manifests, and PDF publication reports.

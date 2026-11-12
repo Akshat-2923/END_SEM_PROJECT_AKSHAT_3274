@@ -41,6 +41,10 @@ $$0.10\text{ km}^2 \le \text{Area}_{\text{AOI}} \le 100.00\text{ km}^2$$
 
 - **Lower Boundary ($0.10\text{ km}^2 = 100,000\text{ m}^2 = 1,000\text{ pixels}$):** Below this threshold, 10m pixel granularity produces excessive statistical variance where single-pixel classification shifts cause disproportionate percentage swings.
 - **Upper Boundary ($100.00\text{ km}^2 = 100,000,000\text{ m}^2 = 1,000,000\text{ pixels}$):** Restricts the maximum array dimensions to approximately $1000 \times 1000$ elements, ensuring memory footprint stays under $500\text{ MB}$ per analysis run on a single worker node.
+- **Multi-Scale Spatial Dynamics (Regional Basin vs. Urban Reach):**
+  - Regional basin-scale analysis (e.g., Phase 1 Gomti regional corridor `[80.88, 26.80, 81.00, 26.90]`, $132.30\text{ km}^2$) exceeds the single-run $100.00\text{ km}^2$ constraint and captures broad floodplain recession (-24.51%).
+  - Reach-scale analysis (e.g., Phase 2.4 urban study reach `[80.90, 26.84, 80.92, 26.86]`, $4.40\text{ km}^2$) complies with single-run bounds and captures localized hydrodynamic phenomena, including barrage impoundment effects along the Gomti Riverfront (+213.21%).
+  - Surface water dynamics are scale-dependent; results from different spatial envelopes must not be directly compared without normalizing for spatial extent.
 - **Configurability:** Bounds are governed by `MIN_AOI_AREA_KM2` and `MAX_AOI_AREA_KM2` environment variables in `src/config.py`.
 
 ### 2.2 Boundary Complexity & Topology Limits

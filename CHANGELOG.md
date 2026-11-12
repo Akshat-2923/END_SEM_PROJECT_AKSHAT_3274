@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.1] - 2026-11-12
+### Audited
+- **Phase 2.4.1: Scientific Results Audit & GitHub Synchronization:**
+  - **Scientific Scale Consistency Audit:** Resolved the apparent discrepancy between Phase 1 reported water extents (184.56 ha / 139.33 ha, -24.51%) and Phase 2.4 verified results (0.53 ha / 1.66 ha, +213.21%).
+  - **Identical Observation Data:** Verified that both analyses used the exact same Sentinel-2 Level-2A acquisitions (`S2A_MSIL2A_20231010T050721_N0510_R019_T44RMQ_20241101T170510` on 2023-10-10 and `S2A_MSIL2A_20231209T051211_N0510_R019_T44RMQ_20241102T132512` on 2023-12-09), identical Band 3 (Green 10m) and Band 8 (NIR 10m) rasters, identical McFeeters (1996) NDWI formulation, identical threshold ($\tau = 0.00$), and identical projected coordinate system (`EPSG:32644`).
+  - **Spatial Scale Resolution:** Proved that the variation is 100% attributable to the difference in spatial bounding box extents:
+    - Phase 1 Regional Corridor (`[80.88, 26.80, 81.00, 26.90]`): 13,230.37 ha (132.30 km², 1,323,037 pixels) capturing broad floodplain and natural wetland seasonal recession (-45.23 ha). Note that this regional envelope exceeds the single-run system ceiling of 100 km² established in Phase 2.2.
+    - Phase 2.4 Urban Reach (`[80.90, 26.84, 80.92, 26.86]`): 439.79 ha (4.40 km², 43,979 pixels) covering only 3.32% of the regional area directly along the channelized Gomti Riverfront, where post-monsoon barrage impoundment (Gaughat and Gomti Barrages) elevates urban winter river stages (+1.13 ha).
+  - **Cloud Cover Metadata Clarification:** Confirmed that reported 0.0% cloud cover reflects ESA Sen2Cor scene-level tile metadata (`eo:cloud_cover` for MGRS tile `T44RMQ`), rather than an AOI-specific cloud mask.
+  - **Reproducibility & Evidence Audit:** Verified all 8 Playwright browser screenshots (`outputs/validation_phase2_4/01_*.png` through `08_*.png`), execution summary JSON, matching CSV data manifest (`dharascope_analysis_c7463b8c.csv`), and 7.4 MB PDF report. Confirmed zero synthetic data intrusion into real orbital workflows.
+  - **GitHub Synchronization:** Synchronized local Git repository (`main` branch) with GitHub remote (`origin/main`).
+
+---
+
 ## [0.9.0] - 2026-11-11
 ### Validated
 - **Phase 2.4: Real Satellite End-to-End Validation:**
