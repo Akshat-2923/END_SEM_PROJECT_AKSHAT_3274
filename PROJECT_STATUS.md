@@ -2,44 +2,37 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.7.1 — Critical Presentation Data Correction (Complete)  
-**Last Updated:** 2026-11-12  
-**Overall System Health:** `HEALTHY / OPERATIONAL / DEFENSE-READY & PRESENTATION-VERIFIED (v1.0.3)`  
+**Current Phase:** Phase 2.8 — Azure PostgreSQL Flexible Server Integration (Complete)  
+**Last Updated:** 2026-11-14  
+**Overall System Health:** `HEALTHY / OPERATIONAL / CLOUD-READY & PRESENTATION-VERIFIED (v1.0.4)`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully completed **Phase 2.7.1 (Critical Presentation Data Correction)**, reconciling all numerical presentation metrics with the authoritative Phase 2.4 CSV and PDF execution manifests (`outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`). Slide 11 in `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, and `docs/FINAL_DEFENSE_SCRIPT.md` now strictly reflect the ground-truth observed surface water extents: $T_1 = 53\text{ px}$ ($0.53\text{ ha}$), $T_2 = 166\text{ px}$ ($1.66\text{ ha}$), and net change $\Delta A = +113\text{ px}$ ($+1.13\text{ ha}$, $+213.21\%$). The study area was explicitly renamed to "Urban Gomti River Study Reach, Lucknow" across all materials, and the automated test pass rate was refined to "185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing automated tests)".
+DharaScope has successfully completed **Phase 2.8 (Azure PostgreSQL Flexible Server Integration)**, preparing the application backend for production cloud deployment on Azure Database for PostgreSQL Flexible Server (PostgreSQL 16 + PostGIS 3.6.x) while preserving full zero-configuration backward compatibility with local development environments.
 
-### Key Phase 2.7.1 Accomplishments:
-1. **Authoritative Measurement Reconciliation:**
-   - Traced data provenance directly to `outputs/validation_phase2_4/dharascope_analysis_2f1a74a3.csv`:
-     - Earlier Water ($T_1$, Oct 10, 2023): Exactly 53 pixels = 0.53 ha (100.00% baseline).
-     - Later Water ($T_2$, Dec 09, 2023): Exactly 166 pixels = 1.66 ha (313.21% of baseline).
-     - Net Water Dynamics ($\Delta A$): +113 pixels = +1.13 ha (+213.21% net expansion).
-     - Perennial Channel Core: 39 pixels = 0.39 ha (73.58% of baseline).
-     - Inundation Expansion (Gain): 127 pixels = 1.27 ha (239.62% of baseline).
-     - Seasonal Recession (Loss): 14 pixels = 0.14 ha (26.42% of baseline).
-     - Persistent Land: 43,799 pixels = 437.99 ha.
-     - Common Overlapping Valid Footprint: 43,979 pixels = 439.79 ha.
-   - Verified exact mathematical conservation: $39 + 14 = 53\text{ px}$, $39 + 127 = 166\text{ px}$, $166 - 53 = +113\text{ px}$.
-2. **Master Deck Regeneration (`DharaScope_Final_Presentation.pptx`):**
-   - Re-executed `scripts/generate_presentation.py` to regenerate `DharaScope_Final_Presentation.pptx`.
-   - Verified that all 15 widescreen slides, Slide 11 data table, and comprehensive unscripted speaker notes are completely preserved and consistent.
-3. **Study Area Renaming & Geographic Specificity:**
-   - Standardized the naming to **"Urban Gomti River Study Reach, Lucknow"** across slides, speaker notes, defense scripts, and report documentation to prevent confusion with the broader Phase 1 regional feasibility basin ($132.30\text{ km}^2$).
-4. **Test Pass Rate Precision:**
-   - Replaced generic "100% pass rate" claims with transparent reporting: **"185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing automated tests)"**.
-5. **Cross-Document Numerical Consistency:**
-   - Audited and synchronized numerical values across `DharaScope_Final_Presentation.pptx`, `docs/PRESENTATION.md`, `docs/FINAL_DEFENSE_SCRIPT.md`, `docs/JUDGE_QA.md`, and `docs/PROJECT_REPORT.md`.
-6. **GitHub Synchronization:** All local commits fast-forward synchronized to `origin/main` on GitHub (`Akshat-2923/END_SEM_PROJECT_AKSHAT_3274`).
+Key accomplishments in Phase 2.8:
+1. **Dual Database Configuration:** Added environment-driven parameters (`DATABASE_URL`, `DB_SSL_MODE=require`, `DB_POOL_SIZE=5`, `DB_MAX_OVERFLOW=10`, `DB_POOL_TIMEOUT=30`, `DB_POOL_RECYCLE=1800`) allowing instantaneous switching between local and cloud PostgreSQL.
+2. **Safe Credential Handling:** Replaced raw string concatenation with `sqlalchemy.engine.make_url`. Implemented systematic password masking (`***`) in logs, connection exceptions, and API payloads via `get_sanitized_database_url()`.
+3. **SSL/TLS Negotiation & Cloud Connection Pooling:** Configured `create_engine` with `connect_args={"sslmode": ...}` for PostgreSQL without breaking SQLite, paired with `pool_recycle=1800` (countering Azure 4-minute idle firewall disconnects) and `pool_pre_ping=True` for resilient socket recovery.
+4. **Database Diagnostics Endpoints:** Added `GET /health/db` and `GET /api/v1/health/db` returning structured, sanitized operational diagnostics (ping, dialect, PostGIS version, active SSL status, pool metrics) without leaking credentials.
+5. **Row-Level Security (RLS) Portability:** Proved complete portability of DharaScope's PostgreSQL RLS policies (`auth.uid()`, `auth.role()`, `dharascope_app` non-superuser role, and `SET LOCAL ROLE` / `set_config` injection) on Azure Flexible Server without requiring proprietary Supabase extensions.
+6. **Alembic Cloud Migrations:** Updated `alembic/env.py` to negotiate SSL when `DB_SSL_MODE` is configured.
+7. **Comprehensive Test Suite:** Added 17 unit/integration tests in `tests/test_azure_database_config.py`. Total automated test count reached **202 passed, 1 skipped in 92.66s** with zero regressions.
+8. **Deployment Guide:** Published `docs/AZURE_POSTGRESQL.md` covering SKU selection, `azure.extensions` configuration (`POSTGIS,UUID-OSSP`), firewall rules, RLS, and migration execution.
 
 ---
 
 ## 2. Subsystem Implementation Status
 
 ### 2.1 Completed Subsystems & Features
+- [x] **Cloud & Local PostgreSQL Subsystem (`src/database/` & `alembic/`):**
+  - PostgreSQL 16 + PostGIS 3.6 dual support (Local development & Azure Database for PostgreSQL Flexible Server).
+  - Environment-based SSL enforcement (`DB_SSL_MODE=require`) and connection pooling (`pool_size`, `max_overflow`, `pool_recycle=1800`, `pool_pre_ping=True`).
+  - Safe URL handling via `make_url` and password redaction in logs/diagnostics.
+  - Dedicated diagnostic endpoints (`/health/db`) and Alembic cloud migration support.
+  - Multi-tenant Row-Level Security (RLS) with `dharascope_app` non-superuser role and standard PostgreSQL session variables.
 - [x] **Satellite Catalogue Discovery (`src/stac_client.py`):** Copernicus Data Space Ecosystem (CDSE) STAC API client with pagination, exponential backoff, and item metadata extraction.
 - [x] **Observation Pair Optimization (`src/scene_selection.py`):** Polygonal study area intersection, cloud cover filtering, and optimal temporal separation.
 - [x] **Multi-Tier Raster Retrieval (`src/downloader.py`):**
@@ -127,14 +120,15 @@ DharaScope has successfully completed **Phase 2.7.1 (Critical Presentation Data 
 
 ## 3. Automated Test Suite Metrics & Audit Categorization
 
-- **Total Automated Tests:** 203 passing tests (185 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
-- **Pass Rate:** 185/185 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (203 total passing tests, zero regressions)
-- **Code Coverage (`pytest-cov` across `src/`):** **83.0% statement coverage** (2,163 of 2,605 statements covered). Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%).
-- **Backend Test Modules (16 modules, 185 passed, 1 skipped):**
-  1. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).
-  2. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).
-  3. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
-  4. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
+- **Total Automated Tests:** 220 passing tests (202 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
+- **Pass Rate:** 202/202 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (220 total passing tests, zero regressions)
+- **Code Coverage (`pytest-cov` across `src/`):** **83.0%+ statement coverage** across `src/`. Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%), `database/config` (100%), `database/session` (96%).
+- **Backend Test Modules (17 modules, 202 passed, 1 skipped):**
+  1. `tests/test_azure_database_config.py`: 17 passed (safe make_url parsing, password redaction, DB_SSL_MODE environment overrides, query parameter fallback, test mode isolation, SSL connect_args injection for PostgreSQL, SQLite omission, connection pooling, check_database_connectivity diagnostics, connection failure credential masking, mock engine diagnostics, /health/db, /api/v1/health/db, and standard /health backward compatibility).
+  2. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).
+  3. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).
+  4. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
+  5. `tests/test_storage.py`: 16 passed, 1 skipped (local and Supabase storage lifecycle, upload failure error handling, decoupled live integration test).
   5. `tests/test_aoi_validation.py`: 15 passed (valid bboxes, GeoJSON dicts, Features, Collections, strings, MultiPolygons, min/max area limits, topology self-intersections, coordinate bounds, vertex ceilings).
   6. `tests/test_api_service_layer.py`: 33 passed (system health, root metadata, OpenAPI accessibility, unauthenticated rejection, invalid/expired JWT rejection, profile retrieval/update, admin user list, admin quota update, AOI geometry validation, out-of-bounds rejection, AOI CRUD, cross-user private AOI isolation, public AOI shared viewing and edit protections, analysis creation with existing/inline AOIs, missing geometry rejection, invalid threshold rejection, synthetic background pipeline execution, authorized report/artifact download, cross-user report download rejection, queued report rejection, 404/422 error sanitization).
   7. `tests/test_auth_jwt.py`: 25 passed (valid user/admin JWTs, untrusted user-metadata rejection, missing role defaults, unknown role handling, Supabase system claim isolation, missing token, invalid signature, expired token, forged issuer, invalid audience, non-UUID subject, 401/403 status responses, profile auto-creation, anti-privilege escalation, production missing secret/issuer fail-closed guards, development fallback secret rejection in production, immediate admin revocation with stale JWT, fail-closed DB errors).

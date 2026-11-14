@@ -13,7 +13,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from src.database.base import Base
 import src.database.models  # noqa: F401 - load all models for metadata
-from src.database.config import get_database_url
+from src.database.config import (
+    get_database_config,
+    get_database_url,
+    parse_database_url,
+)
 
 config = context.config
 
@@ -58,7 +62,21 @@ def run_migrations_online() -> None:
 
     if connectable is None:
         target_url = config.get_main_option("sqlalchemy.url") or resolved_url
-        connectable = create_engine(target_url, poolclass=pool.NullPool)
+        db_config = get_database_config(url=target_url)
+        parsed = parse_database_url(target_url)
+
+        connect_args = {}
+        if parsed.drivername.startswith("postgresql"):
+            if db_config.ssl_mode:
+                connect_args["sslmode"] = db_config.ssl_mode
+            if db_config.ssl_root_cert:
+                connect_args["sslrootcert"] = db_config.ssl_root_cert
+
+        connectable = create_engine(
+            target_url,
+            poolclass=pool.NullPool,
+            connect_args=connect_args,
+        )
 
         with connectable.connect() as connection:
             context.configure(

@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.4] - 2026-11-14
+### Added & Configured
+- **Phase 2.8: Azure PostgreSQL Flexible Server Integration (Code Preparation):**
+  - **Environment-Based Dual Database Configuration:**
+    - Added `DB_SSL_MODE` (`require`, `prefer`, `verify-ca`, `verify-full`) and `DB_SSL_ROOT_CERT` environment variables in `src/database/config.py`.
+    - Added connection pool controls: `DB_POOL_SIZE` (default 5), `DB_MAX_OVERFLOW` (default 10), `DB_POOL_TIMEOUT` (default 30), and `DB_POOL_RECYCLE` (default 1800).
+    - Preserved zero-configuration fallback for local development (`postgresql+psycopg2://postgres@localhost:5432/dharascope`).
+  - **Safe URL Parsing & Credential Redaction:**
+    - Replaced raw string concatenation with `sqlalchemy.engine.make_url` in `parse_database_url()`.
+    - Implemented `get_sanitized_database_url()` to systematically replace passwords with `***` across all log messages, error handlers, and diagnostic endpoints.
+  - **SSL Negotiation & Connection Pooling in SQLAlchemy Engine:**
+    - Updated `src/database/session.py:get_engine()` to inject `connect_args["sslmode"]` for PostgreSQL while omitting it for SQLite, avoiding dialect `TypeError` exceptions.
+    - Configured `pool_size`, `max_overflow`, `pool_timeout`, `pool_recycle=1800` (countering Azure's 4-minute idle socket termination), and `pool_pre_ping=True` for resilient connection recovery.
+  - **Database Connectivity Diagnostics Endpoint:**
+    - Implemented `check_database_connectivity()` inspecting ping status, server engine version, PostGIS version, active SSL status, pool metrics, and sanitized target info.
+    - Added FastAPI endpoints `GET /health/db` and `GET /api/v1/health/db` returning structured `DatabaseDiagnosticResponse`.
+    - Preserved backward compatibility of `GET /health` and `GET /api/v1/health`.
+  - **Alembic Cloud SSL Migration Support:**
+    - Updated `alembic/env.py` to pass `connect_args={"sslmode": ...}` when `DB_SSL_MODE` is specified, enabling smooth migration execution against Azure.
+  - **Documentation & Automated Test Suite:**
+    - Authored deployment guide `docs/AZURE_POSTGRESQL.md` covering SKU selection, `azure.extensions` configuration (`POSTGIS,UUID-OSSP`), SSL certificates, RLS portability, and troubleshooting.
+    - Added 17 automated tests in `tests/test_azure_database_config.py`; test suite expanded to **202 passed, 1 skipped in 92.66s**.
+
+
 ## [1.0.3] - 2026-11-12
 ### Corrected & Verified
 - **Phase 2.7.1: Critical Presentation Data Correction:**

@@ -1314,6 +1314,54 @@
   - Regenerated `DharaScope_Final_Presentation.pptx` via `python-pptx`, confirming 15 slides and speaker notes intact.
   - Ran backend pytest suite (185 passed, 1 skipped) and frontend vitest suite (18 passed).
 
+---
+
+### Task 28: Phase 2.8 — Azure PostgreSQL Integration (Code Preparation)
+- **Date:** 2026-11-14
+- **Development Stage:** Phase 2.8 (Azure PostgreSQL Flexible Server Integration)
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Azure PostgreSQL Integration (Code Preparation)
+
+  Implement Azure Database for PostgreSQL Flexible Server support in the existing DharaScope backend.
+
+  ## Objective
+  Prepare the application to support both:
+  - Local PostgreSQL for development.
+  - Azure Database for PostgreSQL Flexible Server for cloud deployment.
+
+  Target: PostgreSQL 16 + PostGIS 3.6.x.
+
+  ## Implementation
+  1. Inspect the existing SQLAlchemy, GeoAlchemy2, Alembic, FastAPI settings, database session and RLS implementation before editing.
+  2. Add environment-based database configuration: DATABASE_URL, DB_SSL_MODE=require for Azure. Preserve the existing local development configuration.
+  3. Use SQLAlchemy's URL handling safely. Do not manually concatenate credentials into connection URLs.
+  4. Configure SSL for Azure connections without weakening local development security.
+  5. Preserve existing SQLAlchemy engine/session lifecycle, connection pooling and dependency injection.
+  6. Verify GeoAlchemy2 geometry support and PostGIS compatibility.
+  7. Add a database connectivity/diagnostic check that does not expose credentials.
+  8. Review Alembic migrations for Azure PostgreSQL compatibility and document PostGIS extension enabling.
+  9. Audit RLS policies depending on Supabase functions (auth.uid(), auth.role(), auth.jwt()) and document Azure compatibility.
+  10. Add automated unit tests using mocked connections or test DB (no live Azure instance required).
+  11. Update .env.example with placeholders only.
+  12. Document deployment in docs/AZURE_POSTGRESQL.md.
+  13. Update DEVELOPMENT_HISTORY.md, PROMPT_LOG.md, CHANGELOG.md and PROJECT_STATUS.md.
+  14. Verify that test suite passes.
+  15. Commit with message: Phase 2.8: Prepare Azure PostgreSQL Flexible Server support, push to origin/main.
+  ```
+- **Files Created/Modified:**
+  - Created: `docs/AZURE_POSTGRESQL.md`, `tests/test_azure_database_config.py`
+  - Modified: `src/database/config.py`, `src/database/session.py`, `src/database/__init__.py`, `src/api/schemas/health.py`, `src/api/routers/health.py`, `alembic/env.py`, `.env.example`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`
+- **Verification:**
+  - Safe URL parsing: `parse_database_url` and `get_sanitized_database_url` using `sqlalchemy.engine.make_url`; passwords replaced with `***` in logs and outputs.
+  - SSL handling: `DB_SSL_MODE` (`require`, `prefer`, `verify-ca`) and `DB_SSL_ROOT_CERT` safely injected into `connect_args["sslmode"]` for PostgreSQL; SQLite engines omit `sslmode`, avoiding TypeErrors.
+  - Connection pooling: configured `pool_size`, `max_overflow`, `pool_timeout`, `pool_recycle=1800` (countering Azure 4-minute idle firewall severed sockets), and `pool_pre_ping=True`.
+  - Diagnostics: implemented `check_database_connectivity` and FastAPI endpoints `GET /health/db` and `GET /api/v1/health/db` returning structured `DatabaseDiagnosticResponse` without exposing credentials.
+  - Alembic migrations: updated `alembic/env.py` to inject SSL arguments for cloud migration execution.
+  - Test suite expansion: 17 new tests in `tests/test_azure_database_config.py`; full suite expanded to **202 passed, 1 skipped in 92.66s** with zero regressions.
+
+
 
 
 

@@ -984,6 +984,54 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
 - **Linter:** 0 errors across 25 source files in Oxlint.
 - **Git Synchronization:** All changes staged, committed, and fast-forward pushed to `origin/main`. Clean working tree.
 
+---
+
+## 24. Milestone 24: Phase 2.8 — Azure PostgreSQL Flexible Server Integration (Code Preparation)
+
+**Date:** 2026-11-14  
+**Phase:** 2.8  
+**Scope:** Azure Database for PostgreSQL Flexible Server Integration (Code Preparation), Safe Environment-Based Configuration (`DATABASE_URL`, `DB_SSL_MODE`, `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`), Safe SQLAlchemy URL Parsing via `make_url` with Credential Redaction, SSL/TLS Injection for Cloud Deployment without Local Regressions, Connection Pool Lifecycle Management, Sanitized Database Diagnostic Endpoints (`/health/db`), Alembic Cloud SSL Migration Support, PostGIS Compatibility Audit, RLS Portability Verification, and Deployment Documentation (`docs/AZURE_POSTGRESQL.md`)  
+
+### 24.1 Architecture & Design Decisions
+- **Target Specifications:** PostgreSQL 16 + PostGIS 3.6.x running on Azure Database for PostgreSQL Flexible Server.
+- **Dual Runtime Support:** Seamless zero-code toggle between local development (`postgresql+psycopg2://postgres@localhost:5432/dharascope`) and cloud deployment (`*.postgres.database.azure.com:5432/dharascope`) governed strictly by environment variables.
+- **SQLAlchemy URL Safety:** Eliminated raw string concatenation for connection strings. Implemented `parse_database_url()` and `get_sanitized_database_url()` using `sqlalchemy.engine.make_url`. All passwords are systematically masked (`***`) in logs, exception strings, and API payloads.
+- **TLS/SSL Configuration:** Implemented `DB_SSL_MODE` (`require`, `prefer`, `verify-ca`, `verify-full`) and `DB_SSL_ROOT_CERT`. Safely injected into `connect_args["sslmode"]` for PostgreSQL while preventing SQLite dialect injection (avoiding `TypeError`).
+- **Connection Pool Lifecycle:** Configured `create_engine` with `pool_size`, `max_overflow`, `pool_timeout`, `pool_recycle=1800` (countering Azure's 4-minute idle firewall disconnect), and `pool_pre_ping=True` for resilient connection recovery.
+- **Row-Level Security (RLS) Portability:** Proved that DharaScope's RLS architecture (`auth.uid()`, `auth.role()`, `dharascope_app` role with `NOSUPERUSER NOBYPASSRLS`, and session injection via `SET LOCAL ROLE` / `set_config`) utilizes standard PostgreSQL features and operates identically on Azure Flexible Server without requiring Supabase-specific Postgres extensions.
+
+### 24.2 Implemented Subsystems & Endpoints
+- **Database Configuration Module (`src/database/config.py`):**
+  - Enhanced `DatabaseConfig` dataclass with `ssl_mode`, `ssl_root_cert`, `pool_size`, `max_overflow`, `pool_timeout`, `pool_recycle`.
+  - Added `parse_database_url()` and `get_sanitized_database_url()`.
+  - Added `get_database_config()` parsing environment variables with fallback to URL query parameters.
+- **Session & Engine Management (`src/database/session.py`):**
+  - Updated `get_engine()` with connection pooling, pre-ping validation, and SSL argument negotiation.
+  - Added `check_database_connectivity()` inspecting ping connectivity, database version, PostGIS version, active SSL status, pool metrics, and sanitized URL with zero credential leakage.
+- **Alembic Cloud SSL Migration Support (`alembic/env.py`):**
+  - Updated `run_migrations_online()` to pass `connect_args={"sslmode": ...}` when `DB_SSL_MODE` is specified, enabling frictionless `alembic upgrade head` runs against Azure.
+- **System Health Diagnostics (`src/api/routers/health.py` & `src/api/schemas/health.py`):**
+  - Preserved backward-compatible `GET /health` and `GET /api/v1/health`.
+  - Added dedicated diagnostic endpoints `GET /health/db` and `GET /api/v1/health/db` returning structured `DatabaseDiagnosticResponse`.
+- **Cloud Configuration Template (`.env.example`):**
+  - Added non-sensitive placeholders for Azure Flexible Server: `DB_SSL_MODE=require`, `DB_POOL_SIZE=5`, `DB_MAX_OVERFLOW=10`, `DB_POOL_TIMEOUT=30`, `DB_POOL_RECYCLE=1800`.
+- **Deployment Documentation (`docs/AZURE_POSTGRESQL.md`):**
+  - Authored comprehensive guide covering SKU selection, `azure.extensions` configuration (`POSTGIS,UUID-OSSP`), SSL/TLS requirements, firewall configuration, RLS portability, migration runbooks, and common troubleshooting patterns.
+
+### 24.3 Automated Verification Suite (`tests/test_azure_database_config.py`)
+- Created 17 automated unit and integration tests across 5 categories:
+  1. Safe URL parsing and credential masking (4 tests).
+  2. Environment configuration parsing and overrides (4 tests).
+  3. Engine creation, SSL connect_args injection, and pooling (3 tests).
+  4. Database connectivity diagnostics and password redaction during failure (3 tests).
+  5. FastAPI `/health/db` and `/api/v1/health/db` diagnostic endpoints (3 tests).
+
+### 24.4 Test Execution Summary
+- **Backend Tests:** **202 passed, 1 skipped, 257 warnings in 92.66s** across 17 test modules (185 baseline + 17 new Azure database tests).
+- **Zero Regressions:** All existing API, authentication, AOI, analysis, reporting, and storage test suites passed without modification.
+- **Git Synchronization:** All changes reviewed, verified clean, and staged for commit.
+
+
 
 
 

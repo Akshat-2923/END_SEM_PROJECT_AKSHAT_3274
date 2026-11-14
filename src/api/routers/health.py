@@ -7,7 +7,12 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.api.dependencies import get_anonymous_db_session
-from src.api.schemas.health import HealthResponse
+from src.api.schemas.health import (
+    DatabaseDiagnosticResponse,
+    DatabasePoolMetrics,
+    HealthResponse,
+)
+from src.database.session import check_database_connectivity
 
 router = APIRouter(tags=["System Health & Diagnostics"])
 
@@ -46,6 +51,46 @@ def check_health(session: Session = Depends(get_anonymous_db_session)) -> Health
 
 
 @router.get(
+    "/health/db",
+    response_model=DatabaseDiagnosticResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Database Connectivity Diagnostics",
+    description="Inspect sanitized database parameters, PostGIS availability, SSL status, and pool metrics.",
+)
+@router.get(
+    "/api/v1/health/db",
+    response_model=DatabaseDiagnosticResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False,
+)
+def check_database_health() -> DatabaseDiagnosticResponse:
+    """Perform non-sensitive database diagnostic and return sanitized metrics."""
+    diag = check_database_connectivity()
+    pool_metrics = None
+    if diag.get("pool"):
+        pool_metrics = DatabasePoolMetrics(**diag["pool"])
+
+    return DatabaseDiagnosticResponse(
+        status=diag["status"],
+        connected=diag["connected"],
+        dialect=diag.get("dialect"),
+        driver=diag.get("driver"),
+        host=diag.get("host"),
+        port=diag.get("port"),
+        database_name=diag.get("database_name"),
+        username=diag.get("username"),
+        sanitized_url=diag.get("sanitized_url"),
+        ssl_mode=diag.get("ssl_mode"),
+        ssl_active=diag.get("ssl_active", False),
+        server_version=diag.get("server_version"),
+        postgis_version=diag.get("postgis_version"),
+        pool=pool_metrics,
+        error=diag.get("error"),
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
+@router.get(
     "/",
     status_code=status.HTTP_200_OK,
     summary="API Root Information",
@@ -62,3 +107,4 @@ def api_root():
         "health_check": "/health",
         "status": "operational",
     }
+
