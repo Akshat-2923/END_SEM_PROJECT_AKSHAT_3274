@@ -213,21 +213,21 @@
 The complete end-to-end user journey was verified on live servers across 8 workflow stages:
 
 1. **Landing & Session Initialization:** Clean, dark scientific GIS workstation interface with real-time status telemetry.
-   - Evidence: [01_initial_landing.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/01_initial_landing.png)
+   - Evidence: [01_initial_landing.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/01_initial_landing.png)
 2. **Authenticated Session:** Secure Supabase login; token claims displayed in header.
-   - Evidence: [02_authenticated_session.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/02_authenticated_session.png)
+   - Evidence: [02_authenticated_session.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/02_authenticated_session.png)
 3. **Interactive AOI Validation:** Urban Gomti River Study Reach, Lucknow preset validated via backend PostGIS ($4.40\text{ km}^2$, simple polygon).
-   - Evidence: [03_aoi_validated.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/03_aoi_validated.png)
+   - Evidence: [03_aoi_validated.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/03_aoi_validated.png)
 4. **Satellite Scene Discovery:** Automated STAC discovery identifies clear Sentinel-2A granules for October 10 and December 9, 2023 (T44RMQ).
-   - Evidence: [04_analysis_configured.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/04_analysis_configured.png)
+   - Evidence: [04_analysis_configured.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/04_analysis_configured.png)
 5. **Pipeline Execution & Provenance:** Background worker executes in 18.4s; `REAL ORBITAL S2` badge rendered.
-   - Evidence: [05_analysis_success_real_data.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/05_analysis_success_real_data.png)
+   - Evidence: [05_analysis_success_real_data.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/05_analysis_success_real_data.png)
 6. **Metrics & Transitions Display:** Real-time KPI cards display $0.53\text{ ha} \to 1.66\text{ ha}$ ($+1.13\text{ ha}$, $+213.21\%$).
-   - Evidence: [06_metrics_and_transitions.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/06_metrics_and_transitions.png)
+   - Evidence: [06_metrics_and_transitions.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/06_metrics_and_transitions.png)
 7. **Cartographic Map Display:** High-resolution 4-panel comparison figure and transition maps rendered.
-   - Evidence: [07_cartography_figures.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/07_cartography_figures.png)
+   - Evidence: [07_cartography_figures.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/07_cartography_figures.png)
 8. **Report Downloads:** Download of 7.4 MB publication PDF and matching CSV data manifest.
-   - Evidence: [08_report_downloads.png](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/08_report_downloads.png)
+   - Evidence: [08_report_downloads.png](file:///d:/Coding/Projects/DharaScope/artifacts/validation_phase2_4/08_report_downloads.png)
 
 *Speaker Notes:*  
 "Here we see the 8 stages of the user experience, proven through live browser automation. The user selects the Urban Gomti River Study Reach, Lucknow, configures cloud thresholds, triggers the pipeline, inspects the 4-class categorical map, and downloads publication-grade PDF and CSV reports."

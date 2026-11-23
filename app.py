@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from src.config import (
+    ARTIFACTS_DIR,
     BASE_DIR,
     GOMTI_BBOX,
     NDWI_WATER_THRESHOLD,
@@ -285,11 +286,25 @@ st.markdown(
 # -----------------------------------------------------------------------------
 # Data Loading & File Verification
 # -----------------------------------------------------------------------------
-REPORT_PATH = OUTPUTS_DIR / "phase1_feasibility_report.json"
-PANEL_IMAGE_PATH = OUTPUTS_DIR / "gomti_water_change_comparison_panel.png"
-CHANGE_MAP_PATH = OUTPUTS_DIR / "water_change_2023-10-10_to_2023-12-09.png"
-T1_NDWI_PATH = OUTPUTS_DIR / "observation_2023-10-10_ndwi.png"
-T2_NDWI_PATH = OUTPUTS_DIR / "observation_2023-12-09_ndwi.png"
+REPORT_PATH = ARTIFACTS_DIR / "reports" / "phase1_feasibility_report.json"
+if not REPORT_PATH.exists():
+    REPORT_PATH = OUTPUTS_DIR / "phase1_feasibility_report.json"
+
+PANEL_IMAGE_PATH = ARTIFACTS_DIR / "maps" / "gomti_water_change_comparison_panel.png"
+if not PANEL_IMAGE_PATH.exists():
+    PANEL_IMAGE_PATH = OUTPUTS_DIR / "gomti_water_change_comparison_panel.png"
+
+CHANGE_MAP_PATH = ARTIFACTS_DIR / "maps" / "water_change_2023-10-10_to_2023-12-09.png"
+if not CHANGE_MAP_PATH.exists():
+    CHANGE_MAP_PATH = OUTPUTS_DIR / "water_change_2023-10-10_to_2023-12-09.png"
+
+T1_NDWI_PATH = ARTIFACTS_DIR / "maps" / "observation_2023-10-10_ndwi.png"
+if not T1_NDWI_PATH.exists():
+    T1_NDWI_PATH = OUTPUTS_DIR / "observation_2023-10-10_ndwi.png"
+
+T2_NDWI_PATH = ARTIFACTS_DIR / "maps" / "observation_2023-12-09_ndwi.png"
+if not T2_NDWI_PATH.exists():
+    T2_NDWI_PATH = OUTPUTS_DIR / "observation_2023-12-09_ndwi.png"
 
 
 def load_report_data() -> Optional[Dict[str, Any]]:

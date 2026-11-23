@@ -2,25 +2,24 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Phase 2.8 — Azure PostgreSQL Flexible Server Integration (Complete)  
-**Last Updated:** 2026-11-14  
-**Overall System Health:** `HEALTHY / OPERATIONAL / CLOUD-READY & PRESENTATION-VERIFIED (v1.0.4)`  
+**Current Phase:** Repository Maintenance & Evaluation Preparation (Complete)  
+**Last Updated:** 2026-11-23  
+**Overall System Health:** `HEALTHY / OPERATIONAL / REPOSITORY ORGANIZED & EVALUATION READY (v1.0.5)`  
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has successfully completed **Phase 2.8 (Azure PostgreSQL Flexible Server Integration)**, preparing the application backend for production cloud deployment on Azure Database for PostgreSQL Flexible Server (PostgreSQL 16 + PostGIS 3.6.x) while preserving full zero-configuration backward compatibility with local development environments.
+DharaScope has completed full **Repository Cleanup and File Organisation** in preparation for final academic practical evaluation. The repository architecture has been streamlined into clearly separated top-level domains: source code (`src/`), frontend application (`frontend/`), automated tests (`tests/`), database migrations (`alembic/`), documentation (`docs/`), maintenance scripts (`scripts/`), local datasets (`data/`), and permanent demonstration outputs and artifacts (`artifacts/`).
 
-Key accomplishments in Phase 2.8:
-1. **Dual Database Configuration:** Added environment-driven parameters (`DATABASE_URL`, `DB_SSL_MODE=require`, `DB_POOL_SIZE=5`, `DB_MAX_OVERFLOW=10`, `DB_POOL_TIMEOUT=30`, `DB_POOL_RECYCLE=1800`) allowing instantaneous switching between local and cloud PostgreSQL.
-2. **Safe Credential Handling:** Replaced raw string concatenation with `sqlalchemy.engine.make_url`. Implemented systematic password masking (`***`) in logs, connection exceptions, and API payloads via `get_sanitized_database_url()`.
-3. **SSL/TLS Negotiation & Cloud Connection Pooling:** Configured `create_engine` with `connect_args={"sslmode": ...}` for PostgreSQL without breaking SQLite, paired with `pool_recycle=1800` (countering Azure 4-minute idle firewall disconnects) and `pool_pre_ping=True` for resilient socket recovery.
-4. **Database Diagnostics Endpoints:** Added `GET /health/db` and `GET /api/v1/health/db` returning structured, sanitized operational diagnostics (ping, dialect, PostGIS version, active SSL status, pool metrics) without leaking credentials.
-5. **Row-Level Security (RLS) Portability:** Proved complete portability of DharaScope's PostgreSQL RLS policies (`auth.uid()`, `auth.role()`, `dharascope_app` non-superuser role, and `SET LOCAL ROLE` / `set_config` injection) on Azure Flexible Server without requiring proprietary Supabase extensions.
-6. **Alembic Cloud Migrations:** Updated `alembic/env.py` to negotiate SSL when `DB_SSL_MODE` is configured.
-7. **Comprehensive Test Suite:** Added 17 unit/integration tests in `tests/test_azure_database_config.py`. Total automated test count reached **202 passed, 1 skipped in 92.66s** with zero regressions.
-8. **Deployment Guide:** Published `docs/AZURE_POSTGRESQL.md` covering SKU selection, `azure.extensions` configuration (`POSTGIS,UUID-OSSP`), firewall rules, RLS, and migration execution.
+Key accomplishments in this phase:
+1. **Permanent Artifacts Hierarchy:** Established `artifacts/` subdirectories (`artifacts/presentation/`, `artifacts/maps/`, `artifacts/reports/`, `artifacts/metadata/`, `artifacts/validation_phase2_4/`) housing the 15-slide PowerPoint defense presentation, cartographic multi-temporal map panels, verified feasibility reports, and Phase 2.4 genuine satellite validation evidence. All assets migrated via `git mv` to preserve commit history.
+2. **Scratch Outputs Containment & Disk Reclamation:** Re-designated `outputs/` strictly for ephemeral scratch files. Safely purged 164 temporary UUID test run directories (`outputs/*-*-*-*-*`), reclaiming **2,406.32 MB (~2.4 GB)** of disk space. Purged untracked root `.coverage` SQLite file.
+3. **Automated Continuous Integration (CI):** Authored `.github/workflows/ci.yml` providing automated pull-request and push validation across both Python 3.11 backend (pytest suite with coverage) and Node.js 20 frontend (Vitest tests + Vite production build).
+4. **Resilient Path Resolution:** Enhanced `src/config.py`, `src/storage.py`, `src/reporting.py`, `src/scene_selection.py`, and `app.py` to transparently resolve reports, metadata, and cartographic figures from `artifacts/` with automatic fallback to `outputs/`.
+5. **Git Exclusions Hardened:** Updated `.gitignore` with `outputs/*` and `!outputs/.gitkeep`, permanently preventing runtime scratch directories and temporary test outputs from dirtying version control.
+6. **Documentation & Script Harmonization:** Updated `README.md` with complete directory layout reference, corrected ASGI server command (`uvicorn server:app --host 127.0.0.1 --port 8000 --reload`), and database migration command (`alembic upgrade head`). Synchronized all script targets and markdown documentation links.
+7. **Comprehensive Verification:** 202 backend tests passed (1 skipped live test), 18 frontend tests passed (220 total passing tests), 0 frontend build errors, 0 linter errors, Alembic at migration head `5903f15a19ed`.
 
 ---
 

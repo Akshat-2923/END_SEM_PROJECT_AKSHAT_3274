@@ -25,11 +25,12 @@ else:
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 OUTPUTS_DIR = BASE_DIR / "outputs"
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
 METADATA_DIR = OUTPUTS_DIR / "metadata"
 REPORTS_DIR = OUTPUTS_DIR / "reports"
 LOGS_DIR = BASE_DIR / "logs"
 
-for directory in [DATA_DIR, RAW_DATA_DIR, OUTPUTS_DIR, METADATA_DIR, REPORTS_DIR, LOGS_DIR]:
+for directory in [DATA_DIR, RAW_DATA_DIR, OUTPUTS_DIR, ARTIFACTS_DIR, METADATA_DIR, REPORTS_DIR, LOGS_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
 # Study Area: Gomti River, Lucknow, Uttar Pradesh, India

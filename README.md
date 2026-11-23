@@ -100,7 +100,89 @@ For complete architectural specifications and database entity-relationship diagr
 
 ---
 
-## 5. Quickstart & Installation Guide
+## 5. Repository Organisation & Directory Layout
+
+```
+DharaScope/
+├── src/                          # Backend application, API, auth, database & processing logic
+│   ├── api/                      # FastAPI app factory, dependencies, routers & Pydantic schemas
+│   ├── database/                 # SQLAlchemy 2.0 models, PostgreSQL session & engine management
+│   ├── services/                 # Domain business services (analyses, AOIs, artifacts, role sync)
+│   ├── aoi_validation.py         # Geodetic area calculation (0.1–100 km²) & Shapely topological validation
+│   ├── auth.py                   # Supabase JWT validation, local HS256 dev signer & RLS context injection
+│   ├── change_detection.py       # 4-class categorical water transitions & area statistics
+│   ├── config.py                 # Central environment configuration & directory bootstrapping
+│   ├── downloader.py             # CDSE OData JP2 & AWS /vsicurl/ COG sub-granule byte-range streamer
+│   ├── reporting.py              # Publication-grade ReportLab PDF compiler & CSV manifest exporter
+│   ├── scene_selection.py        # Spatiotemporal STAC intersection & cloud cover filtering
+│   ├── stac_client.py            # Copernicus Data Space Ecosystem (CDSE) STAC catalogue client
+│   ├── storage.py                # Dual storage abstraction (LocalFilesystemStorage & SupabaseStorage)
+│   ├── visualization.py          # 300 DPI 4-panel comparison cartography & single NDWI figures
+│   └── water_indices.py          # Calibrated McFeeters NDWI computation & binary water segmentation
+│
+├── frontend/                     # Modern React 19 GIS Workstation
+│   ├── src/                      # TypeScript components, Leaflet MapPicker, state & Supabase Auth
+│   ├── package.json              # Client dependencies (React 19, Leaflet, Lucide, Tailwind, Vite)
+│   └── vite.config.ts            # Fast Vite bundling & dev server configuration
+│
+├── tests/                        # Automated Pytest Suite (202 passed, 1 skipped)
+│   ├── test_azure_database_config.py   # Azure PostgreSQL Flexible Server SSL & pooling tests
+│   ├── test_frontend_integration.py    # Complete 8-stage end-to-end user journey tests
+│   ├── test_admin_role_sync.py         # Role promotion/revocation & anti-split-brain verification
+│   ├── test_api_service_layer.py       # REST API endpoint contracts & authorization tests
+│   └── ...                             # Spatial queries, RLS, NDWI, download & storage test suites
+│
+├── alembic/                      # Database Migrations (PostgreSQL 16 + PostGIS 3.6)
+│   ├── versions/                 # Versioned DDL migrations (schema, GiST indices, RLS policies)
+│   └── env.py                    # Migration runner with cloud SSL negotiation support
+│
+├── docs/                         # Comprehensive Academic & Technical Documentation
+│   ├── PROJECT_REPORT.md         # Final Capstone Report (submission-quality, 10 sections)
+│   ├── ARCHITECTURE.md           # Technical Architecture & component interaction specifications
+│   ├── AZURE_POSTGRESQL.md       # Azure Flexible Server deployment, SSL & SKU guide
+│   ├── FINAL_DEFENSE_SCRIPT.md   # Oral defense rehearsal guide, timing cues & examiner Q&A
+│   ├── PRESENTATION.md           # Slide-by-slide 15-slide master presentation guide
+│   ├── JUDGE_QA.md               # Evaluator defense challenges with two-tier responses
+│   ├── DEMO_GUIDE.md             # Cue-by-cue live examination demonstration runbook
+│   ├── SCIENTIFIC_METHODOLOGY.md # Earth Observation physics, NDWI formulas & scale analysis
+│   ├── SRS.md                    # Software Requirements Specification (IEEE 830 standard)
+│   ├── SYSTEM_CONSTRAINTS.md     # Approved MVP boundaries, 100 km² ceiling & security invariants
+│   └── TECHNICAL_DECISIONS.md    # Architecture Decision Records (ADRs)
+│
+├── scripts/                      # Setup, Maintenance & Demonstration Scripts
+│   ├── generate_presentation.py  # Automated PPTX slide deck generator using python-pptx
+│   └── validate_real_satellite_browser.mjs # Automated Playwright Chromium browser test harness
+│
+├── data/                         # Datasets & Spatial Bounding Inputs
+│   ├── raw/                      # Local Sentinel-2 GeoTIFF samples (gitignored)
+│   └── .gitkeep                  # Preserved repository directory marker
+│
+├── artifacts/                    # Generated Demonstration Assets & Evaluation Outputs
+│   ├── presentation/             # DharaScope_Final_Presentation.pptx (15-slide master deck)
+│   ├── validation_phase2_4/      # Verified live browser run screenshots (Steps 1–8) & CSVs
+│   ├── maps/                     # 300 DPI comparison panels, NDWI maps & thumbnails
+│   ├── reports/                  # Sample publication PDF reports & CSV manifests
+│   └── metadata/                 # Copernicus STAC scene discovery JSON metadata
+│
+├── .github/                      # Repository Automation & Workflows
+│   └── workflows/ci.yml          # GitHub Actions CI for backend pytest & frontend vitest/build
+│
+├── server.py                     # Uvicorn ASGI entrypoint for FastAPI (Port 8000)
+├── app.py                        # Streamlit GIS dashboard entrypoint (Port 8501)
+├── main.py                       # Phase 1 CLI pipeline entrypoint
+├── alembic.ini                   # Alembic migration configuration
+├── requirements.txt              # Production Python dependency manifest
+├── .env.example                  # Environment configuration template (placeholders only)
+├── .gitignore                    # Git exclusion rules (rasters, secrets, temp caches)
+├── DEVELOPMENT_HISTORY.md        # Chronological engineering log across all phases
+├── PROMPT_LOG.md                 # Full prompt audit trail with verification outcomes
+├── CHANGELOG.md                  # Semantic Versioning release notes (v1.0.0 – v1.0.4)
+└── PROJECT_STATUS.md             # Real-time subsystem health & verification summary
+```
+
+---
+
+## 6. Quickstart & Installation Guide
 
 ### Prerequisites
 - **Operating System:** Linux, macOS, or Windows 10/11
@@ -140,8 +222,8 @@ python -m venv .venv
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# 3. Initialize spatial database schema & PostGIS extensions
-python -m src.db.migrate
+# 3. Apply spatial database migrations & PostGIS/RLS schema
+alembic upgrade head
 ```
 
 ### Step 3: Frontend Installation
@@ -154,42 +236,51 @@ cd ..
 ### Step 4: Launch Application Services
 Open two terminal windows:
 
-**Terminal 1 (Backend API):**
+**Terminal 1 (Backend FastAPI Server):**
 ```bash
 # With .venv activated
-uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+# Alternatively: python server.py
 ```
-*API Swagger Documentation will be available at: `http://127.0.0.1:8000/docs`*
+*API Swagger Documentation will be available at: `http://127.0.0.1:8000/docs`*  
+*Database Diagnostics will be available at: `http://127.0.0.1:8000/health/db`*
 
-**Terminal 2 (Frontend Client):**
+**Terminal 2 (Frontend React Client):**
 ```bash
 cd frontend
 npm run dev
 ```
 *Web GIS Interface will be available at: `http://127.0.0.1:5173`*
 
+*(Optional) Launch Streamlit GIS Workstation (Phase 1 Baseline):*
+```bash
+streamlit run app.py
+```
+*Streamlit Interface will be available at: `http://127.0.0.1:8501`*
+
 ---
 
-## 6. Verification & Automated Quality Assurance
+## 7. Verification & Automated Quality Assurance
 
 ### Automated Pytest Suite (Backend)
-Run the 16 test modules covering API contracts, spatial queries, RLS policies, NDWI accuracy, and PDF generation:
+Run the 17 test modules covering API contracts, spatial queries, RLS policies, NDWI accuracy, Azure Flexible Server configuration, and PDF generation:
 ```bash
 pytest -v
 ```
-*Expected: 185 Passed, 1 Skipped (live CDSE credential test).*
+*Expected: 202 Passed, 1 Skipped (live CDSE external credential test).*
 
 ### Frontend Vitest & Static Analysis
 ```bash
 # Run unit & component tests
-npm --prefix frontend test -- --run
+npm --prefix frontend test
 
 # Run static linter
-npx --prefix frontend oxlint
+npm --prefix frontend run lint
 
 # Run production build validation
 npm --prefix frontend run build
 ```
+*Expected: 18 Passed across 6 test suites, 0 lint errors, clean build.*
 
 ### Automated Headless Browser Validation (Playwright)
 Verify the entire end-to-end user journey on live running servers:
@@ -200,20 +291,25 @@ node scripts/validate_real_satellite_browser.mjs
 
 ---
 
-## 7. Project Documentation Sitemap
+## 8. Project Documentation & Artifacts Sitemap
 
-| Document | Purpose & Contents |
+| Document / Asset | Purpose & Contents |
 | :--- | :--- |
+| [artifacts/presentation/DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/artifacts/presentation/DharaScope_Final_Presentation.pptx) | **15-Slide Master Deck:** Comprehensive academic presentation with dark geospatial styling and speaker notes. |
 | [docs/PROJECT_REPORT.md](file:///d:/Coding/Projects/DharaScope/docs/PROJECT_REPORT.md) | **Complete Academic Capstone Report:** Problem statement, literature review, requirements, architecture, multi-scale findings, and ethics. |
 | [docs/ARCHITECTURE.md](file:///d:/Coding/Projects/DharaScope/docs/ARCHITECTURE.md) | **System Architecture:** Detailed component interactions, data flows, security boundaries, and Mermaid diagrams. |
+| [docs/AZURE_POSTGRESQL.md](file:///d:/Coding/Projects/DharaScope/docs/AZURE_POSTGRESQL.md) | **Azure PostgreSQL Flexible Server Guide:** SKU specifications, `azure.extensions` configuration, TLS/SSL, and cloud migration runbooks. |
 | [docs/DEMO_GUIDE.md](file:///d:/Coding/Projects/DharaScope/docs/DEMO_GUIDE.md) | **Demonstration Guide:** Step-by-step evaluation script for examiners, judges, and reviewers. |
+| [docs/FINAL_DEFENSE_SCRIPT.md](file:///d:/Coding/Projects/DharaScope/docs/FINAL_DEFENSE_SCRIPT.md) | **Oral Defense Script:** 60s elevator pitch, 3-min technical breakdown, 5-min demo runbook, and examiner Q&A answers. |
+| [docs/PRESENTATION.md](file:///d:/Coding/Projects/DharaScope/docs/PRESENTATION.md) | **Presentation Specification:** Slide-by-slide master slide transcript, visual layouts, and detailed speaker scripts. |
+| [docs/JUDGE_QA.md](file:///d:/Coding/Projects/DharaScope/docs/JUDGE_QA.md) | **Examiner Defense Q&A:** Comprehensive responses to 30 evaluator questions with plain-language summaries and technical deep-dives. |
 | [docs/SCIENTIFIC_METHODOLOGY.md](file:///d:/Coding/Projects/DharaScope/docs/SCIENTIFIC_METHODOLOGY.md) | **Earth Observation Methodology:** Sentinel-2 sensor physics, McFeeters NDWI, windowed streaming, and scale dynamics. |
 | [docs/SYSTEM_CONSTRAINTS.md](file:///d:/Coding/Projects/DharaScope/docs/SYSTEM_CONSTRAINTS.md) | **Operational Constraints:** Approved MVP boundaries, $100\text{ km}^2$ size limit, and security guardrails. |
 | [docs/TECHNICAL_DECISIONS.md](file:///d:/Coding/Projects/DharaScope/docs/TECHNICAL_DECISIONS.md) | **Architecture Decision Records (ADRs):** Technical rationale for COGs, McFeeters NDWI, PostGIS RLS, and role journals. |
 
 ---
 
-## 8. License & Academic Disclaimer
+## 9. License & Academic Disclaimer
 
 This project is licensed under the **MIT License** — see the [LICENSE](file:///d:/Coding/Projects/DharaScope/LICENSE) file for details.
 

@@ -14,6 +14,7 @@ import uuid
 import httpx
 
 from src.config import (
+    ARTIFACTS_DIR,
     BASE_DIR,
     OUTPUTS_DIR,
 )
@@ -141,6 +142,19 @@ class LocalStorageBackend(BaseStorageBackend):
         candidate_base = BASE_DIR / norm_path
         if candidate_base.exists():
             return candidate_base
+
+        # 4. Check relative to ARTIFACTS_DIR for organized demonstration artifacts
+        candidate_artifacts = ARTIFACTS_DIR / norm_path
+        if candidate_artifacts.exists():
+            return candidate_artifacts
+
+        # 5. Check under artifacts subdirectories if path starts with 'outputs/'
+        if norm_path.startswith("outputs/"):
+            rel = norm_path[len("outputs/"):]
+            for sub in ["", "maps", "reports", "metadata", "validation_phase2_4", "presentation"]:
+                cand = (ARTIFACTS_DIR / sub / rel) if sub else (ARTIFACTS_DIR / rel)
+                if cand.exists():
+                    return cand
 
         # Default fallback target location
         return self.base_dir / norm_path

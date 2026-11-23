@@ -4,7 +4,7 @@
 **Candidate / Presenter:** DharaScope Engineering & Science Team  
 **Evaluation Session:** Final Academic Capstone Defense (November 2026)  
 **Accompanying Materials:**  
-- [DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/DharaScope_Final_Presentation.pptx) (15-Slide Master Deck)  
+- [DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/artifacts/presentation/DharaScope_Final_Presentation.pptx) (15-Slide Master Deck)  
 - [docs/PROJECT_REPORT.md](file:///d:/Coding/Projects/DharaScope/docs/PROJECT_REPORT.md) (Comprehensive Academic Capstone Report)  
 - [docs/JUDGE_QA.md](file:///d:/Coding/Projects/DharaScope/docs/JUDGE_QA.md) (Evaluator Q&A Reference Guide with 30 Verified Answers)  
 - [docs/PRESENTATION.md](file:///d:/Coding/Projects/DharaScope/docs/PRESENTATION.md) (Slide-by-Slide Content & Script Notes)  

@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 import pytest
 
-from src.config import OUTPUTS_DIR, REPORTS_DIR
+from src.config import ARTIFACTS_DIR, OUTPUTS_DIR, REPORTS_DIR
 from src.reporting import (
     ReportingError,
     extract_report_metrics,
@@ -17,8 +17,10 @@ from src.reporting import (
 @pytest.fixture
 def sample_manifest():
     """Load default phase 1 feasibility report manifest."""
-    manifest_path = OUTPUTS_DIR / "phase1_feasibility_report.json"
-    assert manifest_path.exists(), "Default feasibility manifest required for reporting tests."
+    manifest_path = ARTIFACTS_DIR / "reports" / "phase1_feasibility_report.json"
+    if not manifest_path.exists():
+        manifest_path = OUTPUTS_DIR / "phase1_feasibility_report.json"
+    assert manifest_path.exists(), f"Default feasibility manifest required for reporting tests: {manifest_path}"
     return load_manifest(manifest_path)
 
 

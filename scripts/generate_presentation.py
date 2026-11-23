@@ -5,6 +5,7 @@ dark scientific GIS aesthetic, embedded screenshots, data tables, and speaker no
 """
 
 import os
+from pathlib import Path
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -489,8 +490,12 @@ def create_presentation():
     ])
     
     # Try embedding real screenshot on right
-    img_path = "outputs/validation_phase2_4/05_analysis_success_real_data.png"
-    if os.path.exists(img_path):
+    img_candidates = [
+        "artifacts/validation_phase2_4/05_analysis_success_real_data.png",
+        "outputs/validation_phase2_4/05_analysis_success_real_data.png",
+    ]
+    img_path = next((p for p in img_candidates if os.path.exists(p)), None)
+    if img_path:
         add_card(s10, 6.8, 1.6, 5.7, 5.2, "Live Workstation Interface (Verified Screenshot)")
         s10.shapes.add_picture(img_path, Inches(7.0), Inches(2.2), width=Inches(5.3))
     else:
@@ -664,13 +669,15 @@ def create_presentation():
 
     add_speaker_notes(s15,
         "In conclusion, DharaScope demonstrates that high-precision satellite Earth Observation can be operationalized into a secure, responsive, "
-        "and reproducible web GIS. All 185 executed backend tests and 18 frontend tests are passing (1 live external test skipped), live browser demonstration is verified, "
+        "and reproducible web GIS. All 202 executed backend tests and 18 frontend tests are passing (1 live external test skipped), live browser demonstration is verified, "
         "and documentation is complete. Thank you. We welcome questions from the examination committee."
     )
 
-    # Save presentation
-    output_pptx = "DharaScope_Final_Presentation.pptx"
-    prs.save(output_pptx)
+    # Save presentation to artifacts/presentation/
+    output_dir = Path("artifacts/presentation")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_pptx = output_dir / "DharaScope_Final_Presentation.pptx"
+    prs.save(str(output_pptx))
     print(f"Presentation successfully created at {output_pptx} with {len(prs.slides)} slides.")
 
 if __name__ == "__main__":

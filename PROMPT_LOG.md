@@ -1361,6 +1361,55 @@
   - Alembic migrations: updated `alembic/env.py` to inject SSL arguments for cloud migration execution.
   - Test suite expansion: 17 new tests in `tests/test_azure_database_config.py`; full suite expanded to **202 passed, 1 skipped in 92.66s** with zero regressions.
 
+---
+
+### Task 29: Repository Cleanup and File Organisation
+- **Date:** 2026-11-23
+- **Development Stage:** Repository Maintenance & Evaluation Preparation
+- **Task Outcome:** `Completed`
+- **Supplied Prompt:**
+  ```text
+  # DharaScope — Repository Cleanup and File Organisation
+
+  Act as a senior software engineer responsible for organising the existing DharaScope repository before its academic practical evaluation.
+
+  Repository: D:\Coding\Projects\DharaScope
+  Objective: Clean and organise the repository so that source code, frontend, tests, documentation, configuration, scripts, datasets and generated outputs are clearly separated.
+
+  This is a repository-maintenance task, NOT a feature-development task.
+  ```
+- **Files Created/Modified:**
+  - Created: `.github/workflows/ci.yml`, `artifacts/.gitkeep`
+  - Reorganized (git mv):
+    - `DharaScope_Final_Presentation.pptx` -> `artifacts/presentation/DharaScope_Final_Presentation.pptx`
+    - `outputs/gomti_water_change_comparison_panel.png`, `outputs/*.jpg`, `outputs/*.png` -> `artifacts/maps/`
+    - `outputs/phase1_feasibility_report.json`, `outputs/reports/*` -> `artifacts/reports/`
+    - `outputs/metadata/selected_scenes.json` -> `artifacts/metadata/selected_scenes.json`
+    - `outputs/validation_phase2_4/*` -> `artifacts/validation_phase2_4/`
+  - Deleted (Scratch/Temporary):
+    - Purged 164 temporary UUID test directories (`outputs/*-*-*-*-*`) freeing 2,406.32 MB (~2.4 GB).
+    - Purged untracked root `.coverage` database.
+  - Modified:
+    - `.gitignore`: ignored `outputs/*`, preserved `!outputs/.gitkeep`, handled `artifacts/*-*-*-*-*/`.
+    - `src/config.py`: defined `ARTIFACTS_DIR = BASE_DIR / "artifacts"` and ensured auto-creation.
+    - `src/storage.py`: enhanced `_resolve_local_path()` to transparently resolve both `outputs/` and `artifacts/`.
+    - `src/reporting.py`: resolved demonstration manifest and figures across `artifacts/` and `outputs/`.
+    - `src/scene_selection.py`: resolved cached scene selection metadata across `artifacts/metadata/` and `outputs/metadata/`.
+    - `app.py`: resolved reports and cartographic figures across `artifacts/` and `outputs/`.
+    - `tests/test_reporting.py`: updated fixture and tests to load manifests and figures from `artifacts/` with fallback.
+    - `scripts/generate_presentation.py`: loaded input assets from `artifacts/` and saved PPTX to `artifacts/presentation/`.
+    - `scripts/validate_real_satellite_browser.mjs`: targeted `artifacts/validation_phase2_4/`.
+    - `README.md`: added repository organization section, corrected ASGI and migration commands, updated sitemap.
+    - `docs/FINAL_DEFENSE_SCRIPT.md`, `docs/PRESENTATION.md`: updated file paths to `artifacts/`.
+    - `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`: recorded cleanup milestone.
+- **Verification:**
+  - Backend tests: 202 passed, 1 skipped in 76.73s across 17 test modules.
+  - Frontend tests: 18 passed across 6 test suites in Vitest.
+  - Frontend production build: succeeded in 802ms (0 errors, 0 type issues).
+  - Frontend linter: 0 errors in Oxlint.
+  - Alembic: migration head confirmed at `5903f15a19ed`.
+  - Git status: clean working tree, untracked clutter eliminated, zero secrets leaked.
+
 
 
 

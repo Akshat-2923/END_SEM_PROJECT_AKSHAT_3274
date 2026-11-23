@@ -11,7 +11,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SCREENSHOT_DIR = path.resolve(__dirname, '..', 'outputs', 'validation_phase2_4');
+const candidateArtifacts = path.resolve(__dirname, '..', 'artifacts', 'validation_phase2_4');
+const candidateOutputs = path.resolve(__dirname, '..', 'outputs', 'validation_phase2_4');
+const SCREENSHOT_DIR = fs.existsSync(candidateArtifacts) ? candidateArtifacts : candidateOutputs;
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }

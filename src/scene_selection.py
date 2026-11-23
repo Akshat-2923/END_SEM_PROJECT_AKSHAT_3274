@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from shapely.geometry import box, shape
 
-from src.config import GOMTI_BBOX, METADATA_DIR
+from src.config import ARTIFACTS_DIR, GOMTI_BBOX, METADATA_DIR
 from src.stac_client import CDSESTACClient, STACError
 
 logger = logging.getLogger("dhara_scope.scene_selection")
@@ -42,6 +42,8 @@ class SceneSelector:
             Tuple of (earlier_scene_meta, later_scene_meta, all_candidates)
         """
         cached_file = METADATA_DIR / "selected_scenes.json"
+        if not cached_file.exists():
+            cached_file = ARTIFACTS_DIR / "metadata" / "selected_scenes.json"
 
         try:
             raw_features = self.client.search_scenes(

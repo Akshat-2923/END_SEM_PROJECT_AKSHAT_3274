@@ -6,6 +6,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.5] - 2026-11-23
+### Organized & Cleaned
+- **Repository Cleanup and File Organisation:**
+  - **Directory Architecture Reorganization:**
+    - Established permanent `artifacts/` folder structure (`presentation/`, `maps/`, `reports/`, `metadata/`, `validation_phase2_4/`).
+    - Migrated tracked demonstration deliverables from `outputs/` and root to `artifacts/` via `git mv`.
+    - Confined `outputs/` strictly to runtime scratch outputs and ephemeral test runs.
+  - **Disk Space Reclamation:**
+    - Purged 164 temporary UUID test scratch directories (`outputs/*-*-*-*-*`), freeing **2,406.32 MB (~2.4 GB)**.
+    - Removed untracked root `.coverage` SQLite database.
+  - **Configuration & Path Updates:**
+    - Added `ARTIFACTS_DIR` in `src/config.py` with automated initialization.
+    - Enhanced `LocalStorageBackend._resolve_local_path()` in `src/storage.py` to transparently resolve both `outputs/` and `artifacts/`.
+    - Updated `src/reporting.py`, `src/scene_selection.py`, and `app.py` with multi-path resolution falling back to `outputs/`.
+    - Updated `tests/test_reporting.py` to load demonstration manifests and cartographic figures from `artifacts/`.
+    - Updated `scripts/generate_presentation.py` and `scripts/validate_real_satellite_browser.mjs` for `artifacts/`.
+  - **Continuous Integration (CI):**
+    - Added `.github/workflows/ci.yml` running automated pytest suite on Python 3.11 and Vitest / production build on Node.js 20.
+  - **Documentation & Git Exclusions:**
+    - Updated `.gitignore` to ignore `outputs/*`, preserve `!outputs/.gitkeep`, and exclude scratch folders.
+    - Updated `README.md` with repository directory structure reference, corrected ASGI server command (`uvicorn server:app --host 127.0.0.1 --port 8000 --reload`), and database migration command (`alembic upgrade head`).
+    - Updated file links in `docs/FINAL_DEFENSE_SCRIPT.md` and `docs/PRESENTATION.md`.
+
+---
+
 ## [1.0.4] - 2026-11-14
 ### Added & Configured
 - **Phase 2.8: Azure PostgreSQL Flexible Server Integration (Code Preparation):**

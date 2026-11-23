@@ -17,8 +17,10 @@ ENV/
 # Satellite rasters, raw downloads & temporary data
 data/raw/
 data/cache/
-outputs/*-*-*-*-*/
-outputs/validation_phase2_4/*.pdf
+outputs/*
+!outputs/.gitkeep
+artifacts/*-*-*-*-*/
+artifacts/validation_phase2_4/*.pdf
 *.SAFE/
 *.zip
 *.jp2
@@ -26,7 +28,7 @@ outputs/validation_phase2_4/*.pdf
 *.tiff
 *.nc
 !data/.gitkeep
-!outputs/.gitkeep
+!artifacts/.gitkeep
 !logs/.gitkeep
 
 # Logs

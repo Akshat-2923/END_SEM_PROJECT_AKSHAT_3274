@@ -1031,6 +1031,48 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
 - **Zero Regressions:** All existing API, authentication, AOI, analysis, reporting, and storage test suites passed without modification.
 - **Git Synchronization:** All changes reviewed, verified clean, and staged for commit.
 
+---
+
+## 25. Milestone 25: Repository Cleanup and File Organisation
+
+**Date:** 2026-11-23  
+**Phase:** Repository Maintenance & Evaluation Preparation  
+**Scope:** Repository Cleanup and File Organisation prior to academic evaluation. Separation of source code (`src/`), frontend (`frontend/`), tests (`tests/`), database migrations (`alembic/`), documentation (`docs/`), maintenance scripts (`scripts/`), local datasets (`data/`), and demonstration outputs/artifacts (`artifacts/`), with enhanced Git exclusions and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
+
+### 25.1 Architecture & Reorganization Strategy
+- **Demonstration Artifact Separation:** Created a dedicated `artifacts/` directory hierarchy (`artifacts/presentation/`, `artifacts/maps/`, `artifacts/reports/`, `artifacts/metadata/`, `artifacts/validation_phase2_4/`) to permanently house publication deliverables, cartographic plots, real-data verification evidence, and PowerPoint presentation assets.
+- **Runtime Scratch Containment:** Re-designated `outputs/` strictly for ephemeral runtime test runs, scratch outputs, and local pipeline generation. Configured `.gitignore` with `outputs/*` and `!outputs/.gitkeep` to prevent runtime scratch clutter from dirtying version control.
+- **Disk Reclamation:** Identified and safely purged 164 temporary UUID test run directories (`outputs/*-*-*-*-*`) accumulated during historical test client runs, reclaiming **2,406.32 MB (~2.4 GB)** of disk space. Purged untracked root `.coverage` SQLite database.
+- **Essential Root File Retention:** Explicitly verified and preserved essential root files:
+  - Runtime ASGI/Streamlit entrypoints: `server.py`, `app.py`, `main.py`.
+  - Core project definitions: `README.md`, `.gitignore`, `.env.example`, `requirements.txt`, `alembic.ini`.
+  - Historical and tracking registers: `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`, `PROJECT_STATUS.md`.
+- **Git History Preservation:** Tracked files were reorganized using `git mv` to preserve full commit history and provenance.
+
+### 25.2 Implemented Subsystems & Configuration Updates
+- **Path Resolution & Fallback (`src/config.py`, `src/storage.py`, `src/reporting.py`, `src/scene_selection.py`, `app.py`):**
+  - Added `ARTIFACTS_DIR = BASE_DIR / "artifacts"` to `src/config.py` with automated directory creation.
+  - Enhanced `LocalStorageBackend._resolve_local_path()` in `src/storage.py` to transparently resolve paths across both `outputs/` and `artifacts/`.
+  - Updated `src/reporting.py` and `app.py` to seamlessly resolve demonstration reports (`phase1_feasibility_report.json`) and cartographic figures from `artifacts/` with automatic fallback to `outputs/`.
+  - Updated `src/scene_selection.py` to resolve cached scenes from `artifacts/metadata/selected_scenes.json` if absent from `outputs/metadata/`.
+- **Automated Continuous Integration (`.github/workflows/ci.yml`):**
+  - Authored a dual-job GitHub Actions workflow covering:
+    - **Backend CI:** Ubuntu runner, Python 3.11, dependency installation, pytest suite with coverage (`pytest tests/ -v`).
+    - **Frontend CI:** Ubuntu runner, Node.js 20, npm clean install, Vitest test suite (`npm test`), and production bundle build (`npm run build`).
+- **Scripts and Documentation Path Harmonization:**
+  - Updated `scripts/generate_presentation.py` to prioritize `artifacts/` assets and emit to `artifacts/presentation/DharaScope_Final_Presentation.pptx`.
+  - Updated `scripts/validate_real_satellite_browser.mjs` to target `artifacts/validation_phase2_4/`.
+  - Synchronized documentation links in `README.md`, `docs/FINAL_DEFENSE_SCRIPT.md`, and `docs/PRESENTATION.md`.
+  - Enhanced `README.md` with a comprehensive repository directory layout reference, corrected ASGI server command (`uvicorn server:app --host 127.0.0.1 --port 8000 --reload`), and database migration command (`alembic upgrade head`).
+
+### 25.3 Verification & Quality Assurance Summary
+- **Backend Tests:** **202 passed, 1 skipped, 257 warnings in 76.73s** across all 17 test modules in Pytest.
+- **Frontend Tests:** **18 passed** across 6 test suites in Vitest.
+- **Frontend Production Build:** Built client bundle in 802ms with 0 errors (`dist/index.html`, `dist/assets/index-*.css`, `dist/assets/index-*.js`).
+- **Frontend Linter:** 0 errors across 25 files in Oxlint.
+- **Database Migrations:** Verified `alembic current` at `5903f15a19ed (head)`.
+- **Git Status:** Clean working tree, untracked clutter eliminated, zero secrets leaked.
+
 
 
 

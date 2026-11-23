@@ -28,7 +28,7 @@ from reportlab.platypus import (
 )
 
 from src.change_detection import LIMITATION_STATEMENT
-from src.config import BASE_DIR, OUTPUTS_DIR, REPORTS_DIR
+from src.config import ARTIFACTS_DIR, BASE_DIR, OUTPUTS_DIR, REPORTS_DIR
 
 logger = logging.getLogger("dhara_scope.reporting")
 
@@ -41,7 +41,9 @@ class ReportingError(Exception):
 def load_manifest(manifest_source: Union[Dict[str, Any], Path, str, None] = None) -> Dict[str, Any]:
     """Load and validate an analysis manifest dictionary from a file or memory object."""
     if manifest_source is None:
-        manifest_path = OUTPUTS_DIR / "phase1_feasibility_report.json"
+        manifest_path = ARTIFACTS_DIR / "reports" / "phase1_feasibility_report.json"
+        if not manifest_path.exists():
+            manifest_path = OUTPUTS_DIR / "phase1_feasibility_report.json"
         if not manifest_path.exists():
             raise ReportingError(f"Default analysis manifest not found at {manifest_path}")
         with open(manifest_path, "r", encoding="utf-8") as f:
@@ -524,8 +526,13 @@ def generate_pdf_report(
 
     # 5. Embedded Map Figures (if requested and present)
     if include_figures:
-        panel_img_path = OUTPUTS_DIR / "gomti_water_change_comparison_panel.png"
-        change_map_path = OUTPUTS_DIR / f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
+        panel_img_path = ARTIFACTS_DIR / "maps" / "gomti_water_change_comparison_panel.png"
+        if not panel_img_path.exists():
+            panel_img_path = OUTPUTS_DIR / "gomti_water_change_comparison_panel.png"
+
+        change_map_path = ARTIFACTS_DIR / "maps" / f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
+        if not change_map_path.exists():
+            change_map_path = OUTPUTS_DIR / f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
 
         if panel_img_path.exists():
             story.append(KeepTogether([
