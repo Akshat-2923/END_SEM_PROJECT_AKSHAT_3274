@@ -409,7 +409,7 @@ Frontend Static Analysis & Build:
 ```
 
 ### 6.2 Browser-Level End-to-End Validation (Playwright)
-To verify real-world user workflows, an automated Playwright Chromium script ([scripts/validate_real_satellite_browser.mjs](file:///d:/Coding/Projects/DharaScope/scripts/validate_real_satellite_browser.mjs)) executed all 8 workflow stages on live running instances of FastAPI and Vite using genuine Sentinel-2 Level-2A data:
+To verify real-world user workflows, an automated Playwright Chromium script ([scripts/validate_real_satellite_browser.mjs](../scripts/validate_real_satellite_browser.mjs)) executed all 8 workflow stages on live running instances of FastAPI and Vite using genuine Sentinel-2 Level-2A data:
 
 1. **Step 1: Landing Page:** Verified page title, dark scientific styling, and header telemetry badges.
 2. **Step 2: Authentication:** Authenticated with Supabase session token; confirmed hydrologist identity in header.
@@ -420,7 +420,7 @@ To verify real-world user workflows, an automated Playwright Chromium script ([s
 7. **Step 7: Cartography Display:** Confirmed 4-panel comparison figure and categorical transition maps loaded.
 8. **Step 8: Report Downloads:** Downloaded and verified 7.4 MB publication PDF and CSV dataset with matching run ID.
 
-All 8 high-resolution screenshots were archived in `outputs/validation_phase2_4/`.
+All 8 high-resolution screenshots were archived in `artifacts/validation_phase2_4/`.
 
 ---
 

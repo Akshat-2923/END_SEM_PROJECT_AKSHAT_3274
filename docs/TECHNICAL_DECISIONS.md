@@ -339,7 +339,7 @@ If the application catches an exception during commit and blindly executes a com
 3. The journal falsely records `COMPENSATED` claiming both systems contain `old_role`.
 
 #### Decision
-Implement rigorous ambiguous commit resolution in `execute_reliable_role_update()` ([`src/services/role_sync_service.py`](file:///d:/Coding/Projects/DharaScope/src/services/role_sync_service.py)):
+Implement rigorous ambiguous commit resolution in `execute_reliable_role_update()` ([`src/services/role_sync_service.py`](../src/services/role_sync_service.py)):
 1. **Ambiguous Outcome Assumption:** Treat all exceptions during `session.flush()` or `session.commit()` as ambiguous commit outcomes. Roll back the dirty session to release locks and clean connection state.
 2. **Fresh Session Verification:** Open an independent fresh database session (`get_session_factory(session.get_bind())`) and query `Profile` by `user_id` to establish the authoritative on-disk role.
 3. **Outcome Branches:**

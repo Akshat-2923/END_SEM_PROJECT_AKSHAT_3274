@@ -1,322 +1,323 @@
-# DharaScope — Automated Satellite-Based Surface Water Dynamics Monitoring Platform
-## Enterprise Geospatial Information System (GIS) for Surface Water Change Detection
+# DharaScope — Automated Satellite-Based Surface Water Dynamics Platform
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
-[![React 19](https://img.shields.io/badge/React-19.0-61DAFB.svg)](https://react.dev/)
-[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
-[![PostGIS 3.6](https://img.shields.io/badge/PostGIS-3.6-2E7D32.svg)](https://postgis.net/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> **Scope Statement:** DharaScope performs **optical satellite-based surface-water detection and two-date water-area change analysis** using Sentinel-2 multispectral imagery and deterministic Normalized Difference Water Index (**NDWI**) thresholding. It does **not** measure water pollution, chemical/biological water quality, water depth (bathymetry), or water volume, and its core water-detection algorithm is **spectral index computation rather than machine learning**.
 
 ---
 
-## 1. Executive Summary
+## 1. Project Overview & Objective
 
-**DharaScope** is an end-to-end, open-source geospatial platform designed for automated, reproducible surface water detection and multi-temporal change monitoring. Leveraging the European Space Agency's (ESA) Copernicus Sentinel-2 constellation, DharaScope bridges raw aerospace multispectral observations down to an interactive modern web GIS workstation.
+**DharaScope** is a full-stack Geospatial Information System (GIS) web platform and reproducible Earth Observation pipeline built to detect surface water extent and quantify multi-temporal water-body changes from **Copernicus Sentinel-2 Level-2A** optical imagery.
 
-The platform eliminates the need for manual, heavyweight GIS workflows by streaming sub-granule spectral data via Cloud-Optimized GeoTIFFs (COGs), applying calibrated McFeeters Normalized Difference Water Index (NDWI) algorithms at 10-meter resolution, and computing 4-class categorical water transitions (Permanent Water, Water Inundation, Water Recession, Persistent Land) with strict mathematical verification.
+### Problem Statement
+Conventional satellite water-mapping workflows typically require downloading entire ~500–800 MB Sentinel-2 `.SAFE` tiles manually, managing coordinate reference systems and spatial clipping in desktop GIS software, and writing ad-hoc scripts that are difficult to reproduce, secure for multiple users, or summarize cleanly for technical evaluation.
 
-Built for multi-tenant deployments, DharaScope implements defense-in-depth isolation via PostgreSQL Row-Level Security (RLS) tied to Supabase JWT authentication, authoritative database role checks, and automated generation of publication-grade cartographic figures (300 DPI) and comprehensive PDF/CSV analytical reports.
-
----
-
-## 2. Core Architectural Features
-
-- **Interactive Cartographic Digitization:** User-defined polygon Areas of Interest (AOIs) up to $100\text{ km}^2$ digitized via an interactive Leaflet web canvas with real-time topological validation (`ST_IsValid`, `ST_Area`).
-- **Sub-Granule COG Streaming (`/vsicurl/`):** Byte-range HTTP requests extract only the required spectral bands (B03 Green, B08 NIR) intersecting the AOI bounding box, transferring kilobytes instead of full gigabyte granules.
-- **Calibrated McFeeters NDWI Engine:** Computes $(\text{B03} - \text{B08}) / (\text{B03} + \text{B08})$ at native 10m Ground Sampling Distance (GSD) with zero-threshold classification ($\text{NDWI} > 0.0$) and valid-data masking.
-- **Categorical 4-Class Transition Matrix:** Quantifies permanent water, inundation/gain, recession/loss, and persistent land, reporting both hectare areas and percentage dynamics.
-- **Defense-in-Depth Multi-Tenancy:** PostgreSQL Row-Level Security (RLS) enforced at the database kernel level using transaction-local context (`SET LOCAL app.current_user_id`), preventing cross-tenant leakage.
-- **Authoritative Database Role Verification:** Administrative actions check user privileges against the authoritative database `profiles` table, immediately revoking access even if a client possesses an unexpired JWT.
-- **Dual Storage Abstraction:** Seamlessly switches between local filesystem storage (development) and Supabase Storage (production) with signed, time-limited URL generation.
-- **Automated Publication Reporting:** Compiles 300 DPI publication cartography and analytical metrics into downloadable, audit-ready PDF reports (7.4+ MB) and CSV datasets.
+### Why DharaScope Is Useful
+- **Bandwidth-Efficient Cloud Streaming:** Streams only the Area of Interest (AOI) bounding window from Cloud-Optimized GeoTIFFs (COGs) via GDAL `/vsicurl/`, transferring megabytes/kilobytes instead of gigabyte archives.
+- **Deterministic & Reproducible:** Uses a fixed, transparent physical spectral index (McFeeters NDWI) over a strictly aligned common valid-pixel mask ($T_1 \cap T_2$) with machine-readable CSV manifests and 300 DPI ReportLab PDF reports.
+- **Multi-Tenant GIS Security:** Combines Leaflet AOI digitization, PostGIS spatial validation (`0.10–100.00 km²`, `<= 500` vertices), Supabase JWT verification, and database-enforced PostgreSQL Row-Level Security (RLS).
 
 ---
 
-## 3. Verified Scientific Findings: Gomti River Case Study
+## 2. How DharaScope Works (Scientific & System Pipeline)
 
-The platform has been empirically validated against real Copernicus Sentinel-2 Level-2A observations covering the Gomti River basin in Lucknow, Uttar Pradesh, India.
-
-```
-Observation T1 (Early Post-Monsoon):
-- Granule: S2A_MSIL2A_20231010T051831_N0509_R019_T44RMQ_20231010T075727
-- Acquisition Date: 2023-10-10 | Sun Elevation: 56.41° | Cloud Cover: 0.0%
-
-Observation T2 (Late Post-Monsoon / Early Winter):
-- Granule: S2A_MSIL2A_20231209T052211_N0510_R019_T44RMQ_20231209T080826
-- Acquisition Date: 2023-12-09 | Sun Elevation: 40.18° | Cloud Cover: 0.0%
+```text
+[1. AOI Digitization (React + Leaflet)]
+        │  GeoJSON Polygon (WGS84 / EPSG:4326)
+        ▼
+[2. Spatial Validation (FastAPI + Shapely + PyProj + PostGIS)]
+        │  Verify topology, <= 500 vertices, geodesic area 0.10–100.00 km²
+        ▼
+[3. Scene Discovery (Copernicus CDSE STAC API v1)]
+        │  Select optimal low-cloud Sentinel-2 L2A pair (T1, T2)
+        ▼
+[4. Band Retrieval (Multi-Tier Downloader)]
+        │  Tier 1: CDSE OData JP2  |  Tier 2: AWS S2 COG (/vsicurl/)  |  Tier 3: Tagged Synthetic Fallback
+        ▼
+[5. NDWI & Change Detection Engine (Rasterio + NumPy)]
+        │  NDWI = (B03 - B08) / (B03 + B08) -> Mask (NDWI > 0.0) -> 4-Class Transitions
+        ▼
+[6. Visualization, Storage & Reporting]
+           300 DPI PNG Cartography + Structured CSV Manifest + ReportLab PDF Report
 ```
 
-### Environmental Spatial Heterogeneity & Scale Analysis
+### Sentinel-2 Data & Spectral Bands Used
+DharaScope queries **Sentinel-2 MSI Level-2A** (Bottom-of-Atmosphere surface reflectance) products at native **10 m spatial resolution** ($100\text{ m}^2 = 0.01\text{ ha}$ per pixel):
+- **Band 3 (`B03`, Green, ~560 nm, 10 m GSD):** Water exhibits moderate green reflectance compared to longer wavelengths.
+- **Band 8 (`B08`, Near-Infrared / NIR, ~842 nm, 10 m GSD):** Clear open water strongly absorbs NIR radiation (near-zero reflectance), whereas vegetation and dry bare soil reflect NIR strongly.
 
-Multi-temporal observations of surface water reflect the environmental characteristics of specific landscape units. DharaScope highlights this principle through two validated analytical envelopes:
+### NDWI Formula & Water Classification
+DharaScope implements the **McFeeters (1996) Normalized Difference Water Index (NDWI)** in [src/water_indices.py](src/water_indices.py):
 
-| Dimension / Metric | Macro-Scale Regional Basin (Phase 1 Baseline) | Meso-Scale Urban Reach (Phase 2.4/2.5 Operational) |
-| :--- | :--- | :--- |
-| **Spatial Bounding Box** | `[80.88, 26.80, 81.00, 26.90]` | `[80.90, 26.84, 80.92, 26.86]` |
-| **Geographic Extent** | $132.30\text{ km}^2$ ($13,230\text{ ha}$) | $4.40\text{ km}^2$ ($441.78\text{ ha}$) |
-| **Operational Limit Status** | **Exceeds $100\text{ km}^2$ limit** (Historical experiment) | **Within $100\text{ km}^2$ limit** (Standard operational) |
-| **Grid Dimensions** | $1,110 \times 1,192\text{ pixels}$ ($1,323,120\text{ px}$) | $222 \times 199\text{ px}$ (Inner: 44,178 px) / $223 \times 200\text{ px}$ (Outer: 44,600 px) |
-| **$T_1$ Water Area (2023-10-10)** | **$184.56\text{ ha}$** ($18,456\text{ px}$) | **$0.53\text{ ha}$** ($53\text{ px}$) |
-| **$T_2$ Water Area (2023-12-09)** | **$139.33\text{ ha}$** ($13,933\text{ px}$) | **$1.66\text{ ha}$** ($166\text{ px}$) |
-| **Net Water Dynamics ($\Delta A$)** | **$-45.23\text{ ha}$** ($-24.51\%$ Net Loss) | **$+1.13\text{ ha}$** ($+213.21\%$ Net Gain) |
-| **Permanent Water Area** | $\approx 112.4\text{ ha}$ | **$0.50\text{ ha}$** ($50\text{ px}$) |
-| **Inundation / Gain Area** | $\approx 26.9\text{ ha}$ | **$1.16\text{ ha}$** ($116\text{ px}$) |
-| **Recession / Loss Area** | $\approx 72.1\text{ ha}$ | **$0.03\text{ ha}$** ($3\text{ px}$) |
-| **Persistent Land Area** | $\approx 13,018\text{ ha}$ | **$440.09\text{ ha}$** ($44,009\text{ px}$) |
-| **Landscape Zone Dynamics** | Broad agricultural floodplains and shallow depressions naturally dry out post-monsoon. | Confined urban river corridor exhibits localized expansion in open-water reflectance footprint. |
+$$\text{NDWI} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}$$
+
+- **Zero-Denominator & Range Protection:** Pixels where $|\text{B03} + \text{B08}| \le 10^{-6}$ or either band contains NoData are masked as invalid; valid values are clamped to $[-1.0, 1.0]$.
+- **Binary Classification:** Using default cutoff $\tau = 0.00$ (configurable in $[-0.30, 0.30]$ via the UI/API):
+  - $\text{NDWI} > \tau \implies \text{Water}$ (`1`)
+  - $\text{NDWI} \le \tau \implies \text{Non-Water}$ (`0`)
+
+### Temporal Comparison & Water-Area Change Calculation
+To avoid comparing pixels where one date is obscured or missing, [src/change_detection.py](src/change_detection.py) restricts analysis strictly to the **common valid pixel intersection** ($\text{Valid}_{T_1} \land \text{Valid}_{T_2}$) and assigns every valid pixel to one of **four categorical transition classes**:
+
+1. **Persistent Water (`1 -> 1`):** Surface water detected on both $T_1$ and $T_2$.
+2. **Apparent Water Loss / Recession (`1 -> 0`):** Classified as water at $T_1$ and non-water at $T_2$.
+3. **Apparent Water Gain / Expansion (`0 -> 1`):** Classified as non-water at $T_1$ and water at $T_2$.
+4. **Persistent Non-Water (`0 -> 0`):** Classified as non-water on both dates.
+
+Quantitative area metrics convert pixel counts at pixel area $A_{\text{px}}$ (nominally $100\text{ m}^2 = 0.01\text{ ha}$ in projected UTM coordinates, e.g., EPSG:32644 for Lucknow):
+- $A_{T_1} = N_{T_1} \times A_{\text{px}}$, $A_{T_2} = N_{T_2} \times A_{\text{px}}$
+- $\Delta A = A_{T_2} - A_{T_1}$, $\%\Delta A = \frac{A_{T_2} - A_{T_1}}{A_{T_1}} \times 100$ (handled safely when $A_{T_1} = 0$).
+
+#### Verified Reference Results (Gomti River, Lucknow — Real Sentinel-2 L2A)
+Scenes: `2023-10-10` ($T_1$, `0.0%` scene cloud) vs. `2023-12-09` ($T_2$, `0.0%` scene cloud), NDWI $> 0.00$:
+
+| Study Envelope | Bounding Box (`EPSG:4326`) | Study Extent | $T_1$ Water Area | $T_2$ Water Area | Net Area Change | Observed Satellite Interpretation |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Historical Phase 1 Macro Basin** *(exceeds current 100 km² cap)* | `[80.88, 26.80, 81.00, 26.90]` | `132.30 km²` (`13,230.37 ha` valid) | `184.56 ha` (`18,456 px`) | `139.33 ha` (`13,933 px`) | **`-45.23 ha` (`-24.51%`)** | Regional floodplain and shallow depression recession post-monsoon. |
+| **Operational Urban Gomti Study Reach** *(within 100 km² limit)* | `[80.90, 26.84, 80.92, 26.86]` | `4.40 km²` (`441.78 ha` / `44,178` inner px; `44,600` outer px) | `0.53 ha` (`53 px`) | `1.66 ha` (`166 px`) | **`+1.13 ha` (`+213.21%`)** | Confined urban reach showed localized expansion in open-water optical reflectance (`50 px` persistent, `116 px` gain, `3 px` loss). |
 
 > [!NOTE]
-> **Scientific Integrity Notice:** The observed $+1.13\text{ ha}$ increase in the urban channel reach represents satellite-derived changes in optical surface reflectance (NDWI > 0.00). In both the 44,178-pixel inner window and the 44,600-pixel outer window, the detected water pixels (53 at $T_1$, 166 at $T_2$, net $+113$) are mathematically invariant. This localized expansion contrasts with regional floodplain recession due to environmental spatial heterogeneity across diverse landscape zones. Satellite data measures planar surface reflections; remote sensing cannot prove subsurface hydrological causes or hydraulic operations without in-situ gauging data.
+> Detected water pixel counts (`53` at $T_1$, `166` at $T_2$, net `+113`) are identical across both the `44,178`-pixel clipped inner window and `44,600`-pixel outer raster grid. Observed differences between macro-basin recession and urban-reach expansion reflect spatial heterogeneity across different landscape units; optical satellite data alone cannot establish subsurface hydrology or barrage/hydraulic operations without in-situ river gauge data.
+
+---
+
+## 3. Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, TypeScript, Vite 8, Leaflet (Esri World Dark Gray Canvas base + reference label tiles), Lucide React |
+| **Backend API** | Python 3.11+, FastAPI, Uvicorn (ASGI), Pydantic |
+| **Geospatial & Reporting** | Rasterio, GDAL (`/vsicurl/`), NumPy, Shapely, PyProj, Matplotlib (300 DPI), ReportLab (PDF), CSV |
+| **Database & Migrations** | PostgreSQL 16/17 + PostGIS 3.3/3.6, SQLAlchemy 2.x, GeoAlchemy2, Alembic, `psycopg2-binary` |
+| **Auth & Security** | Supabase Auth (`HS256` & `ES256`/`RS256` JWKS), PostgreSQL Row-Level Security (`FORCE ROW LEVEL SECURITY` + `dharascope_app` role), anti-privilege-escalation checks |
+| **Object Storage** | `LocalStorageBackend` (`outputs/` for dev) and `SupabaseStorageBackend` (private `rasters`, `maps`, `reports` buckets in production) |
+| **Testing & Tooling** | Pytest, Vitest, React Testing Library, Oxlint, TypeScript `tsc`, GitHub Actions CI, Docker, Render Blueprint |
 
 ---
 
 ## 4. System Architecture
 
-```
-+---------------------------------------------------------------------------------+
-|                               Presentation Tier                                 |
-|               React 19 + TypeScript + Vite + Leaflet Cartography                |
-+----------------------------------------+----------------------------------------+
-                                         | HTTPS / Bearer JWT
-+----------------------------------------v----------------------------------------+
-|                               API & Service Tier                                |
-|                        FastAPI ASGI Server (Port 8000)                          |
-|         - /api/v1/auth (JWT Validation)   - /api/v1/aois (Spatial Bounding)     |
-|         - /api/v1/analyses (Pipelines)    - /reports (PDF & CSV Streaming)      |
-+-------------------+------------------------------------+------------------------+
-                    |                                    |
-+-------------------v-------------------+    +-----------v------------------------+
-|       Data & Persistence Tier         |    |      Satellite Processing Core     |
-|   PostgreSQL 16 + PostGIS 3.6         |    |   - STAC Discovery (CDSE / AWS)    |
-|   - Row-Level Security (RLS)          |    |   - GDAL /vsicurl/ COG Streamer    |
-|   - Spatial GiST Indices              |    |   - McFeeters NDWI Engine (B03/B08)|
-|   - Strict Foreign Key Cascades       |    |   - 4-Class Transition Matrix      |
-|   - Profiles, AOIs, Runs, Artifacts   |    |   - ReportLab 300 DPI PDF Engine   |
-+---------------------------------------+    +------------------------------------+
+```text
++-----------------------------------------------------------------------------+
+|                             Presentation Tier                               |
+|        React 19 + TypeScript + Vite Static Site + Leaflet MapPicker         |
++--------------------------------------+--------------------------------------+
+                                       | HTTPS + Supabase Bearer JWT
++--------------------------------------v--------------------------------------+
+|                           API & Service Tier                                |
+|                      FastAPI ASGI Server (`server.py`)                      |
+|  - /health, /health/db                  - /api/v1/auth/me, /admin/users     |
+|  - /api/v1/aois/validate, /api/v1/aois  - /api/v1/analyses, /reports/{pdf,csv} |
++--------------------+------------------------------------+-------------------+
+                     |                                    |
++--------------------v-------------------+  +-------------v-------------------+
+|        Data & Persistence Tier         |  |    Satellite Processing Core      |
+|  PostgreSQL + PostGIS (Supabase/Local) |  |  - CDSE STAC Search               |
+|  - profiles, aois (POLYGON 4326 GiST)  |  |  - AWS COG / CDSE Band Streamer   |
+|  - analysis_runs, water_metrics        |  |  - McFeeters NDWI (B03 / B08)     |
+|  - analysis_artifacts (metadata only)  |  |  - 4-Class Change Detection       |
+|  - Forced RLS (`dharascope_app`)       |  |  - 300 DPI Cartography & PDF/CSV  |
++--------------------+-------------------+  +-------------+-------------------+
+                     |                                    |
+                     +------------------+-----------------+
+                                        v
+                        Private Object Storage (`rasters`, `maps`, `reports`)
 ```
 
-For complete architectural specifications and database entity-relationship diagrams, see [docs/ARCHITECTURE.md](file:///d:/Coding/Projects/DharaScope/docs/ARCHITECTURE.md).
+For database entity diagrams and detailed component contracts, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md).
 
 ---
 
-## 5. Repository Organisation & Directory Layout
+## 5. Repository Structure
 
-```
+```text
 DharaScope/
-├── src/                          # Backend application, API, auth, database & processing logic
-│   ├── api/                      # FastAPI app factory, dependencies, routers & Pydantic schemas
-│   ├── database/                 # SQLAlchemy 2.0 models, PostgreSQL session & engine management
-│   ├── services/                 # Domain business services (analyses, AOIs, artifacts, role sync)
-│   ├── aoi_validation.py         # Geodetic area calculation (0.1–100 km²) & Shapely topological validation
-│   ├── auth.py                   # Supabase JWT validation, local HS256 dev signer & RLS context injection
-│   ├── change_detection.py       # 4-class categorical water transitions & area statistics
-│   ├── config.py                 # Central environment configuration & directory bootstrapping
-│   ├── downloader.py             # CDSE OData JP2 & AWS /vsicurl/ COG sub-granule byte-range streamer
-│   ├── reporting.py              # Publication-grade ReportLab PDF compiler & CSV manifest exporter
-│   ├── scene_selection.py        # Spatiotemporal STAC intersection & cloud cover filtering
-│   ├── stac_client.py            # Copernicus Data Space Ecosystem (CDSE) STAC catalogue client
-│   ├── storage.py                # Dual storage abstraction (LocalFilesystemStorage & SupabaseStorage)
-│   ├── visualization.py          # 300 DPI 4-panel comparison cartography & single NDWI figures
-│   └── water_indices.py          # Calibrated McFeeters NDWI computation & binary water segmentation
-│
-├── frontend/                     # Modern React 19 GIS Workstation
-│   ├── src/                      # TypeScript components, Leaflet MapPicker, state & Supabase Auth
-│   ├── package.json              # Client dependencies (React 19, Leaflet, Lucide, Tailwind, Vite)
-│   └── vite.config.ts            # Fast Vite bundling & dev server configuration
-│
-├── tests/                        # Automated Pytest Suite (202 passed, 1 skipped)
-│   ├── test_azure_database_config.py   # Azure PostgreSQL Flexible Server SSL & pooling tests
-│   ├── test_frontend_integration.py    # Complete 8-stage end-to-end user journey tests
-│   ├── test_admin_role_sync.py         # Role promotion/revocation & anti-split-brain verification
-│   ├── test_api_service_layer.py       # REST API endpoint contracts & authorization tests
-│   └── ...                             # Spatial queries, RLS, NDWI, download & storage test suites
-│
-├── alembic/                      # Database Migrations (PostgreSQL 16 + PostGIS 3.6)
-│   ├── versions/                 # Versioned DDL migrations (schema, GiST indices, RLS policies)
-│   └── env.py                    # Migration runner with cloud SSL negotiation support
-│
-├── docs/                         # Comprehensive Academic & Technical Documentation
-│   ├── PROJECT_REPORT.md         # Final Capstone Report (submission-quality, 10 sections)
-│   ├── ARCHITECTURE.md           # Technical Architecture & component interaction specifications
-│   ├── AZURE_POSTGRESQL.md       # Azure Flexible Server deployment, SSL & SKU guide
-│   ├── FINAL_DEFENSE_SCRIPT.md   # Oral defense rehearsal guide, timing cues & examiner Q&A
-│   ├── PRESENTATION.md           # Slide-by-slide 15-slide master presentation guide
-│   ├── JUDGE_QA.md               # Evaluator defense challenges with two-tier responses
-│   ├── DEMO_GUIDE.md             # Cue-by-cue live examination demonstration runbook
-│   ├── SCIENTIFIC_METHODOLOGY.md # Earth Observation physics, NDWI formulas & scale analysis
-│   ├── SRS.md                    # Software Requirements Specification (IEEE 830 standard)
-│   ├── SYSTEM_CONSTRAINTS.md     # Approved MVP boundaries, 100 km² ceiling & security invariants
-│   └── TECHNICAL_DECISIONS.md    # Architecture Decision Records (ADRs)
-│
-├── scripts/                      # Setup, Maintenance & Demonstration Scripts
-│   ├── generate_presentation.py  # Automated PPTX slide deck generator using python-pptx
-│   └── validate_real_satellite_browser.mjs # Automated Playwright Chromium browser test harness
-│
-├── data/                         # Datasets & Spatial Bounding Inputs
-│   ├── raw/                      # Local Sentinel-2 GeoTIFF samples (gitignored)
-│   └── .gitkeep                  # Preserved repository directory marker
-│
-├── artifacts/                    # Generated Demonstration Assets & Evaluation Outputs
-│   ├── presentation/             # DharaScope_Final_Presentation.pptx (15-slide master deck)
-│   ├── validation_phase2_4/      # Verified live browser run screenshots (Steps 1–8) & CSVs
-│   ├── maps/                     # 300 DPI comparison panels, NDWI maps & thumbnails
-│   ├── reports/                  # Sample publication PDF reports & CSV manifests
-│   └── metadata/                 # Copernicus STAC scene discovery JSON metadata
-│
-├── .github/                      # Repository Automation & Workflows
-│   └── workflows/ci.yml          # GitHub Actions CI for backend pytest & frontend vitest/build
-│
-├── server.py                     # Uvicorn ASGI entrypoint for FastAPI (Port 8000)
-├── app.py                        # Streamlit GIS dashboard entrypoint (Port 8501)
-├── main.py                       # Phase 1 CLI pipeline entrypoint
-├── alembic.ini                   # Alembic migration configuration
-├── requirements.txt              # Production Python dependency manifest
-├── .env.example                  # Environment configuration template (placeholders only)
-├── .gitignore                    # Git exclusion rules (rasters, secrets, temp caches)
-├── DEVELOPMENT_HISTORY.md        # Chronological engineering log across all phases
-├── PROMPT_LOG.md                 # Full prompt audit trail with verification outcomes
-├── CHANGELOG.md                  # Semantic Versioning release notes (v1.0.0 – v1.0.4)
-└── PROJECT_STATUS.md             # Real-time subsystem health & verification summary
+├── src/                               # Backend application, geospatial core, API & DB layers
+│   ├── api/                           # FastAPI app factory, dependencies, routers & Pydantic schemas
+│   ├── database/                      # SQLAlchemy models, URL/SSL config & pooled sessions
+│   ├── services/                      # AOI, analysis, artifact & two-phase role-sync services
+│   ├── aoi_validation.py              # Geodesic area (0.10–100 km²) & Shapely geometry checks
+│   ├── auth.py                        # Supabase JWT/JWKS validation & RLS context propagation
+│   ├── change_detection.py            # Common-valid intersection & 4-class transition matrix
+│   ├── config.py                      # Environment loading, CORS origins & startup validation
+│   ├── downloader.py                  # CDSE OData, AWS COG (/vsicurl/) & synthetic fallback
+│   ├── reporting.py                   # CSV manifest & ReportLab PDF compiler
+│   ├── scene_selection.py             # Temporal pair & cloud-cover optimization
+│   ├── stac_client.py                 # Copernicus CDSE STAC discovery client
+│   ├── storage.py                     # Local & Supabase private object storage abstraction
+│   ├── visualization.py               # 300 DPI comparison panels, NDWI & change maps
+│   └── water_indices.py               # McFeeters NDWI computation & water segmentation
+├── frontend/                          # React 19 + Vite + TypeScript GIS workstation
+│   ├── public/                        # Static assets & Render SPA `_redirects` rule
+│   ├── src/                           # Components (`MapPicker`, `AuthModal`, etc.), API & Auth context
+│   ├── .env.example                   # Frontend placeholder env variables (`VITE_*`)
+│   ├── package.json                   # Frontend scripts (`dev`, `build`, `lint`, `test`)
+│   └── vite.config.ts                 # Vite & Vitest configuration
+├── alembic/                           # Database migrations (`53ebad6d6a09` -> `5903f15a19ed`)
+├── tests/                             # 18 Pytest modules (unit, API, RLS, PostGIS, cloud config)
+├── docs/                              # Technical reports, SRS, defense scripts & deployment guides
+├── scripts/                           # Presentation generator & Playwright verification harness
+├── artifacts/                         # Preserved demo outputs (PPTX, maps, PDF/CSV reports, captures)
+├── data/                              # Local raw raster cache directory (rasters gitignored)
+├── outputs/                           # Runtime output scratch directory (contents gitignored)
+├── logs/                              # Runtime log directory (contents gitignored)
+├── .github/workflows/ci.yml           # GitHub Actions CI for backend pytest & frontend build/tests
+├── server.py                          # Production/local FastAPI Uvicorn ASGI entrypoint
+├── app.py                             # Optional Streamlit GIS dashboard (Phase 1 baseline UI)
+├── main.py                            # Standalone CLI pipeline runner
+├── Dockerfile                         # Non-root Python 3.11 FastAPI + Rasterio container image
+├── render.yaml                        # Render Blueprint (Docker Web Service + Static Site)
+├── requirements.txt                   # Python dependencies
+├── .env.example                       # Backend placeholder environment configuration
+└── README.md                          # Project overview, setup, methodology & evaluation guide
 ```
 
 ---
 
-## 6. Quickstart & Installation Guide
+## 6. Local Setup Instructions
 
 ### Prerequisites
-- **Operating System:** Linux, macOS, or Windows 10/11
-- **Python:** 3.11 or higher
-- **Node.js:** v18.0+ (LTS recommended) and `npm`
-- **PostgreSQL / PostGIS:** PostgreSQL 16+ with PostGIS 3.6 extension enabled
+- **Python:** 3.11+
+- **Node.js & npm:** Node.js 20 LTS (or 18+)
+- **Database:** PostgreSQL 16+ with the PostGIS 3.x extension enabled
 
-### Step 1: Clone Repository & Configure Environment
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/dhara-scope/dharascope.git
-cd dharascope
+git clone https://github.com/Akshat-2923/END_SEM_PROJECT_AKSHAT_3274.git
+cd END_SEM_PROJECT_AKSHAT_3274
 ```
 
-Create and populate the local `.env` configuration file:
+### 2. Configure Environment Variables (Placeholders Only)
+Copy the provided templates and populate your own local or Supabase credentials (**never commit `.env` files**):
+
+```bash
+# Linux / macOS
+cp .env.example .env
+cp frontend/.env.example frontend/.env
+```
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
+Copy-Item frontend\.env.example frontend\.env
+```
+
+Key backend variables in `.env` (from [.env.example](.env.example)):
 ```ini
-# Database Connection (PostgreSQL 16 + PostGIS)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dharascope
-
-# Application Security & JWT
-JWT_SECRET=your-secure-jwt-signing-key-minimum-32-chars
-JWT_ALGORITHM=HS256
 ENVIRONMENT=development
-
-# Storage Abstraction (local | supabase)
-STORAGE_BACKEND=local
-LOCAL_STORAGE_DIR=outputs/artifacts
+FRONTEND_URL=http://localhost:5173
+DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5432/dharascope
+TEST_DATABASE_URL=postgresql+psycopg2://<user>:<password>@localhost:5432/dharascope_test
+DB_SSL_MODE=
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_ANON_KEY=<your-supabase-anon-or-publishable-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+SUPABASE_JWT_SECRET=<your-supabase-jwt-secret>
+# Or for asymmetric ES256/RS256 tokens:
+# SUPABASE_JWKS_URL=https://<your-project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_STORAGE_ENABLED=false
 ```
 
-### Step 2: Backend Setup & Spatial Database Migrations
-```bash
-# 1. Create and activate Python virtual environment
-python -m venv .venv
-# Linux / macOS: source .venv/bin/activate
-# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+Key frontend variables in `frontend/.env` (from [frontend/.env.example](frontend/.env.example)):
+```ini
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-or-publishable-key>
+```
 
-# 2. Upgrade pip and install core scientific dependencies
+### 3. Install Backend Dependencies & Apply Migrations
+```bash
+python -m venv .venv
+# Linux / macOS:
+source .venv/bin/activate
+# Windows PowerShell:
+# .\.venv\Scripts\Activate.ps1
+
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# 3. Apply spatial database migrations & PostGIS/RLS schema
 alembic upgrade head
 ```
 
-### Step 3: Frontend Installation
+### 4. Install Frontend Dependencies
 ```bash
-cd frontend
-npm install
-cd ..
+npm --prefix frontend install
 ```
-
-### Step 4: Launch Application Services
-Open two terminal windows:
-
-**Terminal 1 (Backend FastAPI Server):**
-```bash
-# With .venv activated
-uvicorn server:app --host 127.0.0.1 --port 8000 --reload
-# Alternatively: python server.py
-```
-*API Swagger Documentation will be available at: `http://127.0.0.1:8000/docs`*  
-*Database Diagnostics will be available at: `http://127.0.0.1:8000/health/db`*
-
-**Terminal 2 (Frontend React Client):**
-```bash
-cd frontend
-npm run dev
-```
-*Web GIS Interface will be available at: `http://127.0.0.1:5173`*
-
-*(Optional) Launch Streamlit GIS Workstation (Phase 1 Baseline):*
-```bash
-streamlit run app.py
-```
-*Streamlit Interface will be available at: `http://127.0.0.1:8501`*
 
 ---
 
-## 7. Verification & Automated Quality Assurance
+## 7. Running the Application & Tests
 
-### Automated Pytest Suite (Backend)
-Run the 18 test modules covering API contracts, spatial queries, RLS policies, NDWI accuracy, Supabase/Azure database config, cloud deployment guards, and PDF generation:
-```bash
-pytest -v
-```
-*Expected: 211 Passed, 1 Skipped (live Supabase Storage external credential test).*
+### Run Backend & Frontend Locally
+Open two terminals:
 
-### Frontend Vitest & Static Analysis
+- **Terminal 1 — FastAPI Backend (`http://127.0.0.1:8000`):**
+  ```bash
+  uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+  ```
+  Interactive API docs: `http://127.0.0.1:8000/docs` | DB diagnostics: `http://127.0.0.1:8000/health/db`
+
+- **Terminal 2 — React + Vite Frontend (`http://127.0.0.1:5173`):**
+  ```bash
+  npm --prefix frontend run dev
+  ```
+
+- *(Optional Phase 1 UI / CLI)* Run `streamlit run app.py` or `python main.py`.
+
+### Verification Commands
 ```bash
-# Run unit & component tests
+# Backend Pytest suite
+pytest tests/ -v
+
+# Frontend Vitest suite, static linter, and production build
 npm --prefix frontend test
-
-# Run static linter
 npm --prefix frontend run lint
-
-# Run production build validation
 npm --prefix frontend run build
 ```
-*Expected: 19 Passed across 6 test suites, 0 lint errors, clean build.*
-
-### Automated Headless Browser Validation (Playwright)
-Verify the entire end-to-end user journey on live running servers:
-```bash
-node scripts/validate_real_satellite_browser.mjs
-```
-*Executes all 8 steps, tests real orbital Sentinel-2 data, confirms metrics (0.53 ha $\to$ 1.66 ha), and verifies PDF/CSV downloads.*
 
 ---
 
-## 8. Project Documentation & Artifacts Sitemap
+## 8. Cloud Deployment Summary
 
-| Document / Asset | Purpose & Contents |
+DharaScope is configured for production deployment across **Render** and **Supabase**:
+- **Frontend (Render Static Site):** `https://dharascope-frontend.onrender.com` — built from `frontend/` (`npm install && npm run build`, publish `dist/`, SPA rewrite via [frontend/public/_redirects](frontend/public/_redirects)).
+- **Backend (Render Docker Web Service):** `https://dharascope-backend.onrender.com` — built from [Dockerfile](Dockerfile) as non-root `appuser` serving FastAPI over `$PORT` with OpenAPI docs at `/docs`.
+- **Database, Auth & Storage (Dedicated Supabase Project `iyjvjapdzbnzsrfvrctl`, `ap-southeast-1`):** PostgreSQL 17.12 + PostGIS `3.3.7` (`extensions` schema), Alembic revisions `53ebad6d6a09` $\to$ `5903f15a19ed`, `dharascope_app` RLS role with 20 forced-RLS policies, and private `rasters`, `maps`, and `reports` buckets.
+
+Required Render Backend env vars for live cross-origin operation (defined in [render.yaml](render.yaml) and [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)):
+- `ENVIRONMENT=production`
+- `FRONTEND_URL=https://dharascope-frontend.onrender.com`
+- `DATABASE_URL` (Supabase IPv4 Session Pooler `:5432`) & `DB_SSL_MODE=require`
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET` and/or `SUPABASE_JWKS_URL`
+- `SUPABASE_STORAGE_ENABLED=true`
+
+---
+
+## 9. Current Limitations & Future Scope
+
+### Current Limitations
+- **Optical & Physical Boundaries:** Optical Sentinel-2 imagery cannot penetrate dense cloud cover; NDWI detects surface water extent only and does **not** measure water quality, turbidity chemistry, depth, or volume.
+- **Spatial Envelope Bounds:** AOIs are validated between `0.10 km²` and `100.00 km²` (`<= 500` vertices) to maintain bounded memory and interactive processing times.
+- **In-Process Task Queue:** Background pipeline runs execute via FastAPI `BackgroundTasks` and do not survive worker restarts; concurrent 300 DPI Matplotlib rendering should stay within 2–3 simultaneous runs per container.
+- **Render Free-Tier Cold Starts:** Initial requests after idle periods on Render free instances incur container wake-up latency (~30–50 s).
+
+### Future Scope
+- **All-Weather SAR Fusion:** Integrate Sentinel-1 C-band Synthetic Aperture Radar (SAR) backscatter to maintain flood and channel mapping under persistent monsoon cloud cover.
+- **Multi-Date Time-Series Analytics:** Support $N$-date seasonal hydrograph area curves instead of pairwise ($T_1$, $T_2$) comparison alone.
+- **Durable Distributed Queue:** Migrate background analysis execution from in-process `BackgroundTasks` to Redis + Celery/ARQ workers.
+
+---
+
+## 10. Documentation & Evaluation Sitemap
+
+| Document / Artifact | Purpose |
 | :--- | :--- |
-| [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | **Cloud Deployment Guide:** End-to-end production setup on Supabase (Postgres/PostGIS/Auth/Storage) + Render (Docker Web Service & Static Site). |
-| [docs/DEPLOYMENT_AUDIT.md](docs/DEPLOYMENT_AUDIT.md) | **Deployment & Infrastructure Audit:** Technical review of compatibility, CORS, RLS portability, and storage security before deployment. |
-| [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | **Cloud & Deployment Status:** Real-time ledger of completed, pending, and blocked deployment tasks alongside verified test counts. |
-| [render.yaml](render.yaml) | **Render Blueprint:** Declarative multi-service deployment specification for FastAPI Docker backend and React Static Site. |
-| [Dockerfile](Dockerfile) | **Backend Container:** Lightweight `python:3.11-slim-bookworm` container running non-root Uvicorn + Rasterio/GeoAlchemy2. |
-| [artifacts/presentation/DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/artifacts/presentation/DharaScope_Final_Presentation.pptx) | **15-Slide Master Deck:** Comprehensive academic presentation with dark geospatial styling and speaker notes. |
-| [docs/PROJECT_REPORT.md](file:///d:/Coding/Projects/DharaScope/docs/PROJECT_REPORT.md) | **Complete Academic Capstone Report:** Problem statement, literature review, requirements, architecture, multi-scale findings, and ethics. |
-| [docs/ARCHITECTURE.md](file:///d:/Coding/Projects/DharaScope/docs/ARCHITECTURE.md) | **System Architecture:** Detailed component interactions, data flows, security boundaries, and Mermaid diagrams. |
-| [docs/AZURE_POSTGRESQL.md](file:///d:/Coding/Projects/DharaScope/docs/AZURE_POSTGRESQL.md) | **Azure PostgreSQL Flexible Server Guide:** SKU specifications, `azure.extensions` configuration, TLS/SSL, and cloud migration runbooks. |
-| [docs/DEMO_GUIDE.md](file:///d:/Coding/Projects/DharaScope/docs/DEMO_GUIDE.md) | **Demonstration Guide:** Step-by-step evaluation script for examiners, judges, and reviewers. |
-| [docs/FINAL_DEFENSE_SCRIPT.md](file:///d:/Coding/Projects/DharaScope/docs/FINAL_DEFENSE_SCRIPT.md) | **Oral Defense Script:** 60s elevator pitch, 3-min technical breakdown, 5-min demo runbook, and examiner Q&A answers. |
-| [docs/PRESENTATION.md](file:///d:/Coding/Projects/DharaScope/docs/PRESENTATION.md) | **Presentation Specification:** Slide-by-slide master slide transcript, visual layouts, and detailed speaker scripts. |
-| [docs/JUDGE_QA.md](file:///d:/Coding/Projects/DharaScope/docs/JUDGE_QA.md) | **Examiner Defense Q&A:** Comprehensive responses to 30 evaluator questions with plain-language summaries and technical deep-dives. |
-| [docs/SCIENTIFIC_METHODOLOGY.md](file:///d:/Coding/Projects/DharaScope/docs/SCIENTIFIC_METHODOLOGY.md) | **Earth Observation Methodology:** Sentinel-2 sensor physics, McFeeters NDWI, windowed streaming, and scale dynamics. |
-| [docs/SYSTEM_CONSTRAINTS.md](file:///d:/Coding/Projects/DharaScope/docs/SYSTEM_CONSTRAINTS.md) | **Operational Constraints:** Approved MVP boundaries, $100\text{ km}^2$ size limit, and security guardrails. |
-| [docs/TECHNICAL_DECISIONS.md](file:///d:/Coding/Projects/DharaScope/docs/TECHNICAL_DECISIONS.md) | **Architecture Decision Records (ADRs):** Technical rationale for COGs, McFeeters NDWI, PostGIS RLS, and role journals. |
-
----
-
-## 9. License & Academic Disclaimer
-
-This project is licensed under the **MIT License** — see the [LICENSE](file:///d:/Coding/Projects/DharaScope/LICENSE) file for details.
-
-**Academic & Operational Disclaimer:**  
-DharaScope was developed as an academic capstone research project. While satellite observations and spectral calculations utilize verified Copernicus Sentinel-2 Level-2A surface reflectance data, hydrological change assessments should be corroborated with in-situ river gauge hydrographs and official municipal records before making flood defense, irrigation, or engineering decisions.
+| [docs/PROJECT_REPORT.md](docs/PROJECT_REPORT.md) | Complete academic capstone project report |
+| [docs/SCIENTIFIC_METHODOLOGY.md](docs/SCIENTIFIC_METHODOLOGY.md) | Sentinel-2 physics, McFeeters NDWI equations, and scale analysis |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, ER schema, and component interactions |
+| [docs/SRS.md](docs/SRS.md) & [docs/SYSTEM_CONSTRAINTS.md](docs/SYSTEM_CONSTRAINTS.md) | Formal requirements specification and validated operational constraints |
+| [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | Step-by-step Supabase + Render + Docker rollout guide |
+| [docs/SUPABASE_INTEGRATION_REPORT.md](docs/SUPABASE_INTEGRATION_REPORT.md) | Live dedicated Supabase (`iyjvjapdzbnzsrfvrctl`) schema, RLS, PostGIS & Storage audit |
+| [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) & [docs/FINAL_DEFENSE_SCRIPT.md](docs/FINAL_DEFENSE_SCRIPT.md) | Practical demonstration script and oral defense walkthrough |
+| [docs/JUDGE_QA.md](docs/JUDGE_QA.md) | Viva / examiner Q&A reference guide |
+| [artifacts/presentation/DharaScope_Final_Presentation.pptx](artifacts/presentation/DharaScope_Final_Presentation.pptx) | 15-slide evaluation presentation deck |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md) & [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Live subsystem status and verification ledger |

@@ -344,7 +344,7 @@
 
 ### 12.1 Supabase Auth GoTrue Admin API Synchronization
 - **IdP Role Propagation:** Integrated `sync_user_role_to_supabase()` in `src/auth.py`, invoking `PUT /auth/v1/admin/users/{user_id}` with `SUPABASE_SERVICE_ROLE_KEY`. Updating a user's role directly mutates the authoritative `app_metadata.role` claim.
-- **Atomic Failure Handling:** In `PATCH /api/v1/admin/users/{user_id}` ([`src/api/routers/auth.py`](file:///d:/Coding/Projects/DharaScope/src/api/routers/auth.py)), Supabase is updated first. If the network call or IdP rejects the update, the transaction is aborted and PostgreSQL `profiles.role` is never modified.
+- **Atomic Failure Handling:** In `PATCH /api/v1/admin/users/{user_id}` ([`src/api/routers/auth.py`](src/api/routers/auth.py)), Supabase is updated first. If the network call or IdP rejects the update, the transaction is aborted and PostgreSQL `profiles.role` is never modified.
 - **Service-Role Key Security Boundary:** Key is loaded exclusively into backend server environment variables (`.env`). It is never exposed in client bundles, public configurations, or API serialization schemas. Production fail-closed guards enforce key existence.
 - **Stale Token Modeling:** Documented that active tokens in circulation retain their claims until expiration; maximum revocation delay is the token TTL (default 3600 seconds in Supabase). Newly minted tokens reflect updated roles immediately.
 - **Automated Tests (`tests/test_admin_role_sync.py`):** 10 automated test cases verifying promotion, revocation, network timeout/500 rollback, 404 user not found, 403 non-admin rejection, quota-only bypass, and production fail-closed behaviors.
@@ -912,7 +912,7 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
   - Structured every question into two distinct tiers:
     1. *Plain-Language Summary (For Non-Specialists):* Intuitive analogies and executive takeaways without dense jargon.
     2. *Technical Deep-Dive:* Rigorous mathematical formulas, remote sensing physics, and architectural details.
-  - Linked specific source code files using clickable markdown links (e.g. `[src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indices.py)`).
+  - Linked specific source code files using clickable markdown links (e.g. `[src/water_indices.py](src/water_indices.py)`).
   - Verified and defended:
     - McFeeters NDWI at native 10m GSD vs Xu's MNDWI at 20m GSD.
     - Mathematical reconciliation of the 44,178 vs 44,600 pixel grid discretization.

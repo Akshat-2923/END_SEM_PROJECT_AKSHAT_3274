@@ -4,10 +4,10 @@
 **Candidate / Presenter:** DharaScope Engineering & Science Team  
 **Evaluation Session:** Final Academic Capstone Defense (November 2026)  
 **Accompanying Materials:**  
-- [DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/artifacts/presentation/DharaScope_Final_Presentation.pptx) (15-Slide Master Deck)  
-- [docs/PROJECT_REPORT.md](file:///d:/Coding/Projects/DharaScope/docs/PROJECT_REPORT.md) (Comprehensive Academic Capstone Report)  
-- [docs/JUDGE_QA.md](file:///d:/Coding/Projects/DharaScope/docs/JUDGE_QA.md) (Evaluator Q&A Reference Guide with 30 Verified Answers)  
-- [docs/PRESENTATION.md](file:///d:/Coding/Projects/DharaScope/docs/PRESENTATION.md) (Slide-by-Slide Content & Script Notes)  
+- [DharaScope_Final_Presentation.pptx](../artifacts/presentation/DharaScope_Final_Presentation.pptx) (15-Slide Master Deck)
+- [docs/PROJECT_REPORT.md](PROJECT_REPORT.md) (Comprehensive Academic Capstone Report)
+- [docs/JUDGE_QA.md](JUDGE_QA.md) (Evaluator Q&A Reference Guide with 30 Verified Answers)
+- [docs/PRESENTATION.md](PRESENTATION.md) (Slide-by-Slide Content & Script Notes)
 
 ---
 
@@ -53,7 +53,7 @@ DharaScope turns petabytes of raw satellite data into instant, actionable enviro
 Our frontend is built with React 19, TypeScript, and Vite. It integrates Leaflet for real-time vector digitization. When a user draws an Area of Interest (AOI), the client does not merely draw a polygon—it validates vertices, checks bounding extents against our strict $100\text{ km}^2$ operational ceiling, and communicates over secure HTTPS with bearer JWT tokens.
 
 ### 2. Spatial Persistence & Multi-Tenant Security (PostgreSQL 16 + PostGIS 3.6)
-Our database enforces multi-tenant defense-in-depth through PostgreSQL Row-Level Security (RLS) located in [src/database/models.py](file:///d:/Coding/Projects/DharaScope/src/database/models.py). 
+Our database enforces multi-tenant defense-in-depth through PostgreSQL Row-Level Security (RLS) located in [src/database/models/](../src/database/models/) and [5903f15a19ed_enable_rls_and_policies.py](../alembic/versions/5903f15a19ed_enable_rls_and_policies.py).
 - Every database transaction sets `app.current_user_id` from the cryptographically verified Supabase JWT claims.
 - PostgreSQL RLS policies physically prevent any tenant from reading or modifying another user's AOIs, satellite scenes, or analysis runs, even if application logic were compromised.
 - Vector geometries are indexed with spatial GiST indexes (`idx_aois_geom`) and validated using PostGIS `ST_IsValid` and `ST_Area`.
@@ -62,44 +62,44 @@ Our database enforces multi-tenant defense-in-depth through PostgreSQL Row-Level
 Traditional pipelines download entire 500 MB to 1 GB Sentinel-2 SAFE archives. In DharaScope:
 - We query the Copernicus Data Space Ecosystem (CDSE) or AWS Open Data via SpatioTemporal Asset Catalog (STAC) protocols.
 - We resolve the Cloud-Optimized GeoTIFF (COG) URLs for Band 3 (Green) and Band 8 (Near-Infrared).
-- Using GDAL's `/vsicurl/` virtual file system and `rasterio`, our ingestion engine ([src/downloader.py](file:///d:/Coding/Projects/DharaScope/src/downloader.py)) issues HTTP range requests to download **only the exact pixel bounding box of the user's AOI**. For a 4.41 square kilometer study area, this streams just 88 kilobytes instead of a 600 megabyte granule—achieving a **99.98% reduction in network overhead**.
+- Using GDAL's `/vsicurl/` virtual file system and `rasterio`, our ingestion engine ([src/downloader.py](../src/downloader.py)) issues HTTP range requests to download **only the exact pixel bounding box of the user's AOI**. For a 4.41 square kilometer study area, this streams just 88 kilobytes instead of a 600 megabyte granule—achieving a **99.98% reduction in network overhead**.
 
 ### 4. Calibrated Spectral Pipeline & 4-Class Change Engine
-In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indices.py) and [src/change_detection.py](file:///d:/Coding/Projects/DharaScope/src/change_detection.py):
+In [src/water_indices.py](../src/water_indices.py) and [src/change_detection.py](../src/change_detection.py):
 - We compute McFeeters Normalized Difference Water Index:
   $$\text{NDWI} = \frac{\text{Green} - \text{NIR}}{\text{Green} + \text{NIR}} = \frac{\text{B03} - \text{B08}}{\text{B03} + \text{B08}}$$
 - Zero-division errors and sensor NoData masks are strictly isolated using IEEE 754 NaN handling and boolean validity masks.
 - Binary masks are classified at the canonical threshold of $\tau = 0.0$.
 - Multi-temporal pairs are encoded into a categorical 4-class transition matrix: Permanent Water (1 $\to$ 1), Water Recession (1 $\to$ 0), Water Inundation (0 $\to$ 1), and Persistent Land (0 $\to$ 0).
-- Finally, our reporting engine ([src/reporting.py](file:///d:/Coding/Projects/DharaScope/src/reporting.py)) compiles these metrics into 300 DPI cartographic maps, CSV matrices, and archival PDF summaries."
+- Finally, our reporting engine ([src/reporting.py](../src/reporting.py)) compiles these metrics into 300 DPI cartographic maps, CSV matrices, and archival PDF summaries."
 
 ---
 
 ## Part 3: Live Demonstration Runbook (5 Minutes)
 
 > **Demonstration Method:** Step-by-step walkthrough of the live web application (or verified high-resolution browser captures if live network access is restricted).  
-> **Companion Script:** [scripts/validate_real_satellite_browser.mjs](file:///d:/Coding/Projects/DharaScope/scripts/validate_real_satellite_browser.mjs).  
-> **Visual Artifacts:** [outputs/validation_phase2_4/](file:///d:/Coding/Projects/DharaScope/outputs/validation_phase2_4/).
+> **Companion Script:** [scripts/validate_real_satellite_browser.mjs](../scripts/validate_real_satellite_browser.mjs).
+> **Visual Artifacts:** [artifacts/validation_phase2_4/](../artifacts/validation_phase2_4/).
 
 ```
 +---------------------------------------------------------------------------------------+
 | STAGE 1: LANDING & TELEMETRY                                           [0:00 - 0:30]  |
 | - Action: Navigate to http://localhost:5173.                                          |
-| - Screen: outputs/validation_phase2_4/01_initial_landing.png                          |
+| - Screen: artifacts/validation_phase2_4/01_initial_landing.png                          |
 | - Narration: "Here is the DharaScope workstation. Notice the dark scientific visual   |
 |   identity, system telemetry badges confirming backend health, and the Leaflet       |
 |   interactive map centered over northern India."                                      |
 +---------------------------------------------------------------------------------------+
 | STAGE 2: AUTHENTICATION & SESSION HANDLING                             [0:30 - 1:00]  |
 | - Action: Click 'Sign In', supply hydrologist credentials.                            |
-| - Screen: outputs/validation_phase2_4/02_authenticated_session.png                    |
+| - Screen: artifacts/validation_phase2_4/02_authenticated_session.png                    |
 | - Narration: "Authentication is managed via Supabase Auth with JWT bearer claims.     |
 |   Notice the header immediately displays the user's role ('hydrologist').             |
 |   The backend extracts this identity to set PostgreSQL session RLS context."          |
 +---------------------------------------------------------------------------------------+
 | STAGE 3: VECTOR AOI DIGITIZATION & SPATIAL VALIDATION                 [1:00 - 1:45]  |
 | - Action: Select 'Urban Gomti River Study Reach, Lucknow' preset.                     |
-| - Screen: outputs/validation_phase2_4/03_aoi_validated.png                            |
+| - Screen: artifacts/validation_phase2_4/03_aoi_validated.png                            |
 | - Narration: "We select the Urban Gomti River Study Reach in Lucknow. The client      |
 |   checks geometry and sends it to POST /api/v1/aois. PostGIS evaluates ST_IsValid     |
 |   and ST_Area in EPSG:4326/3857, confirming a validated area of 4.40 km²—well within  |
@@ -107,14 +107,14 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 +---------------------------------------------------------------------------------------+
 | STAGE 4: STAC SATELLITE DISCOVERY & SELECTION                         [1:45 - 2:30]  |
 | - Action: Open Scene Discovery tab, query Sentinel-2 L2A for 2023.                    |
-| - Screen: outputs/validation_phase2_4/04_analysis_configured.png                      |
+| - Screen: artifacts/validation_phase2_4/04_analysis_configured.png                      |
 | - Narration: "The user selects our two real observation dates: October 10, 2023       |
 |   (T44RMQ) and December 09, 2023 (T44RMQ). The UI displays metadata including scene   |
 |   tile IDs, acquisition timestamps, and provider source ('copernicus')."              |
 +---------------------------------------------------------------------------------------+
 | STAGE 5: ANALYSIS SUBMISSION & PIPELINE EXECUTION                     [2:30 - 3:15]  |
 | - Action: Click 'Execute Change Detection'. Show progress bar & toast.                |
-| - Screen: outputs/validation_phase2_4/05_analysis_success_real_data.png               |
+| - Screen: artifacts/validation_phase2_4/05_analysis_success_real_data.png               |
 | - Narration: "FastAPI receives the request, launches an asynchronous background       |
 |   task, and streams the windowed COG rasters. In 6.8 seconds, computation finishes    |
 |   with status COMPLETED. Notice the prominent badge: 'REAL DATA (Sentinel-2 L2A)'—    |
@@ -122,7 +122,7 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 +---------------------------------------------------------------------------------------+
 | STAGE 6: DUAL-OBSERVATION METRICS & TRANSITION MATRIX                 [3:15 - 4:00]  |
 | - Action: Scroll through Quantitative Metrics and Transition Breakdown.               |
-| - Screen: outputs/validation_phase2_4/06_metrics_and_transitions.png                 |
+| - Screen: artifacts/validation_phase2_4/06_metrics_and_transitions.png                 |
 | - Narration: "Here are the scientific metrics: Water area on 2023-10-10 (T1) was      |
 |   0.53 ha (53 pixels / 5,300 m²), and on 2023-12-09 (T2) it was 1.66 ha (166 pixels  |
 |   / 16,600 m²), representing a net observed increase of +1.13 ha (+113 pixels /       |
@@ -133,14 +133,14 @@ In [src/water_indices.py](file:///d:/Coding/Projects/DharaScope/src/water_indice
 +---------------------------------------------------------------------------------------+
 | STAGE 7: INTERACTIVE CARTOGRAPHY & SPATIAL VISUALIZATION              [4:00 - 4:30]  |
 | - Action: Toggle layer switcher between T1 NDWI, T2 NDWI, and Change Map.             |
-| - Screen: outputs/validation_phase2_4/07_cartography_figures.png                      |
+| - Screen: artifacts/validation_phase2_4/07_cartography_figures.png                      |
 | - Narration: "The Leaflet canvas renders the spatial distribution. Cyan highlights    |
 |   newly inundated floodplain areas; blue indicates stable river channels; red reveals |
 |   localized sandbar recessions; gray represents surrounding urban and alluvial land."  |
 +---------------------------------------------------------------------------------------+
 | STAGE 8: REPORT EXPORT (PDF & CSV)                                    [4:30 - 5:00]  |
 | - Action: Click 'Download PDF Report' and 'Export CSV Metrics'.                       |
-| - Screen: outputs/validation_phase2_4/08_report_downloads.png                         |
+| - Screen: artifacts/validation_phase2_4/08_report_downloads.png                         |
 | - Narration: "With a single click, the user exports a publication-grade 300 DPI PDF   |
 |   report containing vector metadata, figures, and methodology notes, alongside raw     |
 |   CSV transition matrices ready for GIS ingest."                                      |
@@ -186,7 +186,7 @@ Use these concise, authoritative responses when challenged by the committee:
 > **Answer:** "McFeeters NDWI uses Green (B03) and NIR (B08), both natively available at **10-meter spatial resolution** on Sentinel-2. Xu's MNDWI requires SWIR (B11), which is captured at **20-meter resolution**. Using MNDWI would require spatial resampling and downscaling, introducing edge artifacts along narrow riverbanks. McFeeters gives us the sharpest native geometric resolution for channel boundaries."
 
 ### Q2: "How do you guarantee one user cannot see another user's spatial data?"
-> **Answer:** "We use PostgreSQL Row-Level Security (RLS) defined in [src/database/models.py](file:///d:/Coding/Projects/DharaScope/src/database/models.py). The FastAPI middleware verifies the Supabase JWT and sets `app.current_user_id` in the database session. Even if an attacker directly executes raw SQL on the database, PostgreSQL's kernel enforces `WHERE user_id = current_setting('app.current_user_id')`, physically blocking cross-tenant reads and writes."
+> **Answer:** "We use PostgreSQL Row-Level Security (RLS) defined in [src/database/models/](../src/database/models/) and [5903f15a19ed_enable_rls_and_policies.py](../alembic/versions/5903f15a19ed_enable_rls_and_policies.py). The FastAPI middleware verifies the Supabase JWT and sets `app.current_user_id` in the database session. Even if an attacker directly executes raw SQL on the database, PostgreSQL's kernel enforces `WHERE user_id = current_setting('app.current_user_id')`, physically blocking cross-tenant reads and writes."
 
 ### Q3: "What happens if CDSE or AWS satellite services are down during an analysis?"
 > **Answer:** "The downloader raises a descriptive `SatelliteDiscoveryError` or `BandDownloadError` with HTTP status codes and endpoint URLs. The backend transitions the analysis job state to `FAILED`, persists the exact error in the database, and alerts the user through the UI. Crucially, the system **never silently falls back to synthetic data** in production."

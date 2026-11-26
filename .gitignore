@@ -2,11 +2,35 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.env
-.env
-.env.local
+.pytest_cache/
 .coverage
 htmlcov/
+
+# Environment & secrets
+*.env
+.env
+.env.*
+!.env.example
+.env.local
+
+# Node / Frontend builds
+node_modules/
+dist/
+dist-ssr/
+coverage/
+playwright-report/
+test-results/
+
+# Local databases, dumps & keys
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.bak
+*.tmp
+*.pem
+*.key
 
 # Virtual Environment
 .venv/
