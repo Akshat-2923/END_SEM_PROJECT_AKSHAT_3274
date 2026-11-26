@@ -2,21 +2,20 @@
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
 - **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform
-- **Current Phase:** End-to-End Production Deployment Orchestration (Local Readiness Verified; Awaiting Dedicated Supabase MCP Re-Binding & Render Authorization)
+- **Current Phase:** Dedicated Supabase Production Database Provisioning & Render Rollout Preparation
 - **Last Updated:** 2026-11-26
-- **Overall System Health:** `DOCKER & LOCAL STACK VERIFIED / READY FOR DEDICATED CLOUD ROLLOUT (v1.1.0)`
+- **Overall System Health:** `DEDICATED SUPABASE PROVISIONED & LOCAL STACK VERIFIED / READY FOR GITHUB PUSH & RENDER ROLLOUT (v1.1.0)`
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has completed **Cloud Deployment & Infrastructure Integration**, **Post-Implementation Verification**, and pre-deployment orchestration checks. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [docs/SUPABASE_INTEGRATION_REPORT.md](docs/SUPABASE_INTEGRATION_REPORT.md), and [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for the live classification matrix and rollout steps.
+DharaScope has completed **Dedicated Supabase Production Database Provisioning** on project `iyjvjapdzbnzsrfvrctl` (`Dharascope`, region `ap-southeast-1`) alongside **Cloud Deployment & Infrastructure Integration** verification. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [docs/SUPABASE_INTEGRATION_REPORT.md](docs/SUPABASE_INTEGRATION_REPORT.md), and [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for full details separating live Supabase verification from local and pending Render steps.
 
 Key verification results in this pass:
-1. **Supabase Integration & Shared-Project Protection:** Verified `yvfeiedyuvdzkoxuycpe` (`PostgreSQL 17.11`, `ap-southeast-2`, `postgis 3.3.7`) earlier; halted Alembic `public` DDL before modifying pre-existing social tables (`public.profiles` 8 rows, `public.posts` 12 rows). Current `supabase_mcp` session still points only to `yvfeiedyuvdzkoxuycpe`, so Phase 1 migrations on the new dedicated Supabase project await MCP re-binding (preserving `yvfeiedyuvdzkoxuycpe` untouched).
-2. **GitHub & Secret Hygiene Audit:** Inspected `main`, verified zero tracked `.env`/secrets/credentials across all 30 modified/untracked files, and prepared deployment assets cleanly (push held pending explicit confirmation).
-3. **Database-Driver & Render Blueprint Integration:** Verified `psycopg2-binary 2.9.13` + `postgresql+psycopg2` consistency, Direct & Session Pooler URL SSL parsing (`sslmode=require`), [render.yaml](render.yaml) (`envVarKey: RENDER_EXTERNAL_URL`), [Dockerfile](Dockerfile), and [frontend/public/_redirects](frontend/public/_redirects). Confirmed no Render MCP/CLI/API integration is connected; manual Dashboard Blueprint steps documented.
-4. **Regression Suites:** Executed full backend pytest suite, frontend Vitest suite, Oxlint static check, and Vite production build after final documentation updates.
+1. **Verified Live on Dedicated Supabase (`iyjvjapdzbnzsrfvrctl`, `ap-southeast-1`):** Confirmed empty database before migration (`yvfeiedyuvdzkoxuycpe` preserved untouched); enabled `postgis 3.3.7` in `extensions`; verified `ST_IsValid`, `ST_GeomFromEWKT`, `ST_Area(ST_GeogFromText(...))`, and `ST_Centroid`; applied `53ebad6d6a09_initial_schema` & `5903f15a19ed_enable_rls_and_policies` (`alembic_version = '5903f15a19ed'`); verified 5 tables, 5 foreign keys, 18 indexes (`idx_aois_geometry` GiST), non-superuser `dharascope_app` role, 20 forced-RLS policies (tested live in a rolled-back subtransaction leaving `0` rows), private buckets `rasters`/`maps`/`reports` (`public = false`) with `"Users read own analysis artifacts"` policy on `storage.objects`, and `HTTP 200` on the project JWKS endpoint.
+2. **Verified Locally:** Tested FastAPI `/health` and `/health/db` against local PostgreSQL 16.15 + PostGIS 3.6.2, verified `iyjvjapdzbnzsrfvrctl` Direct & `ap-southeast-1` Session Pooler URL/SSL (`sslmode=require`) parsing, Docker container execution, backend `pytest`, frontend `vitest` / `oxlint` / `vite build`, and zero leaked secrets across tracked files.
+3. **Pending Render Configuration & Push Authorization:** No Render MCP/CLI integration is connected; [render.yaml](render.yaml), [Dockerfile](Dockerfile), and [frontend/public/_redirects](frontend/public/_redirects) are ready for manual Dashboard Blueprint provisioning once `main` push is authorized. Direct Python-to-remote DB and live E2E production tests await remote DB/Service-Role credentials and Render deployment.
 
 ---
 
@@ -106,17 +105,16 @@ Key verification results in this pass:
   - Hardened item datetime, cloud cover, and discovery stage metadata parsing in `src/services/analysis_service.py` and `src/reporting.py`.
 
 ### 2.4 Live Supabase Verification, Pending & Blocked Subsystems
-- **Verified Against Live Supabase (`yvfeiedyuvdzkoxuycpe`, `ap-southeast-2`):**
-  - [x] Inspected `PostgreSQL 17.11` (`ACTIVE_HEALTHY`), verified legacy `anon` + publishable keys present, enabled `postgis 3.3.7` in `extensions`, verified unqualified `ST_IsValid`/`ST_Area`, and created private Storage buckets (`rasters`, `maps`, `reports`, `public = false`) leaving pre-existing `posts` (`public = true`) untouched.
+- **Verified Live on Dedicated Supabase (`iyjvjapdzbnzsrfvrctl`, `ap-southeast-1`):**
+  - [x] Verified empty DB (`PostgreSQL 17.12`, `ACTIVE_HEALTHY`; `yvfeiedyuvdzkoxuycpe` untouched), enabled `postgis 3.3.7` in `extensions`, verified `ST_IsValid`/`ST_GeomFromEWKT`/`ST_Area`/`ST_Centroid`, applied `53ebad6d6a09` + `5903f15a19ed` (`alembic_version='5903f15a19ed'`), created `dharascope_app` role, verified 5 tables / 5 FKs / 18 indexes (`idx_aois_geometry`) / 20 forced-RLS policies via live rolled-back isolation test, provisioned private `rasters`/`maps`/`reports` buckets (`public = false`) + `"Users read own analysis artifacts"` policy on `storage.objects`, and confirmed `HTTP 200` on `/auth/v1/.well-known/jwks.json`.
 - **Verified Locally:**
-  - [x] Docker Desktop image build (`dharascope-backend:verify`, `875MB`), non-root container startup (`appuser`), `PROJ_DATA`/geospatial imports, `/health`, `/health/db`, CORS, in-container `alembic current`, and `yvfeiedyuvdzkoxuycpe` Direct/Session Pooler `get_engine()` + `sslmode=require` wiring.
-- **Pending Render Configuration:**
-  - [ ] **Live Render Provisioning (No Render MCP/CLI Connected):** Connect GitHub repository in Render Dashboard (**Blueprints $\to$ New Blueprint Instance** using `render.yaml`), populate `sync: false` secrets and `FRONTEND_URL`, update Supabase Auth Redirect URLs, and verify live cross-origin endpoints.
+  - [x] Docker Desktop image build (`dharascope-backend:verify`, `875MB`), non-root container startup (`appuser`), `PROJ_DATA`/geospatial imports, `/health`, `/health/db` (local PG 16.15 + PostGIS 3.6.2), CORS, in-container `alembic current`, `iyjvjapdzbnzsrfvrctl` Direct & `ap-southeast-1` Session Pooler `get_engine()` + `sslmode=require` wiring, and backend/frontend regression suites.
+- **Pending Render Configuration & GitHub Push Authorization:**
+  - [ ] **GitHub Push & Live Render Provisioning (No Render MCP/CLI Connected):** Push `main` after confirmation, connect repository in Render Dashboard (**Blueprints $\to$ New Blueprint Instance** using `render.yaml`), populate `sync: false` secrets and `FRONTEND_URL`, update Supabase Auth Redirect URLs, and run live E2E production tests.
   - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
   - [ ] **Durable Task Queue Migration:** Celery/Redis worker migration for distributed background jobs across server restarts.
-- **Blocked by Credentials or Permissions:**
-  - **Dedicated Supabase MCP Re-Binding:** Shared project `yvfeiedyuvdzkoxuycpe` was halted before `public` DDL and must remain untouched. Active `supabase_mcp` still lists only `yvfeiedyuvdzkoxuycpe`; re-point MCP to the new dedicated project ref (or supply its Session Pooler `DATABASE_URL` + keys) before applying Alembic migrations and provisioning private Storage buckets/policies.
-  - **Direct Python DB & Storage `storage.objects` Policies:** Local host lacks remote `DATABASE_URL` password/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_JWT_SECRET`, and `storage.objects` is owned by `supabase_storage_admin` (client `SELECT` policies must be applied via Supabase Dashboard UI or `supabase_storage_admin`).
+- **Blocked by Missing Local Credentials:**
+  - **Direct Python-to-Remote DB & Service-Role Storage Roundtrip:** Local `.env` does not contain `iyjvjapdzbnzsrfvrctl`'s database password, `SUPABASE_SERVICE_ROLE_KEY`, or `SUPABASE_JWT_SECRET` (not exposed via MCP OAuth). These run once configured in Render (or `.env`).
 
 ---
 
@@ -190,6 +188,6 @@ Key verification results in this pass:
 
 ## 6. Recommended Next Priorities (Cloud Operations)
 
-1. **Re-Point Supabase MCP & Roll Out to Render:** Reconnect `supabase_mcp` to the dedicated empty DharaScope project (never touching `yvfeiedyuvdzkoxuycpe`), enable `postgis`, run `alembic upgrade head`, create private `rasters`/`maps`/`reports` buckets + Dashboard policies, push `main` after confirmation, and deploy `render.yaml` in Render Dashboard.
+1. **GitHub Push & Render Rollout:** Confirm `git push origin main`, import `render.yaml` Blueprint in Render Dashboard with `iyjvjapdzbnzsrfvrctl` credentials (`ap-southeast-1` Session Pooler `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`/`SUPABASE_JWKS_URL`, `FRONTEND_URL`), configure Supabase Auth Redirect URLs, and execute live E2E production tests.
 2. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
 3. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.
