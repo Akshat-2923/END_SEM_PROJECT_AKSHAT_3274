@@ -48,6 +48,14 @@ class StorageConfigurationError(StorageError):
     pass
 
 
+def _normalize_object_path(object_path: str) -> str:
+    """Normalize a relative object storage key and reject path traversal attempts."""
+    norm = object_path.replace("\\", "/").strip().lstrip("/")
+    if not norm or ".." in Path(norm).parts:
+        raise StorageError(f"Invalid storage object path: '{object_path}'")
+    return norm
+
+
 class BaseStorageBackend(ABC):
     """Abstract base class for storage backends."""
 
@@ -126,7 +134,7 @@ class LocalStorageBackend(BaseStorageBackend):
 
     def _resolve_local_path(self, bucket: str, object_path: str) -> Path:
         """Resolve a storage object path against base_dir and outputs."""
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         
         # 1. Direct match relative to base_dir (e.g. outputs/<user>/<run>/<file>)
         candidate = self.base_dir / norm_path
@@ -170,7 +178,7 @@ class LocalStorageBackend(BaseStorageBackend):
         if not src.exists():
             raise StorageUploadError(f"Source file does not exist: {local_path}")
 
-        norm_dest = destination_path.replace("\\", "/").lstrip("/")
+        norm_dest = _normalize_object_path(destination_path)
         target = self.base_dir / norm_dest
 
         # If source is not already at target, copy bytes
@@ -272,7 +280,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
         if not src.exists():
             raise StorageUploadError(f"Source file does not exist: {local_path}")
 
-        norm_dest = destination_path.replace("\\", "/").lstrip("/")
+        norm_dest = _normalize_object_path(destination_path)
         url = f"{self.supabase_url}/storage/v1/object/{bucket}/{norm_dest}"
         headers = self._headers.copy()
         headers["Content-Type"] = content_type or "application/octet-stream"
@@ -305,7 +313,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
         object_path: str,
         target_path: Optional[Union[str, Path]] = None,
     ) -> Path:
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         dest = Path(target_path) if target_path else (self.cache_dir / bucket / norm_path)
         dest.parent.mkdir(parents=True, exist_ok=True)
 
@@ -314,7 +322,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
         return dest
 
     def read_bytes(self, bucket: str, object_path: str) -> bytes:
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         # Authenticated object retrieval
         url = f"{self.supabase_url}/storage/v1/object/authenticated/{bucket}/{norm_path}"
         try:
@@ -334,7 +342,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
         )
 
     def exists(self, bucket: str, object_path: str) -> bool:
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         url = f"{self.supabase_url}/storage/v1/object/authenticated/{bucket}/{norm_path}"
         try:
             with httpx.Client(timeout=self.timeout) as client:
@@ -345,7 +353,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
             return False
 
     def delete_file(self, bucket: str, object_path: str) -> bool:
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         url = f"{self.supabase_url}/storage/v1/object/{bucket}/{norm_path}"
         try:
             with httpx.Client(timeout=self.timeout) as client:
@@ -357,7 +365,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
 
     def get_local_path(self, bucket: str, object_path: str) -> Optional[Path]:
         """Check if artifact is already cached locally or on disk."""
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         
         # 1. Check local outputs directory
         local_cand = OUTPUTS_DIR / norm_path
@@ -372,7 +380,7 @@ class SupabaseStorageBackend(BaseStorageBackend):
         return None
 
     def get_signed_url(self, bucket: str, object_path: str, expires_in: int = 3600) -> Optional[str]:
-        norm_path = object_path.replace("\\", "/").lstrip("/")
+        norm_path = _normalize_object_path(object_path)
         url = f"{self.supabase_url}/storage/v1/object/sign/{bucket}/{norm_path}"
         headers = self._headers.copy()
         headers["Content-Type"] = "application/json"
@@ -393,6 +401,41 @@ class SupabaseStorageBackend(BaseStorageBackend):
             return None
 
         return None
+
+    def ensure_private_buckets(self, buckets: tuple[str, ...] = (BUCKET_RASTERS, BUCKET_MAPS, BUCKET_REPORTS)) -> dict[str, str]:
+        """Ensure required Supabase Storage buckets exist as private (non-public) buckets."""
+        statuses: dict[str, str] = {}
+        headers = {**self._headers, "Content-Type": "application/json"}
+        create_url = f"{self.supabase_url}/storage/v1/bucket"
+
+        with httpx.Client(timeout=self.timeout) as client:
+            for bucket in buckets:
+                if bucket not in VALID_BUCKETS:
+                    raise StorageConfigurationError(f"Unsupported storage bucket name: '{bucket}'")
+                get_res = client.get(f"{create_url}/{bucket}", headers=self._headers)
+                if get_res.status_code == 200:
+                    data = get_res.json()
+                    if data.get("public"):
+                        client.put(f"{create_url}/{bucket}", headers=headers, json={"id": bucket, "name": bucket, "public": False})
+                        statuses[bucket] = "updated_to_private"
+                    else:
+                        statuses[bucket] = "exists_private"
+                    continue
+
+                create_res = client.post(
+                    create_url,
+                    headers=headers,
+                    json={"id": bucket, "name": bucket, "public": False},
+                )
+                if create_res.status_code in (200, 201):
+                    statuses[bucket] = "created_private"
+                elif create_res.status_code == 409:
+                    statuses[bucket] = "exists_private"
+                else:
+                    raise StorageError(
+                        f"Failed to provision private Supabase bucket '{bucket}' ({create_res.status_code}): {create_res.text[:200]}"
+                    )
+        return statuses
 
 
 def get_storage_backend(force_backend: Optional[str] = None) -> BaseStorageBackend:

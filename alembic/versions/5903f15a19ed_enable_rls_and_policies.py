@@ -19,26 +19,58 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema to enable PostGIS-compatible Row-Level Security (RLS)."""
-    # 1. Create auth schema and helper functions
-    op.execute("CREATE SCHEMA IF NOT EXISTS auth;")
+    """Upgrade schema to enable PostGIS-compatible Row-Level Security (RLS).
 
+    Safely compatible with both standard/local PostgreSQL (creating auth helpers
+    when absent) and Supabase-managed PostgreSQL (preserving existing Supabase
+    auth schema/functions owned by supabase_auth_admin and granting extensions
+    schema usage for PostGIS).
+    """
+    # 1. Create auth schema and helper functions only when not already provisioned (e.g. local/Azure)
     op.execute("""
-    CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid AS $func$
-      SELECT coalesce(
-        nullif(current_setting('request.jwt.claim.sub', true), ''),
-        (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
-      )::uuid;
-    $func$ LANGUAGE sql STABLE;
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth') THEN
+        CREATE SCHEMA auth;
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
     """)
 
     op.execute("""
-    CREATE OR REPLACE FUNCTION auth.role() RETURNS text AS $func$
-      SELECT coalesce(
-        nullif(current_setting('request.jwt.claim.role', true), ''),
-        (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
-      )::text;
-    $func$ LANGUAGE sql STABLE;
+    DO $$
+    BEGIN
+      IF to_regprocedure('auth.uid()') IS NULL THEN
+        CREATE FUNCTION auth.uid() RETURNS uuid AS $func$
+          SELECT coalesce(
+            nullif(current_setting('request.jwt.claim.sub', true), ''),
+            (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+          )::uuid;
+        $func$ LANGUAGE sql STABLE;
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
+    """)
+
+    op.execute("""
+    DO $$
+    BEGIN
+      IF to_regprocedure('auth.role()') IS NULL THEN
+        CREATE FUNCTION auth.role() RETURNS text AS $func$
+          SELECT coalesce(
+            nullif(current_setting('request.jwt.claim.role', true), ''),
+            (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+          )::text;
+        $func$ LANGUAGE sql STABLE;
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
     """)
 
     # 2. Create non-superuser application role dharascope_app for RLS enforcement
@@ -50,9 +82,32 @@ def upgrade() -> None:
       ELSE
         ALTER ROLE dharascope_app WITH NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
       END IF;
+      -- Ensure connecting role can execute SET LOCAL ROLE dharascope_app even without SUPERUSER
+      BEGIN
+        EXECUTE format('GRANT dharascope_app TO %I', current_user);
+      EXCEPTION WHEN insufficient_privilege OR duplicate_object THEN
+        NULL;
+      END;
     END
     $$;
-    GRANT USAGE ON SCHEMA public, auth TO dharascope_app;
+
+    GRANT USAGE ON SCHEMA public TO dharascope_app;
+    DO $$
+    BEGIN
+      GRANT USAGE ON SCHEMA auth TO dharascope_app;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'extensions') THEN
+        GRANT USAGE ON SCHEMA extensions TO dharascope_app;
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO dharascope_app;
     GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO dharascope_app;
     ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO dharascope_app;
@@ -242,5 +297,27 @@ def downgrade() -> None:
         op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;")
         op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;")
 
-    op.execute("DROP FUNCTION IF EXISTS auth.uid();")
-    op.execute("DROP FUNCTION IF EXISTS auth.role();")
+    op.execute("""
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        JOIN pg_roles r ON r.oid = p.proowner
+        WHERE n.nspname = 'auth' AND p.proname = 'uid' AND r.rolname = current_user
+      ) THEN
+        DROP FUNCTION auth.uid();
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        JOIN pg_roles r ON r.oid = p.proowner
+        WHERE n.nspname = 'auth' AND p.proname = 'role' AND r.rolname = current_user
+      ) THEN
+        DROP FUNCTION auth.role();
+      END IF;
+    EXCEPTION WHEN insufficient_privilege THEN
+      NULL;
+    END
+    $$;
+    """)

@@ -263,11 +263,11 @@ streamlit run app.py
 ## 7. Verification & Automated Quality Assurance
 
 ### Automated Pytest Suite (Backend)
-Run the 17 test modules covering API contracts, spatial queries, RLS policies, NDWI accuracy, Azure Flexible Server configuration, and PDF generation:
+Run the 18 test modules covering API contracts, spatial queries, RLS policies, NDWI accuracy, Supabase/Azure database config, cloud deployment guards, and PDF generation:
 ```bash
 pytest -v
 ```
-*Expected: 202 Passed, 1 Skipped (live CDSE external credential test).*
+*Expected: 211 Passed, 1 Skipped (live Supabase Storage external credential test).*
 
 ### Frontend Vitest & Static Analysis
 ```bash
@@ -280,7 +280,7 @@ npm --prefix frontend run lint
 # Run production build validation
 npm --prefix frontend run build
 ```
-*Expected: 18 Passed across 6 test suites, 0 lint errors, clean build.*
+*Expected: 19 Passed across 6 test suites, 0 lint errors, clean build.*
 
 ### Automated Headless Browser Validation (Playwright)
 Verify the entire end-to-end user journey on live running servers:
@@ -295,6 +295,11 @@ node scripts/validate_real_satellite_browser.mjs
 
 | Document / Asset | Purpose & Contents |
 | :--- | :--- |
+| [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | **Cloud Deployment Guide:** End-to-end production setup on Supabase (Postgres/PostGIS/Auth/Storage) + Render (Docker Web Service & Static Site). |
+| [docs/DEPLOYMENT_AUDIT.md](docs/DEPLOYMENT_AUDIT.md) | **Deployment & Infrastructure Audit:** Technical review of compatibility, CORS, RLS portability, and storage security before deployment. |
+| [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | **Cloud & Deployment Status:** Real-time ledger of completed, pending, and blocked deployment tasks alongside verified test counts. |
+| [render.yaml](render.yaml) | **Render Blueprint:** Declarative multi-service deployment specification for FastAPI Docker backend and React Static Site. |
+| [Dockerfile](Dockerfile) | **Backend Container:** Lightweight `python:3.11-slim-bookworm` container running non-root Uvicorn + Rasterio/GeoAlchemy2. |
 | [artifacts/presentation/DharaScope_Final_Presentation.pptx](file:///d:/Coding/Projects/DharaScope/artifacts/presentation/DharaScope_Final_Presentation.pptx) | **15-Slide Master Deck:** Comprehensive academic presentation with dark geospatial styling and speaker notes. |
 | [docs/PROJECT_REPORT.md](file:///d:/Coding/Projects/DharaScope/docs/PROJECT_REPORT.md) | **Complete Academic Capstone Report:** Problem statement, literature review, requirements, architecture, multi-scale findings, and ethics. |
 | [docs/ARCHITECTURE.md](file:///d:/Coding/Projects/DharaScope/docs/ARCHITECTURE.md) | **System Architecture:** Detailed component interactions, data flows, security boundaries, and Mermaid diagrams. |

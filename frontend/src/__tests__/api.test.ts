@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { api, setAuthToken, getAuthToken, APIError, downloadFile } from '../services/api';
+import { api, setAuthToken, getAuthToken, APIError, downloadFile, resolveApiBaseUrl } from '../services/api';
 
 describe('API Service Layer', () => {
   beforeEach(() => {
@@ -14,6 +14,23 @@ describe('API Service Layer', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('normalizes VITE_API_BASE_URL without hardcoded localhost fallback', () => {
+    expect(resolveApiBaseUrl(undefined)).toBe('/api/v1');
+    expect(resolveApiBaseUrl('')).toBe('/api/v1');
+    expect(resolveApiBaseUrl('dharascope-backend.onrender.com')).toBe(
+      'https://dharascope-backend.onrender.com/api/v1'
+    );
+    expect(resolveApiBaseUrl('https://dharascope-backend.onrender.com')).toBe(
+      'https://dharascope-backend.onrender.com/api/v1'
+    );
+    expect(resolveApiBaseUrl('https://dharascope-backend.onrender.com/')).toBe(
+      'https://dharascope-backend.onrender.com/api/v1'
+    );
+    expect(resolveApiBaseUrl('https://dharascope-backend.onrender.com/api/v1/')).toBe(
+      'https://dharascope-backend.onrender.com/api/v1'
+    );
   });
 
   it('manages token storage and retrieval', () => {

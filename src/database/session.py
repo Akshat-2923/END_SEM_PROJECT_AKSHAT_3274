@@ -1,7 +1,8 @@
 """Database engine and session management.
 
-Provides connection pooling, SSL/TLS negotiation for Azure Database for PostgreSQL
-Flexible Server, transactional session management, and connectivity diagnostics.
+Provides connection pooling, SSL/TLS negotiation for Supabase PostgreSQL
+(Direct & Session Pooler) and Azure Database for PostgreSQL Flexible Server,
+transactional session management, and connectivity diagnostics.
 """
 
 from contextlib import contextmanager
@@ -30,6 +31,7 @@ def get_engine(
     pool_timeout: Optional[int] = None,
     pool_recycle: Optional[int] = None,
     ssl_root_cert: Optional[str] = None,
+    connect_timeout: Optional[int] = None,
 ) -> Engine:
     """Retrieve or initialize a cached SQLAlchemy engine with SSL and connection pooling.
 
@@ -42,12 +44,13 @@ def get_engine(
         pool_timeout: Seconds to wait before timing out connection requests.
         pool_recycle: Seconds after which connections are recycled.
         ssl_root_cert: Optional path to Root CA certificate bundle.
+        connect_timeout: Connection establishment timeout in seconds for PostgreSQL.
 
     Returns:
         SQLAlchemy Engine instance.
     """
     db_config = get_database_config(url=url)
-    db_url_str = str(url or db_config.url)
+    db_url_str = db_config.url
     parsed = parse_database_url(db_url_str)
 
     eff_echo = echo if echo is not None else db_config.echo
@@ -57,8 +60,9 @@ def get_engine(
     eff_max_overflow = max_overflow if max_overflow is not None else db_config.max_overflow
     eff_pool_timeout = pool_timeout if pool_timeout is not None else db_config.pool_timeout
     eff_pool_recycle = pool_recycle if pool_recycle is not None else db_config.pool_recycle
+    eff_connect_timeout = connect_timeout if connect_timeout is not None else db_config.connect_timeout
 
-    cache_key = f"{db_url_str}_{eff_echo}_{eff_ssl_mode}_{eff_pool_size}_{eff_max_overflow}"
+    cache_key = f"{db_url_str}_{eff_echo}_{eff_ssl_mode}_{eff_pool_size}_{eff_max_overflow}_{eff_connect_timeout}"
 
     if cache_key not in _engines:
         connect_args: dict[str, Any] = {}
@@ -71,6 +75,7 @@ def get_engine(
             )
         else:
             if parsed.drivername.startswith("postgresql"):
+                connect_args["connect_timeout"] = eff_connect_timeout
                 if eff_ssl_mode:
                     connect_args["sslmode"] = eff_ssl_mode
                 if eff_ssl_root_cert:
@@ -85,11 +90,23 @@ def get_engine(
                 pool_timeout=eff_pool_timeout,
                 pool_recycle=eff_pool_recycle,
                 pool_pre_ping=True,
+                pool_use_lifo=True,
             )
         setattr(engine, "_connect_args", dict(connect_args))
         _engines[cache_key] = engine
 
     return _engines[cache_key]
+
+
+def dispose_engines() -> None:
+    """Dispose all cached SQLAlchemy engines cleanly during application shutdown."""
+    for engine in list(_engines.values()):
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+    _engines.clear()
+    _session_factories.clear()
 
 
 def get_session_factory(engine: Optional[Engine] = None) -> sessionmaker[Session]:

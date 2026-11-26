@@ -1,5 +1,6 @@
 """FastAPI application factory, middleware configuration, and error handling."""
 
+from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -8,9 +9,29 @@ from fastapi.responses import JSONResponse
 
 from src.aoi_validation import AOIValidationError
 from src.api.routers import analyses, aois, artifacts, auth, health
+from src.config import get_cors_origins, validate_startup_config
+from src.database.config import get_sanitized_database_url
+from src.database.session import dispose_engines
 from src.reporting import ReportingError
 
 logger = logging.getLogger("dhara_scope.api")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application startup validation and clean database engine disposal."""
+    summary = validate_startup_config()
+    logger.info(
+        "DharaScope API initialized (env=%s, storage=%s, db=%s, cors_origins=%s)",
+        summary["environment"],
+        summary["storage_backend"],
+        get_sanitized_database_url(),
+        summary["cors_origins_count"],
+    )
+    try:
+        yield
+    finally:
+        dispose_engines()
 
 
 def create_app() -> FastAPI:
@@ -27,19 +48,13 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
-    # 1. Configure CORS
+    # 1. Configure CORS dynamically from environment (FRONTEND_URL / CORS_ORIGINS)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=get_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

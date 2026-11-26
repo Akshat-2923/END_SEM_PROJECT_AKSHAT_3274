@@ -21,8 +21,26 @@ import type {
   APIErrorResponse,
 } from '../types/api';
 
-const RAW_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-export const API_BASE_URL = RAW_API_BASE.replace(/\/+$/, '');
+export function resolveApiBaseUrl(rawEnvUrl?: string): string {
+  const trimmed = (rawEnvUrl || '').trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    if (import.meta.env.PROD) {
+      console.error(
+        'VITE_API_BASE_URL is not configured for production build; defaulting to relative /api/v1.'
+      );
+    }
+    return '/api/v1';
+  }
+  const withScheme =
+    trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')
+      ? trimmed
+      : trimmed.startsWith('localhost') || trimmed.startsWith('127.0.0.1')
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
+  return withScheme.endsWith('/api/v1') ? withScheme : `${withScheme}/api/v1`;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
 export class APIError extends Error {
   status_code: number;

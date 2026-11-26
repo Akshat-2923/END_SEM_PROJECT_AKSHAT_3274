@@ -1410,6 +1410,32 @@
   - Alembic: migration head confirmed at `5903f15a19ed`.
   - Git status: clean working tree, untracked clutter eliminated, zero secrets leaked.
 
+---
+
+### Task 30: Cloud Deployment & Infrastructure Integration (Supabase + Render + Docker)
+- **Date:** 2026-11-26
+- **Development Stage:** Cloud Deployment Readiness (Phases 1–8)
+- **Task Outcome:** `Completed (Code & Local/ASGI Verification Complete; Local Docker Daemon & Live Cloud Deploy Blocked/Deferred)`
+- **Supplied Prompt (Summary):**
+  ```text
+  # DharaScope — Cloud Deployment & Infrastructure Integration
+  Prepare DharaScope for production deployment using React + Vite on Render Static Site,
+  Python + FastAPI (Docker) on Render Web Service, Supabase PostgreSQL with PostGIS,
+  SQLAlchemy, Alembic, Psycopg, and Supabase Storage.
+  Start with Phase 1 Repository Audit (`docs/DEPLOYMENT_AUDIT.md`), work incrementally
+  across Phases 1–8, author `docs/DEPLOYMENT_GUIDE.md` and update `docs/PROJECT_STATUS.md`.
+  ```
+- **Files Created/Modified:**
+  - Created: `docs/DEPLOYMENT_AUDIT.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/PROJECT_STATUS.md`, `Dockerfile`, `.dockerignore`, `render.yaml`, `frontend/public/_redirects`, `tests/test_cloud_deployment.py`
+  - Modified: `src/database/config.py`, `src/database/session.py`, `src/database/__init__.py`, `alembic/env.py`, `alembic/versions/5903f15a19ed_enable_rls_and_policies.py`, `src/config.py`, `src/api/app.py`, `src/api/routers/health.py`, `server.py`, `.env.example`, `src/storage.py`, `src/reporting.py`, `src/services/analysis_service.py`, `frontend/src/services/api.ts`, `frontend/.env.example`, `frontend/src/__tests__/api.test.ts`, `PROJECT_STATUS.md`, `DEVELOPMENT_HISTORY.md`, `PROMPT_LOG.md`, `CHANGELOG.md`
+- **Verification:**
+  - Backend Pytest Suite: **211 passed, 1 skipped** (65.37s) across 18 modules.
+  - Frontend Vitest Suite: **19 passed** (5.07s) across 6 test suites.
+  - Frontend Production Build: Succeeded in 696ms with `VITE_API_BASE_URL` pointing to Render URL; zero `localhost:8000` or backend secret hits in `dist/`.
+  - Live Uvicorn Production ASGI Check: Verified `/health`, `/health/db` (`connected=True`, `postgis=True`), fail-fast startup rejection on placeholders, and strict CORS preflight over HTTP on port `8012`.
+  - Alembic Status: `5903f15a19ed (head)` with full upgrade/downgrade test pass on local PostgreSQL 16.15 + PostGIS 3.6.2.
+  - Blocked: Live `docker build` / `docker run` could not run because local Docker Desktop daemon (`com.docker.service`) was stopped on host. Live remote Supabase/Render deployment not executed without explicit user authorization and live credentials.
+
 
 
 

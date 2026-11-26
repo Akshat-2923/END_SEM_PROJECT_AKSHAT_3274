@@ -1,0 +1,80 @@
+# Render Infrastructure-as-Code Blueprint for DharaScope
+# Reference: https://render.com/docs/blueprint-spec
+# Security Notice: Never store real passwords, API keys, or secrets in this file.
+# Variables with `sync: false` are entered securely via the Render Dashboard during provisioning.
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Backend API Service (Python 3.11 + FastAPI + Rasterio via Docker)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: dharascope-backend
+    runtime: docker
+    plan: free # Upgrade to 'starter' for always-on execution without idle spin-down
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PORT
+        value: "8000"
+      # Managed Supabase PostgreSQL + PostGIS Session Pooler URL (IPv4 compatible)
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL_MODE
+        value: require
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "10"
+      - key: DB_POOL_TIMEOUT
+        value: "30"
+      - key: DB_POOL_RECYCLE
+        value: "1800"
+      # Supabase Auth & Object Storage
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_AUDIENCE
+        value: authenticated
+      - key: SUPABASE_STORAGE_ENABLED
+        value: "true"
+      # Deployed Render Static Site origin for strict CORS (e.g. https://dharascope-frontend.onrender.com)
+      - key: FRONTEND_URL
+        sync: false
+      # Optional Copernicus Data Space Ecosystem (CDSE) credentials for authenticated OData downloads
+      - key: CDSE_USERNAME
+        sync: false
+      - key: CDSE_PASSWORD
+        sync: false
+
+  # ----------------------------------------------------------------------------
+  # 2. Frontend Client (React 19 + Vite Static Site)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: dharascope-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Links automatically to backend public external HTTPS URL (resolveApiBaseUrl appends /api/v1)
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: dharascope-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false

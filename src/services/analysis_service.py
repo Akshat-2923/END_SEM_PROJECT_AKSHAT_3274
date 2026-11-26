@@ -110,8 +110,23 @@ def delete_analysis_run(session: Session, user: AuthenticatedUser, run_id: uuid.
             detail="Forbidden: You do not have permission to delete this analysis run",
         )
 
+    artifact_targets = [
+        (art.storage_bucket, art.storage_path)
+        for art in session.scalars(
+            select(AnalysisArtifact).where(AnalysisArtifact.analysis_run_id == run.id)
+        ).all()
+    ]
+
     session.delete(run)
     session.flush()
+
+    if artifact_targets:
+        try:
+            storage = get_storage_backend()
+            for bucket, obj_path in artifact_targets:
+                storage.delete_file(bucket, obj_path)
+        except Exception as err:
+            logger.warning("Best-effort storage cleanup failed for run %s: %s", run_id, err)
 
 
 def get_water_metrics(session: Session, user: AuthenticatedUser, run_id: uuid.UUID) -> WaterMetrics:
@@ -335,6 +350,7 @@ def execute_pipeline_worker(
                 manifest_source=manifest,
                 output_path=pdf_path,
                 include_figures=True,
+                figures_dir=run_artifacts_dir,
             )
 
             # 7. Persist WaterMetrics

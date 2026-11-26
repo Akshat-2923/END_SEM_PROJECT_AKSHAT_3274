@@ -37,6 +37,10 @@ def check_health(session: Session = Depends(get_anonymous_db_session)) -> Health
         session.execute(text("SELECT 1;"))
     except Exception:
         db_status = "disconnected"
+        try:
+            session.rollback()
+        except Exception:
+            pass
 
     env = os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "development"
 

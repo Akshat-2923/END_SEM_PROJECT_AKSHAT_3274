@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-11-26
+### Added & Hardened
+- **Cloud Deployment & Infrastructure Integration (Supabase + Render + Docker):**
+  - **Repository Audit & Deployment Guides:**
+    - Created `docs/DEPLOYMENT_AUDIT.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/PROJECT_STATUS.md`, and `docs/SUPABASE_INTEGRATION_REPORT.md`.
+  - **Supabase PostgreSQL + PostGIS Compatibility:**
+    - Added `postgres://` / `postgresql://` scheme normalization and automatic `sslmode=require` detection for `.supabase.co` / `.pooler.supabase.com` hosts in `src/database/config.py`.
+    - Configured Session Pooler-safe connection pooling (`pool_use_lifo=True`, `connect_timeout`, `dispose_engines()`) in `src/database/session.py` and rollback resilience in `GET /health`.
+    - Fixed `alembic/env.py` `DATABASE_URL` precedence and `.env` loading.
+    - Updated `alembic/versions/5903f15a19ed_enable_rls_and_policies.py` to conditionally preserve Supabase's pre-existing `auth.uid()`/`auth.role()` functions, grant `extensions` schema usage for PostGIS, and grant `dharascope_app` role membership to `current_user`.
+  - **Environment Validation, CORS & Server Safety:**
+    - Added `validate_startup_config()` in `src/config.py` invoked via FastAPI `lifespan` (`src/api/app.py`), failing fast on missing or placeholder variables in `production`.
+    - Configured dynamic `get_cors_origins()` from `FRONTEND_URL` and `CORS_ORIGINS`.
+    - Updated `.env.example`, disabled production `uvicorn reload` in `server.py`, and fixed cross-platform `PROJ_DATA` resolution for Linux Docker containers.
+  - **Docker Backend & Render Infrastructure:**
+    - Created `Dockerfile` (`python:3.11-slim-bookworm`, non-root `appuser`, `0.0.0.0:${PORT:-8000}`, `--proxy-headers`, `/health` check) and `.dockerignore`.
+    - Created `render.yaml` Blueprint configuring `dharascope-backend` (Docker Web Service) and `dharascope-frontend` (Static Site) without secrets.
+  - **Frontend & Storage Hardening:**
+    - Replaced hardcoded `localhost:8000` fallback in `frontend/src/services/api.ts` with `resolveApiBaseUrl()` supporting Render Static Site deployment and added `frontend/public/_redirects` for SPA routing.
+    - Added object-key path traversal validation, `SupabaseStorageBackend.ensure_private_buckets()`, run-deletion storage cleanup, and run-specific PDF figure resolution.
+    - Added 9 cloud deployment backend tests (`tests/test_cloud_deployment.py`) and 1 frontend URL normalization test (`api.test.ts`).
+
+---
+
 ## [1.0.5] - 2026-11-23
 ### Organized & Cleaned
 - **Repository Cleanup and File Organisation:**

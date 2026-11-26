@@ -279,6 +279,7 @@ def generate_pdf_report(
     manifest_source: Union[Dict[str, Any], Path, str, None] = None,
     output_path: Optional[Union[Path, str]] = None,
     include_figures: bool = True,
+    figures_dir: Optional[Union[Path, str]] = None,
 ) -> Path:
     """Generate a publication-ready cartographic PDF feasibility report using ReportLab.
 
@@ -286,6 +287,7 @@ def generate_pdf_report(
         manifest_source: Manifest dict, Path to JSON, or None for default output manifest.
         output_path: Target PDF file path. If None, saves to outputs/reports/.
         include_figures: Whether to embed high-res PNG map figures if available.
+        figures_dir: Optional directory containing run-specific generated figures.
 
     Returns:
         Path to the generated PDF document.
@@ -526,13 +528,23 @@ def generate_pdf_report(
 
     # 5. Embedded Map Figures (if requested and present)
     if include_figures:
-        panel_img_path = ARTIFACTS_DIR / "maps" / "gomti_water_change_comparison_panel.png"
-        if not panel_img_path.exists():
-            panel_img_path = OUTPUTS_DIR / "gomti_water_change_comparison_panel.png"
+        panel_name = "gomti_water_change_comparison_panel.png"
+        change_name = f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
 
-        change_map_path = ARTIFACTS_DIR / "maps" / f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
-        if not change_map_path.exists():
-            change_map_path = OUTPUTS_DIR / f"water_change_{m['t1_date']}_to_{m['t2_date']}.png"
+        run_dir = Path(figures_dir) if figures_dir else None
+        panel_candidates = [
+            *( [run_dir / panel_name] if run_dir else [] ),
+            ARTIFACTS_DIR / "maps" / panel_name,
+            OUTPUTS_DIR / panel_name,
+        ]
+        change_candidates = [
+            *( [run_dir / change_name] if run_dir else [] ),
+            ARTIFACTS_DIR / "maps" / change_name,
+            OUTPUTS_DIR / change_name,
+        ]
+
+        panel_img_path = next((p for p in panel_candidates if p.exists()), panel_candidates[-1])
+        change_map_path = next((p for p in change_candidates if p.exists()), change_candidates[-1])
 
         if panel_img_path.exists():
             story.append(KeepTogether([

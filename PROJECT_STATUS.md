@@ -1,25 +1,22 @@
 # DharaScope: Current Project Status
 ## Real-Time Subsystem Health, Test Coverage, Known Debt & Development Priorities
 
-**Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform  
-**Current Phase:** Repository Maintenance & Evaluation Preparation (Complete)  
-**Last Updated:** 2026-11-23  
-**Overall System Health:** `HEALTHY / OPERATIONAL / REPOSITORY ORGANIZED & EVALUATION READY (v1.0.5)`  
+- **Project:** DharaScope — Satellite-Based River Surface Water Dynamics Platform
+- **Current Phase:** End-to-End Production Deployment Orchestration (Local Readiness Verified; Awaiting Dedicated Supabase MCP Re-Binding & Render Authorization)
+- **Last Updated:** 2026-11-26
+- **Overall System Health:** `DOCKER & LOCAL STACK VERIFIED / READY FOR DEDICATED CLOUD ROLLOUT (v1.1.0)`
 
 ---
 
 ## 1. Executive Summary
 
-DharaScope has completed full **Repository Cleanup and File Organisation** in preparation for final academic practical evaluation. The repository architecture has been streamlined into clearly separated top-level domains: source code (`src/`), frontend application (`frontend/`), automated tests (`tests/`), database migrations (`alembic/`), documentation (`docs/`), maintenance scripts (`scripts/`), local datasets (`data/`), and permanent demonstration outputs and artifacts (`artifacts/`).
+DharaScope has completed **Cloud Deployment & Infrastructure Integration**, **Post-Implementation Verification**, and pre-deployment orchestration checks. See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), [docs/SUPABASE_INTEGRATION_REPORT.md](docs/SUPABASE_INTEGRATION_REPORT.md), and [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for the live classification matrix and rollout steps.
 
-Key accomplishments in this phase:
-1. **Permanent Artifacts Hierarchy:** Established `artifacts/` subdirectories (`artifacts/presentation/`, `artifacts/maps/`, `artifacts/reports/`, `artifacts/metadata/`, `artifacts/validation_phase2_4/`) housing the 15-slide PowerPoint defense presentation, cartographic multi-temporal map panels, verified feasibility reports, and Phase 2.4 genuine satellite validation evidence. All assets migrated via `git mv` to preserve commit history.
-2. **Scratch Outputs Containment & Disk Reclamation:** Re-designated `outputs/` strictly for ephemeral scratch files. Safely purged 164 temporary UUID test run directories (`outputs/*-*-*-*-*`), reclaiming **2,406.32 MB (~2.4 GB)** of disk space. Purged untracked root `.coverage` SQLite file.
-3. **Automated Continuous Integration (CI):** Authored `.github/workflows/ci.yml` providing automated pull-request and push validation across both Python 3.11 backend (pytest suite with coverage) and Node.js 20 frontend (Vitest tests + Vite production build).
-4. **Resilient Path Resolution:** Enhanced `src/config.py`, `src/storage.py`, `src/reporting.py`, `src/scene_selection.py`, and `app.py` to transparently resolve reports, metadata, and cartographic figures from `artifacts/` with automatic fallback to `outputs/`.
-5. **Git Exclusions Hardened:** Updated `.gitignore` with `outputs/*` and `!outputs/.gitkeep`, permanently preventing runtime scratch directories and temporary test outputs from dirtying version control.
-6. **Documentation & Script Harmonization:** Updated `README.md` with complete directory layout reference, corrected ASGI server command (`uvicorn server:app --host 127.0.0.1 --port 8000 --reload`), and database migration command (`alembic upgrade head`). Synchronized all script targets and markdown documentation links.
-7. **Comprehensive Verification:** 202 backend tests passed (1 skipped live test), 18 frontend tests passed (220 total passing tests), 0 frontend build errors, 0 linter errors, Alembic at migration head `5903f15a19ed`.
+Key verification results in this pass:
+1. **Supabase Integration & Shared-Project Protection:** Verified `yvfeiedyuvdzkoxuycpe` (`PostgreSQL 17.11`, `ap-southeast-2`, `postgis 3.3.7`) earlier; halted Alembic `public` DDL before modifying pre-existing social tables (`public.profiles` 8 rows, `public.posts` 12 rows). Current `supabase_mcp` session still points only to `yvfeiedyuvdzkoxuycpe`, so Phase 1 migrations on the new dedicated Supabase project await MCP re-binding (preserving `yvfeiedyuvdzkoxuycpe` untouched).
+2. **GitHub & Secret Hygiene Audit:** Inspected `main`, verified zero tracked `.env`/secrets/credentials across all 30 modified/untracked files, and prepared deployment assets cleanly (push held pending explicit confirmation).
+3. **Database-Driver & Render Blueprint Integration:** Verified `psycopg2-binary 2.9.13` + `postgresql+psycopg2` consistency, Direct & Session Pooler URL SSL parsing (`sslmode=require`), [render.yaml](render.yaml) (`envVarKey: RENDER_EXTERNAL_URL`), [Dockerfile](Dockerfile), and [frontend/public/_redirects](frontend/public/_redirects). Confirmed no Render MCP/CLI/API integration is connected; manual Dashboard Blueprint steps documented.
+4. **Regression Suites:** Executed full backend pytest suite, frontend Vitest suite, Oxlint static check, and Vite production build after final documentation updates.
 
 ---
 
@@ -108,22 +105,29 @@ Key accomplishments in this phase:
   - Configured explicit origins for browser credentialed requests in `src/api/app.py`.
   - Hardened item datetime, cloud cover, and discovery stage metadata parsing in `src/services/analysis_service.py` and `src/reporting.py`.
 
-### 2.4 Pending Subsystems (Scheduled for Phase 3 / Production Hardening)
-- [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
-- [ ] **Durable Task Queue Migration:** Celery/Redis worker migration for distributed background jobs across server restarts.
-
-### 2.5 Blocked Subsystems
-- **None.** All prerequisites for Phase 2.4 are fully satisfied and validated.
+### 2.4 Live Supabase Verification, Pending & Blocked Subsystems
+- **Verified Against Live Supabase (`yvfeiedyuvdzkoxuycpe`, `ap-southeast-2`):**
+  - [x] Inspected `PostgreSQL 17.11` (`ACTIVE_HEALTHY`), verified legacy `anon` + publishable keys present, enabled `postgis 3.3.7` in `extensions`, verified unqualified `ST_IsValid`/`ST_Area`, and created private Storage buckets (`rasters`, `maps`, `reports`, `public = false`) leaving pre-existing `posts` (`public = true`) untouched.
+- **Verified Locally:**
+  - [x] Docker Desktop image build (`dharascope-backend:verify`, `875MB`), non-root container startup (`appuser`), `PROJ_DATA`/geospatial imports, `/health`, `/health/db`, CORS, in-container `alembic current`, and `yvfeiedyuvdzkoxuycpe` Direct/Session Pooler `get_engine()` + `sslmode=require` wiring.
+- **Pending Render Configuration:**
+  - [ ] **Live Render Provisioning (No Render MCP/CLI Connected):** Connect GitHub repository in Render Dashboard (**Blueprints $\to$ New Blueprint Instance** using `render.yaml`), populate `sync: false` secrets and `FRONTEND_URL`, update Supabase Auth Redirect URLs, and verify live cross-origin endpoints.
+  - [ ] **Empirical Performance Benchmarks (`benchmarks/`):** Load testing API latency ($< 500\text{ ms}$), PDF compilation ($< 10\text{ s}$), and worker memory footprint on $25\text{ km}^2$ AOIs ($< 2\text{ GB RAM}$).
+  - [ ] **Durable Task Queue Migration:** Celery/Redis worker migration for distributed background jobs across server restarts.
+- **Blocked by Credentials or Permissions:**
+  - **Dedicated Supabase MCP Re-Binding:** Shared project `yvfeiedyuvdzkoxuycpe` was halted before `public` DDL and must remain untouched. Active `supabase_mcp` still lists only `yvfeiedyuvdzkoxuycpe`; re-point MCP to the new dedicated project ref (or supply its Session Pooler `DATABASE_URL` + keys) before applying Alembic migrations and provisioning private Storage buckets/policies.
+  - **Direct Python DB & Storage `storage.objects` Policies:** Local host lacks remote `DATABASE_URL` password/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_JWT_SECRET`, and `storage.objects` is owned by `supabase_storage_admin` (client `SELECT` policies must be applied via Supabase Dashboard UI or `supabase_storage_admin`).
 
 ---
 
 ## 3. Automated Test Suite Metrics & Audit Categorization
 
-- **Total Automated Tests:** 220 passing tests (202 backend pytest tests + 18 frontend Vitest tests, 1 skipped live integration test)
-- **Pass Rate:** 202/202 executed backend tests passed (1 live CDSE test skipped), 18/18 frontend tests passed (220 total passing tests, zero regressions)
-- **Code Coverage (`pytest-cov` across `src/`):** **83.0%+ statement coverage** across `src/`. Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%), `database/config` (100%), `database/session` (96%).
-- **Backend Test Modules (17 modules, 202 passed, 1 skipped):**
-  1. `tests/test_azure_database_config.py`: 17 passed (safe make_url parsing, password redaction, DB_SSL_MODE environment overrides, query parameter fallback, test mode isolation, SSL connect_args injection for PostgreSQL, SQLite omission, connection pooling, check_database_connectivity diagnostics, connection failure credential masking, mock engine diagnostics, /health/db, /api/v1/health/db, and standard /health backward compatibility).
+- **Total Automated Tests:** 230 passing tests (**211 backend pytest tests** + **19 frontend Vitest tests**, 1 skipped live integration test)
+- **Pass Rate:** 211/211 executed backend tests passed (1 live external test skipped), 19/19 frontend tests passed (zero regressions)
+- **Code Coverage (`pytest-cov` across `src/`):** **83.0%+ baseline statement coverage** prior to cloud additions. Core modules: `visualization` (99%), `reporting` (94%), `change_detection` (95%), `water_indices` (91%), `role_sync_service` (90%), `database/models` (100%), `database/config` (100%), `database/session` (96%).
+- **Backend Test Modules (18 modules, 211 passed, 1 skipped):**
+  1. `tests/test_cloud_deployment.py`: 9 passed (Supabase `postgres://`/`postgresql://` normalization, cloud host auto-SSL detection, strict production startup validation, dynamic CORS origin allowlist & rejection, `/health` DB failure graceful degradation, storage path traversal rejection, private bucket provisioning helper, Docker/Render/`_redirects`/`.env.example` integrity).
+  2. `tests/test_azure_database_config.py`: 17 passed (safe make_url parsing, password redaction, DB_SSL_MODE environment overrides, query parameter fallback, test mode isolation, SSL connect_args injection for PostgreSQL, SQLite omission, connection pooling, check_database_connectivity diagnostics, connection failure credential masking, mock engine diagnostics, /health/db, /api/v1/health/db, and standard /health backward compatibility).
   2. `tests/test_frontend_integration.py`: 8 passed (complete user journey: health, auth, AOI validate/persist, analysis run, metrics, artifacts, PDF/CSV downloads, tenant isolation, synthetic provenance enforcement, expired/unauthorized token handling).
   3. `tests/test_admin_role_sync.py`: 27 passed (promotion, revocation, invalid roles, Supabase 404 user not found, 500/timeout failure rollbacks, database persistence, quota-only skip IdP, 403 non-admin rejection, 401 unauthenticated, production fail-closed, compensating rollback on commit failure, desynchronized reconciliation, unreachable Supabase error handling, reconciliation idempotency, anti-privilege escalation, lost ACK reconciliation to new_role, commit definitely fails compensation, DB unavailable during verification, Supabase unavailable during reconciliation).
   4. `tests/test_role_journal_durability.py`: 6 passed (missing file/directory auto-creation, 20-thread concurrent writes, process restart disk recovery, corrupted/truncated JSONL line resilience, disk write failure fallback to in-memory state, unreconciled entry lifecycle filtering).
@@ -140,9 +144,9 @@ Key accomplishments in this phase:
   14. `tests/test_reporting.py`: 7 passed (metrics extraction, CSV report generation, PDF report generation, synthetic badges).
   15. `tests/test_stac_client.py`: 3 passed (bbox validation, item metadata extraction, HTTP error backoff).
   16. `tests/test_water_indices.py`: 4 passed (NDWI formula, zero-denominator protection, water classification, shape mismatch error).
-- **Frontend Test Suites (6 suites, 18 passed in Vitest):**
+- **Frontend Test Suites (6 suites, 19 passed in Vitest):**
   1. `src/__tests__/jwt_security.test.ts`: 2 passed (Web Crypto dev token generation in DEV mode, strict rejection in PROD mode).
-  2. `src/__tests__/api.test.ts`: 5 passed (Bearer injection, 400 error, 401 error, blob download).
+  2. `src/__tests__/api.test.ts`: 6 passed (VITE_API_BASE_URL normalization without localhost fallback, Bearer injection, 400 error, 401 error, blob download).
   3. `src/__tests__/MetricsDisplay.test.tsx`: 4 passed (KPI cards, 4-class transitions, limitation statement, synthetic benchmark alert banner).
   4. `src/__tests__/ReportActions.test.tsx`: 3 passed (PDF/CSV download dispatch and notifications).
   5. `src/__tests__/AuthModal.test.tsx`: 2 passed (Dev session options, token mode tab switching).
@@ -181,14 +185,11 @@ Key accomplishments in this phase:
 5. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
 6. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
 7. **RoleSyncJournal Multi-Process Isolation (Phase 2.2D.2 Audit):** `RoleSyncJournal` persists to an append-only JSONL file with `os.fsync()` durability. In multi-process ASGI configurations (e.g. multiple Gunicorn workers), in-memory states are process-isolated and do not observe peer workers' updates in real time until reload. **Recommendation for production:** Migrate the journal to a dedicated PostgreSQL audit table (`role_sync_audit_log`) accessed via an independent non-rolled-back connection.
-4. **CDSE Keycloak Session Lifespans:** CDSE bearer tokens expire within 10 to 60 minutes. The downloader handles re-authentication, but unauthenticated public COG retrieval remains the most reliable zero-maintenance route.
-5. **Pending Benchmarks:** The proposed $25\text{ km}^2$ memory footprint ceiling ($< 2\text{ GB RAM}$) and API latency target ($< 500\text{ ms}$) represent architecture specifications and must not be reported as verified until formal benchmark scripts are executed in Phase 2.3.
-6. **Matplotlib Raster Memory:** Rendering 300 DPI multi-panel figures in `src/visualization.py` allocates ~$300–450\text{ MB}$ of transient memory. Memory is released upon plot close, but worker concurrency should be capped at 2–3 simultaneous runs per container.
 
 ---
 
-## 6. Recommended Next Priorities (Phase 2.3)
+## 6. Recommended Next Priorities (Cloud Operations)
 
-1. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
-2. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.
-3. **Modern Web Frontend Migration / SPA Client:** Client-side React / Next.js web application consuming the FastAPI REST endpoints.
+1. **Re-Point Supabase MCP & Roll Out to Render:** Reconnect `supabase_mcp` to the dedicated empty DharaScope project (never touching `yvfeiedyuvdzkoxuycpe`), enable `postgis`, run `alembic upgrade head`, create private `rasters`/`maps`/`reports` buckets + Dashboard policies, push `main` after confirmation, and deploy `render.yaml` in Render Dashboard.
+2. **Empirical Benchmarking Suite:** Implement `benchmarks/benchmark_pipeline.py` to measure peak memory, CPU time, and latency on a standardized $25\text{ km}^2$ AOI.
+3. **Durable Task Queue Evaluation:** Evaluate migrating from FastAPI `BackgroundTasks` to a durable task broker (Celery / ARQ / Redis) for distributed multi-worker deployments.

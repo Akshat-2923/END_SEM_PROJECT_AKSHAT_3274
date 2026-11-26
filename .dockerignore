@@ -1,0 +1,54 @@
+# Version control & CI
+.git
+.github
+.gitignore
+.dockerignore
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+
+# Virtual environments & Python caches
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov
+
+# Frontend application (deployed separately as Render Static Site)
+frontend
+
+# Runtime scratch data, logs & heavy satellite rasters
+data/raw
+data/cache
+outputs
+logs
+*.SAFE
+*.zip
+*.jp2
+*.tif
+*.tiff
+*.nc
+
+# Academic deliverables, test suites & scripts not needed in container runtime
+docs
+scripts
+tests
+app.py
+main.py
+*.md
+artifacts/presentation
+artifacts/validation_phase2_4
+*.pptx

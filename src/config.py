@@ -1,16 +1,37 @@
-"""Configuration module for DharaScope Phase 1."""
+"""Configuration module for DharaScope."""
 
+import logging
 import os
 import sys
+import sysconfig
 from pathlib import Path
+from typing import Dict, List, Optional
+from urllib.parse import urlsplit
+
 from dotenv import load_dotenv
 
-# Ensure rasterio uses its bundled PROJ database to prevent system conflicts (e.g. PostGIS on Windows)
-_proj_dir = Path(sys.prefix) / "Lib" / "site-packages" / "rasterio" / "proj_data"
-if _proj_dir.exists():
-    os.environ["PROJ_DATA"] = str(_proj_dir)
-    os.environ["PROJ_LIB"] = str(_proj_dir)
+logger = logging.getLogger("dhara_scope.config")
 
+
+def _configure_rasterio_proj() -> None:
+    """Ensure rasterio uses its bundled PROJ database across Windows and Linux containers."""
+    candidates = [
+        Path(sys.prefix) / "Lib" / "site-packages" / "rasterio" / "proj_data",
+    ]
+    purelib = sysconfig.get_paths().get("purelib")
+    platlib = sysconfig.get_paths().get("platlib")
+    for lib_dir in (platlib, purelib):
+        if lib_dir:
+            candidates.append(Path(lib_dir) / "rasterio" / "proj_data")
+
+    for proj_dir in candidates:
+        if proj_dir.exists():
+            os.environ["PROJ_DATA"] = str(proj_dir)
+            os.environ["PROJ_LIB"] = str(proj_dir)
+            break
+
+
+_configure_rasterio_proj()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -94,3 +115,134 @@ SUPABASE_STORAGE_ENABLED = os.getenv("SUPABASE_STORAGE_ENABLED", "false").lower(
 STORAGE_BUCKET_RASTERS = "rasters"
 STORAGE_BUCKET_MAPS = "maps"
 STORAGE_BUCKET_REPORTS = "reports"
+
+_LOCAL_DEV_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+_PLACEHOLDER_MARKERS = (
+    "your-project-ref",
+    "your_supabase_",
+    "your_copernicus_",
+    "your_oauth_",
+    "placeholder",
+)
+
+
+def get_app_environment() -> str:
+    """Return normalized application runtime environment name."""
+    raw = os.getenv("ENVIRONMENT") or os.getenv("DHARASCOPE_ENV") or "development"
+    return raw.strip().lower() or "development"
+
+
+def is_production_env() -> bool:
+    """Return True when running in production environment."""
+    return get_app_environment() in ("production", "prod")
+
+
+def _normalize_origin(raw_origin: str) -> Optional[str]:
+    """Normalize an HTTP origin URL (scheme://host[:port]) without trailing slash."""
+    cleaned = raw_origin.strip()
+    if not cleaned or cleaned == "*":
+        return None
+    parts = urlsplit(cleaned)
+    if parts.scheme and parts.netloc:
+        return f"{parts.scheme}://{parts.netloc}".lower()
+    host = cleaned.rstrip("/")
+    scheme = "http" if host.startswith(("localhost", "127.0.0.1")) else "https"
+    return f"{scheme}://{host}".lower()
+
+
+def get_cors_origins() -> List[str]:
+    """Compute allowed CORS origins from FRONTEND_URL, CORS_ORIGINS, and environment mode."""
+    origins: List[str] = []
+
+    def _add(origin: Optional[str]) -> None:
+        if origin and origin not in origins:
+            origins.append(origin)
+
+    if not is_production_env():
+        for dev_origin in _LOCAL_DEV_CORS_ORIGINS:
+            _add(dev_origin)
+
+    frontend_url = os.getenv("FRONTEND_URL", "")
+    if frontend_url:
+        _add(_normalize_origin(frontend_url))
+
+    extra_origins = os.getenv("CORS_ORIGINS", "")
+    if extra_origins:
+        for item in extra_origins.split(","):
+            _add(_normalize_origin(item))
+
+    return origins
+
+
+def _is_missing_or_placeholder(val: Optional[str]) -> bool:
+    """Check if an environment variable value is empty or an unmodified template placeholder."""
+    if not val or not val.strip():
+        return True
+    lowered = val.strip().lower()
+    return any(marker in lowered for marker in _PLACEHOLDER_MARKERS)
+
+
+def validate_startup_config(strict: Optional[bool] = None) -> Dict[str, str]:
+    """Validate mandatory configuration on application startup.
+
+    In production (`strict=True` or `ENVIRONMENT=production`), raises RuntimeError
+    if mandatory database, Supabase auth, or CORS frontend origin settings are missing.
+    In development/testing, logs clear guidance and allows offline work.
+    """
+    is_prod = strict if strict is not None else is_production_env()
+    env_name = get_app_environment()
+
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    supabase_url = os.getenv("SUPABASE_URL", "").strip()
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    jwt_secret = (os.getenv("SUPABASE_JWT_SECRET") or os.getenv("JWT_SECRET") or "").strip()
+    jwks_url = os.getenv("SUPABASE_JWKS_URL", "").strip()
+    cors_origins = get_cors_origins()
+
+    missing: List[str] = []
+    if is_prod:
+        if _is_missing_or_placeholder(database_url):
+            missing.append("DATABASE_URL")
+        if _is_missing_or_placeholder(supabase_url):
+            missing.append("SUPABASE_URL")
+        if _is_missing_or_placeholder(service_role_key):
+            missing.append("SUPABASE_SERVICE_ROLE_KEY")
+        if _is_missing_or_placeholder(jwt_secret) and _is_missing_or_placeholder(jwks_url):
+            missing.append("SUPABASE_JWT_SECRET (or SUPABASE_JWKS_URL)")
+        if not cors_origins:
+            missing.append("FRONTEND_URL (or CORS_ORIGINS)")
+
+        if missing:
+            raise RuntimeError(
+                "Invalid production startup configuration; missing or placeholder environment variables: "
+                + ", ".join(missing)
+            )
+    else:
+        if not database_url:
+            logger.info("DATABASE_URL not set; defaulting to local PostgreSQL development database.")
+        if not cors_origins:
+            logger.warning("No CORS origins configured.")
+
+    storage_mode = (
+        "supabase"
+        if (
+            os.getenv("SUPABASE_STORAGE_ENABLED", "false").lower() in ("true", "1", "yes")
+            and not _is_missing_or_placeholder(supabase_url)
+            and not _is_missing_or_placeholder(service_role_key)
+        )
+        else "local"
+    )
+
+    return {
+        "environment": env_name,
+        "storage_backend": storage_mode,
+        "cors_origins_count": str(len(cors_origins)),
+    }

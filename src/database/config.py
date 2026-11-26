@@ -1,13 +1,26 @@
 """Database configuration, URL parsing, and connection parameters.
 
-Supports both local development PostgreSQL and cloud deployment via
-Azure Database for PostgreSQL Flexible Server (PostgreSQL 16 + PostGIS 3.6).
+Supports local development PostgreSQL as well as cloud-managed PostgreSQL
+via Supabase (Direct connection & IPv4 Session Pooler) and Azure Database
+for PostgreSQL Flexible Server (PostgreSQL 16 + PostGIS 3.6).
 """
 
 import os
 from dataclasses import dataclass
 from typing import Optional, Union
 from sqlalchemy.engine import URL, make_url
+
+
+CLOUD_POSTGRES_HOST_SUFFIXES = (
+    ".supabase.co",
+    ".supabase.com",
+    ".pooler.supabase.com",
+    ".postgres.database.azure.com",
+    ".database.azure.com",
+    ".render.com",
+    ".neon.tech",
+    ".rds.amazonaws.com",
+)
 
 
 @dataclass(frozen=True)
@@ -21,6 +34,36 @@ class DatabaseConfig:
     max_overflow: int = 10
     pool_timeout: int = 30
     pool_recycle: int = 1800
+    connect_timeout: int = 10
+
+
+def is_cloud_postgres_host(host: Optional[str]) -> bool:
+    """Return True if host is a known cloud-managed PostgreSQL endpoint."""
+    if not host:
+        return False
+    lowered = host.strip().lower()
+    if lowered in ("localhost", "127.0.0.1", "::1"):
+        return False
+    return lowered.endswith(CLOUD_POSTGRES_HOST_SUFFIXES)
+
+
+def normalize_database_url(url_or_str: Union[str, URL]) -> Union[str, URL]:
+    """Normalize PostgreSQL URL schemes for SQLAlchemy 2.x + Psycopg2 compatibility.
+
+    Converts legacy `postgres://` and bare `postgresql://` schemes to
+    `postgresql+psycopg2://` while leaving SQLite and explicit driver URLs intact.
+    """
+    if isinstance(url_or_str, URL):
+        if url_or_str.drivername in ("postgres", "postgresql"):
+            return url_or_str.set(drivername="postgresql+psycopg2")
+        return url_or_str
+
+    raw = url_or_str.strip()
+    if raw.startswith("postgres://"):
+        return "postgresql+psycopg2://" + raw[len("postgres://"):]
+    if raw.startswith("postgresql://"):
+        return "postgresql+psycopg2://" + raw[len("postgresql://"):]
+    return raw
 
 
 def parse_database_url(url_or_str: Union[str, URL]) -> URL:
@@ -32,9 +75,10 @@ def parse_database_url(url_or_str: Union[str, URL]) -> URL:
     Returns:
         SQLAlchemy URL instance.
     """
-    if isinstance(url_or_str, URL):
-        return url_or_str
-    return make_url(url_or_str)
+    normalized = normalize_database_url(url_or_str)
+    if isinstance(normalized, URL):
+        return normalized
+    return make_url(normalized)
 
 
 def get_sanitized_database_url(
@@ -67,18 +111,20 @@ def get_database_url(is_test: bool = False) -> str:
     if is_test:
         test_url = os.getenv("TEST_DATABASE_URL")
         if test_url:
-            return test_url
+            return str(normalize_database_url(test_url))
         # Default isolated local PostgreSQL test database
-        return os.getenv(
+        raw_default = os.getenv(
             "DATABASE_URL",
             "postgresql+psycopg2://postgres@localhost:5432/dharascope_test",
         )
+        return str(normalize_database_url(raw_default))
 
     # Standard application database URL
-    return os.getenv(
+    raw_url = os.getenv(
         "DATABASE_URL",
         "postgresql+psycopg2://postgres@localhost:5432/dharascope",
     )
+    return str(normalize_database_url(raw_url))
 
 
 def get_database_config(
@@ -87,8 +133,8 @@ def get_database_config(
 ) -> DatabaseConfig:
     """Retrieve complete database configuration from environment and URL parameters.
 
-    Supports Azure Database for PostgreSQL Flexible Server TLS/SSL enforcement
-    via DB_SSL_MODE and fine-grained connection pooling.
+    Supports Supabase PostgreSQL (Direct & Session Pooler), Azure Flexible Server
+    TLS/SSL enforcement via DB_SSL_MODE, and fine-grained connection pooling.
 
     Args:
         is_test: If True, inspects test-specific environment parameters.
@@ -97,12 +143,13 @@ def get_database_config(
     Returns:
         Immutable DatabaseConfig instance.
     """
-    raw_url = str(url) if url is not None else get_database_url(is_test=is_test)
+    raw_url = str(normalize_database_url(url)) if url is not None else get_database_url(is_test=is_test)
     parsed_url = parse_database_url(raw_url)
 
     echo = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "yes")
 
-    # SSL configuration: environment variable takes precedence, fallback to URL query
+    # SSL configuration: environment variable takes precedence, fallback to URL query,
+    # then auto-enable 'require' for managed cloud PostgreSQL hosts.
     if is_test:
         ssl_mode = os.getenv("TEST_DB_SSL_MODE") or os.getenv("DB_SSL_MODE")
     else:
@@ -114,6 +161,9 @@ def get_database_config(
     if ssl_mode and not ssl_mode.strip():
         ssl_mode = None
 
+    if not ssl_mode and parsed_url.get_backend_name() == "postgresql" and is_cloud_postgres_host(parsed_url.host):
+        ssl_mode = "require"
+
     ssl_root_cert = os.getenv("DB_SSL_ROOT_CERT")
     if ssl_root_cert and not ssl_root_cert.strip():
         ssl_root_cert = None
@@ -122,6 +172,7 @@ def get_database_config(
     max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "10"))
     pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
     pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+    connect_timeout = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
 
     return DatabaseConfig(
         url=raw_url,
@@ -132,5 +183,6 @@ def get_database_config(
         max_overflow=max_overflow,
         pool_timeout=pool_timeout,
         pool_recycle=pool_recycle,
+        connect_timeout=connect_timeout,
     )
 

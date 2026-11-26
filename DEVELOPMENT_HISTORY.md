@@ -1073,6 +1073,43 @@ Execution of `scientific_audit.py` on the raw GeoTIFF rasters confirmed:
 - **Database Migrations:** Verified `alembic current` at `5903f15a19ed (head)`.
 - **Git Status:** Clean working tree, untracked clutter eliminated, zero secrets leaked.
 
+---
+
+## 26. Milestone 26: Cloud Deployment & Infrastructure Integration (Supabase + Render + Docker)
+
+- **Date:** 2026-11-26
+- **Phase:** Cloud Deployment Preparation (Phases 1–8) & Post-Implementation Verification
+**Scope:** Full deployment audit (`docs/DEPLOYMENT_AUDIT.md`), Supabase Managed PostgreSQL + PostGIS compatibility (`src/database/`, `alembic/`), production environment startup validation and dynamic CORS (`src/config.py`, `src/api/app.py`, `server.py`, `.env.example`), Docker backend packaging (`Dockerfile`, `.dockerignore`), Render Static Site frontend readiness (`frontend/`), object storage hardening (`src/storage.py`, `src/services/analysis_service.py`, `src/reporting.py`), Render Blueprint (`render.yaml`), verification suite (`tests/test_cloud_deployment.py`), and operational deployment runbooks (`docs/DEPLOYMENT_GUIDE.md`, `docs/PROJECT_STATUS.md`).
+
+### 26.1 Audit & Critical Compatibility Fixes
+- **Supabase Managed PostgreSQL RLS Fix (`alembic/versions/5903f15a19ed_enable_rls_and_policies.py`):** Guarded `auth.uid()` and `auth.role()` creation behind `to_regprocedure(...) IS NULL` + `EXCEPTION WHEN insufficient_privilege` so Supabase's `supabase_auth_admin`-owned `auth` schema functions are preserved safely without failing migrations. Added conditional `GRANT USAGE ON SCHEMA extensions TO dharascope_app` for Supabase PostGIS and `GRANT dharascope_app TO <current_user>` so non-superuser `postgres` can execute `SET LOCAL ROLE dharascope_app`. Protected `downgrade()` against dropping external auth functions.
+- **Alembic `DATABASE_URL` Precedence Fix (`alembic/env.py`):** Fixed static `alembic.ini` URL shadowing environment variables and loaded `.env` via `python-dotenv` during CLI migration runs.
+- **Cross-Platform `PROJ_DATA` Discovery (`src/config.py`):** Switched from Windows-only `Lib/site-packages` path construction to `sysconfig.get_paths()` (`purelib`/`platlib`) ensuring identical Rasterio PROJ resolution on Linux Docker containers and Windows hosts.
+
+### 26.2 Implemented Cloud Infrastructure & Security Hardening
+- **Supabase Database Integration (`src/database/config.py`, `src/database/session.py`):**
+  - Added `normalize_database_url()` rewriting `postgres://` and `postgresql://` schemes to `postgresql+psycopg2://`.
+  - Added `is_cloud_postgres_host()` automatically defaulting `sslmode=require` on remote `.supabase.co`, `.pooler.supabase.com`, and `.database.azure.com` hosts while keeping `localhost` non-SSL for local development.
+  - Enabled `connect_timeout`, `pool_pre_ping=True`, `pool_use_lifo=True`, and clean shutdown disposal via `dispose_engines()`.
+  - Added safe `session.rollback()` handling in `GET /health` when DB probes fail.
+- **Startup Validation, CORS & Server Entrypoint (`src/config.py`, `src/api/app.py`, `server.py`):**
+  - Implemented `validate_startup_config()` integrated into FastAPI `lifespan` rejecting missing settings or `.env.example` placeholder strings when `ENVIRONMENT=production`.
+  - Replaced hardcoded localhost CORS origins with dynamic `get_cors_origins()` normalizing `FRONTEND_URL` and `CORS_ORIGINS` (disallowing local origins in production).
+  - Disabled Uvicorn hot reload (`UVICORN_RELOAD=false`) when running in production.
+- **Docker Container & Render Blueprint (`Dockerfile`, `.dockerignore`, `render.yaml`):**
+  - Authored lightweight `python:3.11-slim-bookworm` `Dockerfile` running Uvicorn as non-root `appuser` bound to `0.0.0.0:${PORT:-8000}` with `--proxy-headers` and `/health` healthcheck.
+  - Authored `render.yaml` Blueprint covering `dharascope-backend` (Docker Web Service) and `dharascope-frontend` (Static Site with `dist` output, `VITE_API_BASE_URL`, and `/* -> /index.html` rewrite) with zero embedded secrets.
+- **Frontend & Storage Hardening (`frontend/src/services/api.ts`, `frontend/public/_redirects`, `src/storage.py`, `src/services/analysis_service.py`, `src/reporting.py`):**
+  - Implemented `resolveApiBaseUrl()` removing hardcoded `localhost:8000` fallback from client bundles and normalizing host-only Render URLs cleanly to `https://.../api/v1`.
+  - Added `_normalize_object_path()` traversal prevention, `SupabaseStorageBackend.ensure_private_buckets()`, best-effort storage cleanup on `delete_analysis_run()`, and run-specific `figures_dir` resolution in PDF reporting.
+
+### 26.3 Verification Summary & Known Blockers
+- **Backend Tests:** **211 passed, 1 skipped** in Pytest across all 18 modules (including 9 new tests in `tests/test_cloud_deployment.py`).
+- **Frontend Tests:** **19 passed** across 6 Vitest suites.
+- **Production Bundle Verification:** `vite build` completed in 696ms; scanned `frontend/dist/assets/*.js` confirming zero `localhost:8000` or secret leaks and verified `_redirects` presence.
+- **Live ASGI Startup Verification:** Tested `uvicorn server:app --host 0.0.0.0 --port 8012 --proxy-headers` in `ENVIRONMENT=production` against local PostgreSQL 16.15 + PostGIS 3.6.2 (HTTP 200 on `/health`, `/health/db`, and CORS preflight).
+- **Post-Verification Note:** Local Docker Desktop container build (`875MB`, non-root `appuser`), `/health`, `/health/db`, CORS preflight, and in-container `alembic current` were subsequently verified. Live remote Supabase dedicated-project provisioning and Render Dashboard deployment remain pending MCP re-binding to the dedicated project ref and manual Render authorization.
+
 
 
 
