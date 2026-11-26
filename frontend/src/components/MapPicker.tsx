@@ -14,6 +14,7 @@ import {
   Code,
   Layers,
   Sparkles,
+  Info,
 } from 'lucide-react';
 import type { GeoJSONPolygon, AOIValidateResponse } from '../types/api';
 import { api, APIError } from '../services/api';
@@ -56,17 +57,29 @@ export const MapPicker: React.FC<MapPickerProps> = ({
       attributionControl: false,
     });
 
-    // Dark GIS Basemap (CartoDB Dark Matter) with fallback to OSM
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd',
-    }).addTo(map);
+    // Dark GIS Basemap & Labels (Esri World Dark Gray Canvas, no API key required)
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        maxNativeZoom: 16,
+        attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+      }
+    ).addTo(map);
+
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        maxNativeZoom: 16,
+      }
+    ).addTo(map);
 
     // Custom attribution
     L.control
       .attribution({
         position: 'bottomright',
-        prefix: 'Leaflet · CartoDB · Copernicus Sentinel-2',
+        prefix: 'Leaflet · Copernicus Sentinel-2',
       })
       .addTo(map);
 
@@ -117,8 +130,9 @@ export const MapPicker: React.FC<MapPickerProps> = ({
 
     async function runValidation() {
       if (!isAuthenticated) {
-        setValidationError('Authentication required to validate geometry.');
         setValidationResult(null);
+        setValidationError(null);
+        setIsValidating(false);
         return;
       }
 
@@ -253,6 +267,19 @@ export const MapPicker: React.FC<MapPickerProps> = ({
             <div className="text-xs">
               <div className="font-semibold text-red">AOI Validation Failed</div>
               <div className="text-muted mt-0.5">{validationError}</div>
+              <div className="text-muted-darker mt-1 font-mono">
+                Constraint: Surface area must be between 0.10 km² and 100.00 km², max 500 vertices.
+              </div>
+            </div>
+          </div>
+        ) : !isAuthenticated ? (
+          <div className="validation-status-box alert-info flex-start gap-2">
+            <Info size={18} className="flex-shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <div className="font-semibold">Sign in to validate AOI geometry</div>
+              <div className="text-muted mt-0.5">
+                Authentication is required to verify geometry against PostGIS constraints. Click &ldquo;Connect / Sign In&rdquo; to authenticate and validate.
+              </div>
               <div className="text-muted-darker mt-1 font-mono">
                 Constraint: Surface area must be between 0.10 km² and 100.00 km², max 500 vertices.
               </div>
